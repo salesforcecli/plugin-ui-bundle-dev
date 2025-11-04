@@ -4,7 +4,7 @@ Deploy the web app, its assets and associated metadata
 
 # description
 
-This command builds and deploys your web app and associated metadata to your Salesforce org. It packages all assets, applies configurations, and ensures proper deployment of all components. One Runtime in Agentforce Vibes goes from Code → Metadata/Files. The default "build" option will run the necessary commands to produce the bundle and metadata to deploy the One Runtime App.
+This command builds and deploys your web app and associated metadata to your Salesforce org. It packages all assets, applies configurations, and ensures proper deployment of all components. The default "build" option will run the necessary commands to produce the bundle and metadata to deploy your web app.
 
 # flags.name.summary
 

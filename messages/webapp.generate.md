@@ -4,7 +4,7 @@ Create a web app and associated metadata
 
 # description
 
-Generate a new Salesforce web app with the specified configuration. This command creates the basic structure, metadata, and configuration files needed for a One Runtime App with Agentforce Vibes integration.
+Generate a new Salesforce web app with the specified configuration. This command creates the basic structure, metadata, and configuration files needed for your web application.
 
 # flags.name.summary
 
