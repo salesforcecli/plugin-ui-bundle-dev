@@ -16,9 +16,9 @@
 import { TestContext } from '@salesforce/core/testSetup';
 import { expect } from 'chai';
 import { stubSfCommandUx } from '@salesforce/sf-plugins-core';
-import World from '../../../src/commands/hello/world.js';
+import WebappDeploy from '../../../src/commands/webapp/deploy.js';
 
-describe('hello world', () => {
+describe('webapp deploy', () => {
   const $$ = new TestContext();
   let sfCommandStubs: ReturnType<typeof stubSfCommandUx>;
 
@@ -30,31 +30,27 @@ describe('hello world', () => {
     $$.restore();
   });
 
-  it('runs hello world', async () => {
-    await World.run([]);
+  it('deploys webapp with required name flag', async () => {
+    const result = await WebappDeploy.run(['--name', 'myWebApp']);
+    expect(result.name).to.equal('myWebApp');
+    expect(result.options).to.equal('build');
+    expect(result.success).to.be.true;
+  });
+
+  it('runs with --json and custom options', async () => {
+    const result = await WebappDeploy.run(['--name', 'testApp', '--options', 'value']);
+    expect(result.name).to.equal('testApp');
+    expect(result.options).to.equal('value');
+    expect(result.success).to.be.true;
+  });
+
+  it('outputs deployment messages', async () => {
+    await WebappDeploy.run(['--name', 'myWebApp']);
     const output = sfCommandStubs.log
       .getCalls()
       .flatMap((c) => c.args)
       .join('\n');
-    expect(output).to.include('Hello World');
-  });
-
-  it('runs hello world with --json and no provided name', async () => {
-    const result = await World.run([]);
-    expect(result.name).to.equal('World');
-  });
-
-  it('runs hello world --name Astro', async () => {
-    await World.run(['--name', 'Astro']);
-    const output = sfCommandStubs.log
-      .getCalls()
-      .flatMap((c) => c.args)
-      .join('\n');
-    expect(output).to.include('Hello Astro');
-  });
-
-  it('runs hello world --name Astro --json', async () => {
-    const result = await World.run(['--name', 'Astro', '--json']);
-    expect(result.name).to.equal('Astro');
+    expect(output).to.include('Deploying web app: myWebApp');
+    expect(output).to.include('Successfully deployed myWebApp');
   });
 });

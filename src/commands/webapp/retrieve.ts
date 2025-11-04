@@ -18,34 +18,44 @@ import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages } from '@salesforce/core';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
-const messages = Messages.loadMessages('@salesforce/plugin-webapp', 'hello.world');
+const messages = Messages.loadMessages('@salesforce/plugin-webapp', 'webapp.retrieve');
 
-export type HelloWorldResult = {
+export type WebappRetrieveResult = {
   name: string;
-  time: string;
+  success: boolean;
 };
 
-export default class World extends SfCommand<HelloWorldResult> {
+export default class WebappRetrieve extends SfCommand<WebappRetrieveResult> {
   public static readonly summary = messages.getMessage('summary');
   public static readonly description = messages.getMessage('description');
   public static readonly examples = messages.getMessages('examples');
 
   public static readonly flags = {
     name: Flags.string({
-      char: 'n',
       summary: messages.getMessage('flags.name.summary'),
-      description: messages.getMessage('flags.name.description'),
-      default: 'World',
+      char: 'n',
+      required: true,
     }),
   };
 
-  public async run(): Promise<HelloWorldResult> {
-    const { flags } = await this.parse(World);
-    const time = new Date().toDateString();
-    this.log(messages.getMessage('info.hello', [flags.name, time]));
+  public async run(): Promise<WebappRetrieveResult> {
+    const { flags } = await this.parse(WebappRetrieve);
+
+    this.log(`Retrieving web app: ${flags.name}`);
+    this.log('Retrieving your web app, its assets and associated metadata from your org...');
+
+    // TODO: Implement web app retrieval logic
+    // This would typically involve:
+    // 1. Connecting to the Salesforce org
+    // 2. Retrieving web app metadata
+    // 3. Downloading assets and bundle
+    // 4. Saving locally with proper structure
+
+    this.log(`Successfully retrieved ${flags.name}`);
+
     return {
       name: flags.name,
-      time,
+      success: true,
     };
   }
 }

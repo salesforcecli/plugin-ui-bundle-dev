@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/WebappDevResult",
+  "definitions": {
+    "WebappDevResult": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "port": {
+          "type": "number"
+        },
+        "success": {
+          "type": "boolean"
+        }
+      },
+      "required": ["port", "success"],
+      "additionalProperties": false
+    }
+  }
+}
