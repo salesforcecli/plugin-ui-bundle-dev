@@ -8,14 +8,26 @@
         "name": {
           "type": "string"
         },
+        "target": {
+          "type": "string"
+        },
+        "rootDir": {
+          "type": "string"
+        },
         "port": {
           "type": "number"
+        },
+        "host": {
+          "type": "string"
+        },
+        "noOpen": {
+          "type": "boolean"
         },
         "success": {
           "type": "boolean"
         }
       },
-      "required": ["port", "success"],
+      "required": ["name", "port", "host", "noOpen", "success"],
       "additionalProperties": false
     }
   }

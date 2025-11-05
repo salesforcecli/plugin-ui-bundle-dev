@@ -27,10 +27,34 @@ describe('webapp dev NUTs', () => {
     await session?.clean();
   });
 
-  it('should display provided name', () => {
-    const name = 'World';
-    const command = `webapp dev --name ${name}`;
+  it('should start dev server with name', () => {
+    const command = 'webapp dev --name myWebApp';
     const output = execCmd(command, { ensureExitCode: 0 }).shellOutput.stdout;
-    expect(output).to.contain(name);
+    expect(output).to.contain('myWebApp');
+    expect(output).to.contain('Server running on http://localhost:8080');
+  });
+
+  it('should start dev server with target', () => {
+    const command = 'webapp dev --name myWebApp --target "LightningApp"';
+    const output = execCmd(command, { ensureExitCode: 0 }).shellOutput.stdout;
+    expect(output).to.contain('Using target: LightningApp');
+  });
+
+  it('should start dev server with custom port and host', () => {
+    const command = 'webapp dev --name myWebApp --port 9000 --host 0.0.0.0';
+    const output = execCmd(command, { ensureExitCode: 0 }).shellOutput.stdout;
+    expect(output).to.contain('Server running on http://0.0.0.0:9000');
+  });
+
+  it('should start dev server with root-dir', () => {
+    const command = 'webapp dev --name myWebApp --root-dir ./webapps/myWebApp';
+    const output = execCmd(command, { ensureExitCode: 0 }).shellOutput.stdout;
+    expect(output).to.contain('Root directory: ./webapps/myWebApp');
+  });
+
+  it('should start dev server with no-open flag', () => {
+    const command = 'webapp dev --name myWebApp --no-open';
+    const output = execCmd(command, { ensureExitCode: 0 }).shellOutput.stdout;
+    expect(output).to.not.contain('Opening browser...');
   });
 });
