@@ -38,9 +38,9 @@ describe('webapp deploy', () => {
   });
 
   it('runs with --json and custom options', async () => {
-    const result = await WebappDeploy.run(['--name', 'testApp', '--options', 'value']);
+    const result = await WebappDeploy.run(['--name', 'testApp', '--options', 'validate']);
     expect(result.name).to.equal('testApp');
-    expect(result.options).to.equal('value');
+    expect(result.options).to.equal('validate');
     expect(result.success).to.be.true;
   });
 

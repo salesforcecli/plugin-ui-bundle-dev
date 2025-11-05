@@ -40,7 +40,7 @@ export default class WebappDeploy extends SfCommand<WebappDeployResult> {
     options: Flags.string({
       summary: messages.getMessage('flags.options.summary'),
       char: 'o',
-      options: ['build', 'value'],
+      options: ['build', 'validate'],
       default: 'build',
     }),
   };

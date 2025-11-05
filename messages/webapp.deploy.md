@@ -12,7 +12,7 @@ Name of your web app
 
 # flags.options.summary
 
-Deployment options (build or value)
+Deployment options (build or validate)
 
 # examples
 
