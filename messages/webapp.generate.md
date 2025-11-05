@@ -4,7 +4,7 @@ Create a web app and associated metadata
 
 # description
 
-Generate a new Salesforce web app with the specified configuration. This command creates the basic structure, metadata, and configuration files needed for your web application.
+Create a web app and associated metadata
 
 # flags.name.summary
 
