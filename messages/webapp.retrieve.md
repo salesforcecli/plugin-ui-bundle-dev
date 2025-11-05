@@ -6,6 +6,8 @@ Retrieve the web app, its assets and associated metadata
 
 This command retrieves your web app, its assets, and associated metadata from your Salesforce org to your local environment. Useful for syncing remote changes or setting up a local development environment.
 
+You can create a project-specific `.ignore` file (similar to `.gitignore`) to exclude files from retrieval. For example, add `node_modules` to ignore dependency directories, or `dist/**` to skip build artifacts.
+
 # flags.name.summary
 
 Name of your web app to retrieve
