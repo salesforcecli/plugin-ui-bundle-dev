@@ -4,7 +4,7 @@ Deploy the web app, its assets and associated metadata
 
 # description
 
-This command builds and deploys your web app, its assets, and associated metadata to your Salesforce org. Use the build option to package and deploy, or the validate option to check deployment without making changes.
+This command deploys your web app, its assets, and associated metadata to your Salesforce org. Use the build option to build and deploy, or the validate option to check deployment without making changes.
 
 # flags.name.summary
 
