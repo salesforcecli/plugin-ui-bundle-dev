@@ -1,0 +1,44 @@
+/*
+ * Copyright 2025, Salesforce, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+import { execCmd, TestSession } from '@salesforce/cli-plugins-testkit';
+import { expect } from 'chai';
+
+describe('webapp version create NUTs', () => {
+  let session: TestSession;
+
+  before(async () => {
+    session = await TestSession.create({ devhubAuthStrategy: 'NONE' });
+  });
+
+  after(async () => {
+    await session?.clean();
+  });
+
+  it('should create version for web app', () => {
+    const command = 'webapp version create --name myWebApp --version 1.0.0';
+    const output = execCmd(command, { ensureExitCode: 0 }).shellOutput.stdout;
+    expect(output).to.contain('myWebApp');
+    expect(output).to.contain('1.0.0');
+    expect(output).to.contain('Version created successfully');
+  });
+
+  it('should create version without version flag', () => {
+    const command = 'webapp version create --name myWebApp';
+    const output = execCmd(command, { ensureExitCode: 0 }).shellOutput.stdout;
+    expect(output).to.contain('myWebApp');
+    expect(output).to.contain('Version created successfully');
+  });
+});

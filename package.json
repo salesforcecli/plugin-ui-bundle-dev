@@ -53,7 +53,12 @@
     ],
     "topics": {
       "webapp": {
-        "description": "Work with Salesforce Web Apps"
+        "description": "Work with Salesforce Web Apps",
+        "subtopics": {
+          "version": {
+            "description": "description for webapp.version"
+          }
+        }
       }
     },
     "flexibleTaxonomy": true
