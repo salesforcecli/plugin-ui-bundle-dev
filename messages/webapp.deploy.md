@@ -4,7 +4,7 @@ Deploy the web app, its assets and associated metadata
 
 # description
 
-Build and deploy your web app to your Salesforce org
+Deploy the web app, its assets and associated metadata
 
 # flags.name.summary
 
