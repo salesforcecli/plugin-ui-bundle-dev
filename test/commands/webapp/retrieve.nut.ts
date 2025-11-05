@@ -28,9 +28,31 @@ describe('webapp retrieve NUTs', () => {
   });
 
   it('should display provided name', () => {
-    const name = 'World';
+    const name = 'myWebApp';
     const command = `webapp retrieve --name ${name}`;
     const output = execCmd(command, { ensureExitCode: 0 }).shellOutput.stdout;
     expect(output).to.contain(name);
+  });
+
+  it('should retrieve with no-overwrite flag', () => {
+    const command = 'webapp retrieve --name myWebApp --no-overwrite';
+    const output = execCmd(command, { ensureExitCode: 0 }).shellOutput.stdout;
+    expect(output).to.contain('Overwrite protection enabled');
+    expect(output).to.contain('Successfully retrieved myWebApp');
+  });
+
+  it('should retrieve with ignore pattern', () => {
+    const command = 'webapp retrieve --name myWebApp --ignore "dist/**"';
+    const output = execCmd(command, { ensureExitCode: 0 }).shellOutput.stdout;
+    expect(output).to.contain('Ignoring pattern: dist/**');
+    expect(output).to.contain('Successfully retrieved myWebApp');
+  });
+
+  it('should retrieve with both no-overwrite and ignore', () => {
+    const command = 'webapp retrieve --name myWebApp --no-overwrite --ignore "dist/**"';
+    const output = execCmd(command, { ensureExitCode: 0 }).shellOutput.stdout;
+    expect(output).to.contain('Overwrite protection enabled');
+    expect(output).to.contain('Ignoring pattern: dist/**');
+    expect(output).to.contain('Successfully retrieved myWebApp');
   });
 });

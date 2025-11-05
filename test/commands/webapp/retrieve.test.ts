@@ -33,6 +33,30 @@ describe('webapp retrieve', () => {
   it('retrieves webapp with required name flag', async () => {
     const result = await WebappRetrieve.run(['--name', 'myWebApp']);
     expect(result.name).to.equal('myWebApp');
+    expect(result.noOverwrite).to.be.false;
+    expect(result.ignore).to.be.undefined;
+    expect(result.success).to.be.true;
+  });
+
+  it('retrieves webapp with no-overwrite flag', async () => {
+    const result = await WebappRetrieve.run(['--name', 'myWebApp', '--no-overwrite']);
+    expect(result.name).to.equal('myWebApp');
+    expect(result.noOverwrite).to.be.true;
+    expect(result.success).to.be.true;
+  });
+
+  it('retrieves webapp with ignore pattern', async () => {
+    const result = await WebappRetrieve.run(['--name', 'myWebApp', '--ignore', 'dist/**']);
+    expect(result.name).to.equal('myWebApp');
+    expect(result.ignore).to.equal('dist/**');
+    expect(result.success).to.be.true;
+  });
+
+  it('retrieves webapp with both no-overwrite and ignore flags', async () => {
+    const result = await WebappRetrieve.run(['--name', 'myWebApp', '--no-overwrite', '--ignore', 'dist/**']);
+    expect(result.name).to.equal('myWebApp');
+    expect(result.noOverwrite).to.be.true;
+    expect(result.ignore).to.equal('dist/**');
     expect(result.success).to.be.true;
   });
 
@@ -50,5 +74,23 @@ describe('webapp retrieve', () => {
       .join('\n');
     expect(output).to.include('Retrieving web app: myWebApp');
     expect(output).to.include('Successfully retrieved myWebApp');
+  });
+
+  it('outputs overwrite protection message', async () => {
+    await WebappRetrieve.run(['--name', 'myWebApp', '--no-overwrite']);
+    const output = sfCommandStubs.log
+      .getCalls()
+      .flatMap((c) => c.args)
+      .join('\n');
+    expect(output).to.include('Overwrite protection enabled');
+  });
+
+  it('outputs ignore pattern message', async () => {
+    await WebappRetrieve.run(['--name', 'myWebApp', '--ignore', 'dist/**']);
+    const output = sfCommandStubs.log
+      .getCalls()
+      .flatMap((c) => c.args)
+      .join('\n');
+    expect(output).to.include('Ignoring pattern: dist/**');
   });
 });

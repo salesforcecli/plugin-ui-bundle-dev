@@ -8,11 +8,17 @@
         "name": {
           "type": "string"
         },
+        "noOverwrite": {
+          "type": "boolean"
+        },
+        "ignore": {
+          "type": "string"
+        },
         "success": {
           "type": "boolean"
         }
       },
-      "required": ["name", "success"],
+      "required": ["name", "noOverwrite", "success"],
       "additionalProperties": false
     }
   }

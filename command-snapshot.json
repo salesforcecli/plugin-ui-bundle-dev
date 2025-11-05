@@ -27,8 +27,8 @@
     "alias": [],
     "command": "webapp:retrieve",
     "flagAliases": [],
-    "flagChars": ["n"],
-    "flags": ["flags-dir", "json", "name"],
+    "flagChars": ["i", "n"],
+    "flags": ["flags-dir", "ignore", "json", "name", "no-overwrite"],
     "plugin": "@salesforce/plugin-webapp"
   },
   {

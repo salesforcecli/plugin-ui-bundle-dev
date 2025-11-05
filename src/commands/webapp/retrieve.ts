@@ -22,6 +22,8 @@ const messages = Messages.loadMessages('@salesforce/plugin-webapp', 'webapp.retr
 
 export type WebappRetrieveResult = {
   name: string;
+  noOverwrite: boolean;
+  ignore?: string;
   success: boolean;
 };
 
@@ -36,12 +38,30 @@ export default class WebappRetrieve extends SfCommand<WebappRetrieveResult> {
       char: 'n',
       required: true,
     }),
+    'no-overwrite': Flags.boolean({
+      summary: messages.getMessage('flags.no-overwrite.summary'),
+      default: false,
+    }),
+    ignore: Flags.string({
+      summary: messages.getMessage('flags.ignore.summary'),
+      char: 'i',
+      required: false,
+    }),
   };
 
   public async run(): Promise<WebappRetrieveResult> {
     const { flags } = await this.parse(WebappRetrieve);
 
     this.log(`Retrieving web app: ${flags.name}`);
+
+    if (flags['no-overwrite']) {
+      this.log('Overwrite protection enabled - existing files will not be replaced');
+    }
+
+    if (flags.ignore) {
+      this.log(`Ignoring pattern: ${flags.ignore}`);
+    }
+
     this.log('Retrieving your web app, its assets and associated metadata from your org...');
 
     // TODO: Implement web app retrieval logic
@@ -49,12 +69,16 @@ export default class WebappRetrieve extends SfCommand<WebappRetrieveResult> {
     // 1. Connecting to the Salesforce org
     // 2. Retrieving web app metadata
     // 3. Downloading assets and bundle
-    // 4. Saving locally with proper structure
+    // 4. Applying ignore patterns if specified
+    // 5. Checking for existing files if no-overwrite is set
+    // 6. Saving locally with proper structure
 
     this.log(`Successfully retrieved ${flags.name}`);
 
     return {
       name: flags.name,
+      noOverwrite: flags['no-overwrite'],
+      ignore: flags.ignore,
       success: true,
     };
   }
