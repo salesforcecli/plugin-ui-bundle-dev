@@ -4,7 +4,7 @@ Deploy the web app, its assets and associated metadata
 
 # description
 
-Deploy the web app, its assets and associated metadata
+This command builds and deploys your web app, its assets, and associated metadata to your Salesforce org. Use the build option to package and deploy, or the validate option to check deployment without making changes.
 
 # flags.name.summary
 
@@ -20,6 +20,10 @@ Deployment options (build or validate)
 
   <%= config.bin %> <%= command.id %> --name myWebApp
 
-- Deploy a web app with specific options:
+- Deploy a web app with build option:
 
   <%= config.bin %> <%= command.id %> --name myWebApp --options build
+
+- Validate a web app deployment:
+
+  <%= config.bin %> <%= command.id %> --name myWebApp --options validate
