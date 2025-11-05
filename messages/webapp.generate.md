@@ -4,7 +4,7 @@ Create a web app and associated metadata
 
 # description
 
-Create a web app and associated metadata
+This command creates a new web app with the specified configuration, including the basic structure and metadata files. You can specify a target platform (Site, Embed, or Lightning), use a template for quick setup, or run in interactive wizard mode for guided configuration.
 
 # flags.name.summary
 
