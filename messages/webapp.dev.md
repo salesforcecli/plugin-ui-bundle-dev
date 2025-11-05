@@ -4,7 +4,7 @@ Preview a web app locally without needing to deploy
 
 # description
 
-Starts a local development server for a Web Application defined in CMS, using the local project files. This enables rapid development with hot reloading and immediate feedback. The command resolves the Web Application metadata, reads its configuration (targets, routes, etc.), and derives the default local path if available.
+Starts a local development server for a Web Application, using the local project files. This enables rapid development with hot reloading and immediate feedback.
 
 # flags.name.summary
 
