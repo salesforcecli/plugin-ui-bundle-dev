@@ -8,7 +8,7 @@ Starts a local development server for a Web Application defined in CMS, using th
 
 # flags.name.summary
 
-Identifies the Web Application (CMS MD) to use
+Identifies the Web Application
 
 # flags.target.summary
 
