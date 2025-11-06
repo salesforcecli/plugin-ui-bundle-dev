@@ -36,13 +36,9 @@ EXAMPLES
 
     $ sf webapp deploy --name myWebApp
 
-  Deploy a web app with build option:
+  Deploy a web app with specific options:
 
     $ sf webapp deploy --name myWebApp --options build
-
-  Validate a web app deployment:
-
-    $ sf webapp deploy --name myWebApp --options validate
 ```
 
 ## `sf webapp dev`
@@ -57,7 +53,7 @@ USAGE
 FLAGS
   -n, --name=<value>      (required) Identifies the Web Application
   -p, --port=<value>      [default: 8080] Port for the dev server
-  -r, --root-dir=<value>  Optional override for the local project root of this Web Application
+  -r, --root-dir=<value>  Optional override for the local project root of the given Web Application
   -t, --target=<value>    Selects which Web Application target to use for the preview (e.g., Lightning App, Site)
       --host=<value>      [default: localhost] Host to bind to
       --no-open           Do not automatically open the browser
@@ -116,7 +112,7 @@ GLOBAL FLAGS
   --json               Format output as json.
 
 DESCRIPTION
-  Create a web app and associated metadata
+  Create a web app and associated metadata.
 
   This command creates a new web app with the specified configuration, including the basic structure and metadata
   files.

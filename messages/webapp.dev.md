@@ -16,7 +16,7 @@ Selects which Web Application target to use for the preview (e.g., Lightning App
 
 # flags.root-dir.summary
 
-Optional override for the local project root of this Web Application
+Optional override for the local project root of the given Web Application
 
 # flags.port.summary
 

@@ -1,6 +1,6 @@
 # summary
 
-Create a web app and associated metadata
+Create a web app and associated metadata.
 
 # description
 

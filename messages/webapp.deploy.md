@@ -20,10 +20,6 @@ Deployment options (build or validate)
 
   <%= config.bin %> <%= command.id %> --name myWebApp
 
-- Deploy a web app with build option:
+- Deploy a web app with specific options:
 
   <%= config.bin %> <%= command.id %> --name myWebApp --options build
-
-- Validate a web app deployment:
-
-  <%= config.bin %> <%= command.id %> --name myWebApp --options validate
