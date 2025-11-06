@@ -56,7 +56,7 @@
         "description": "Work with Salesforce Web Apps",
         "subtopics": {
           "version": {
-            "description": "description for webapp.version"
+            "description": "Manage web app versions"
           }
         }
       }
