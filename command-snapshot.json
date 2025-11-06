@@ -30,13 +30,5 @@
     "flagChars": ["i", "n"],
     "flags": ["flags-dir", "ignore", "json", "name", "no-overwrite"],
     "plugin": "@salesforce/plugin-webapp"
-  },
-  {
-    "alias": [],
-    "command": "webapp:version:create",
-    "flagAliases": [],
-    "flagChars": ["n", "v"],
-    "flags": ["flags-dir", "json", "name", "version"],
-    "plugin": "@salesforce/plugin-webapp"
   }
 ]

@@ -53,12 +53,7 @@
     ],
     "topics": {
       "webapp": {
-        "description": "Work with Salesforce Web Apps",
-        "subtopics": {
-          "version": {
-            "description": "Manage web app versions"
-          }
-        }
+        "description": "Work with Salesforce Web Apps"
       }
     },
     "flexibleTaxonomy": true

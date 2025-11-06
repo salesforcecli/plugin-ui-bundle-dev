@@ -6,7 +6,6 @@
 - [`sf webapp dev`](#sf-webapp-dev)
 - [`sf webapp generate`](#sf-webapp-generate)
 - [`sf webapp retrieve`](#sf-webapp-retrieve)
-- [`sf webapp version create`](#sf-webapp-version-create)
 
 ## `sf webapp deploy`
 
@@ -170,38 +169,6 @@ EXAMPLES
   Retrieve with both options:
 
     $ sf webapp retrieve --name "myWebApp" --no-overwrite --ignore "dist/**"
-```
-
-## `sf webapp version create`
-
-Create a version for a web app
-
-```
-USAGE
-  $ sf webapp version create -n <value> [--json] [--flags-dir <value>] [-v <value>]
-
-FLAGS
-  -n, --name=<value>     (required) Name of your web app
-  -v, --version=<value>  Version number (e.g., 1.0.0)
-
-GLOBAL FLAGS
-  --flags-dir=<value>  Import flag values from a directory.
-  --json               Format output as json.
-
-DESCRIPTION
-  Create a version for a web app
-
-  Create a new version for your Salesforce web app. This command generates version metadata and tags the web app with
-  the specified version number.
-
-EXAMPLES
-  Create a version for a web app:
-
-    $ sf webapp version create --name "myWebApp" --version "1.0.0"
-
-  Create a version without specifying version number:
-
-    $ sf webapp version create --name "myWebApp"
 ```
 
 <!-- commandsstop -->
