@@ -11,9 +11,6 @@
         "label": {
           "type": "string"
         },
-        "target": {
-          "type": "string"
-        },
         "template": {
           "type": "string"
         },
@@ -21,7 +18,7 @@
           "type": "boolean"
         }
       },
-      "required": ["name", "label", "target", "template", "wizard"],
+      "required": ["name", "label", "template", "wizard"],
       "additionalProperties": false
     }
   }

@@ -14,10 +14,6 @@ Name of your web app
 
 Human readable name of your web app
 
-# flags.target.summary
-
-Target platform for the web app (Site, Embed, or Lightning)
-
 # flags.template.summary
 
 Template to use for web app generation (pulls from central solution)
@@ -32,9 +28,9 @@ Run in interactive wizard mode
 
   <%= config.bin %> <%= command.id %> --name "myWebApp" --label "My first Web App"
 
-- Create a web app with a specific target:
+- Create a web app with a specific template:
 
-  <%= config.bin %> <%= command.id %> --name "myWebApp" --label "My Web App" --target Site
+  <%= config.bin %> <%= command.id %> --name "myWebApp" --label "My Web App" --template "React app starter"
 
 - Create a web app using the wizard:
 

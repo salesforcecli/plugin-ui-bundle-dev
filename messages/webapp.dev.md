@@ -14,21 +14,9 @@ Identifies the Web Application
 
 Selects which Web Application target to use for the preview (e.g., Lightning App, Site)
 
-# flags.root-dir.summary
-
-Optional override for the local project root of the given Web Application
-
 # flags.port.summary
 
 Port for the dev server
-
-# flags.host.summary
-
-Host to bind to
-
-# flags.no-open.summary
-
-Do not automatically open the browser
 
 # examples
 
@@ -40,14 +28,6 @@ Do not automatically open the browser
 
   <%= config.bin %> <%= command.id %> --name myWebApp --target "LightningApp"
 
-- Start the development server on a custom port and host:
+- Start the development server on a custom port:
 
-  <%= config.bin %> <%= command.id %> --name myWebApp --port 8080 --host 0.0.0.0
-
-- Start the development server with custom root directory:
-
-  <%= config.bin %> <%= command.id %> --name myWebApp --root-dir ./webapps/myWebApp
-
-- Start the development server without opening the browser:
-
-  <%= config.bin %> <%= command.id %> --name myWebApp --no-open
+  <%= config.bin %> <%= command.id %> --name myWebApp --port 8080

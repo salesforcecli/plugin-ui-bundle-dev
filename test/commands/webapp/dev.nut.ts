@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 import { execCmd, TestSession } from '@salesforce/cli-plugins-testkit';
 import { expect } from 'chai';
 
@@ -27,34 +28,28 @@ describe('webapp dev NUTs', () => {
     await session?.clean();
   });
 
-  it('should start dev server with name', () => {
-    const command = 'webapp dev --name myWebApp';
-    const output = execCmd(command, { ensureExitCode: 0 }).shellOutput.stdout;
-    expect(output).to.contain('myWebApp');
-    expect(output).to.contain('Server running on http://localhost:8080');
+  it('should run webapp dev with required flags', () => {
+    const result = execCmd<{ name: string; url: string }>('webapp dev --name myApp --json', { ensureExitCode: 0 })
+      .jsonOutput?.result;
+    expect(result?.name).to.equal('myApp');
+    expect(result?.url).to.equal('http://localhost:5173');
   });
 
-  it('should start dev server with target', () => {
-    const command = 'webapp dev --name myWebApp --target "LightningApp"';
-    const output = execCmd(command, { ensureExitCode: 0 }).shellOutput.stdout;
-    expect(output).to.contain('Using target: LightningApp');
+  it('should run webapp dev with target flag', () => {
+    const result = execCmd<{ name: string; target?: string; url: string }>(
+      'webapp dev --name myApp --target LightningApp --json',
+      { ensureExitCode: 0 }
+    ).jsonOutput?.result;
+    expect(result?.name).to.equal('myApp');
+    expect(result?.target).to.equal('LightningApp');
+    expect(result?.url).to.equal('http://localhost:5173');
   });
 
-  it('should start dev server with custom port and host', () => {
-    const command = 'webapp dev --name myWebApp --port 9000 --host 0.0.0.0';
-    const output = execCmd(command, { ensureExitCode: 0 }).shellOutput.stdout;
-    expect(output).to.contain('Server running on http://0.0.0.0:9000');
-  });
-
-  it('should start dev server with root-dir', () => {
-    const command = 'webapp dev --name myWebApp --root-dir ./webapps/myWebApp';
-    const output = execCmd(command, { ensureExitCode: 0 }).shellOutput.stdout;
-    expect(output).to.contain('Root directory: ./webapps/myWebApp');
-  });
-
-  it('should start dev server with no-open flag', () => {
-    const command = 'webapp dev --name myWebApp --no-open';
-    const output = execCmd(command, { ensureExitCode: 0 }).shellOutput.stdout;
-    expect(output).to.not.contain('Opening browser...');
+  it('should run webapp dev with custom port', () => {
+    const result = execCmd<{ name: string; url: string }>('webapp dev --name myApp --port 8080 --json', {
+      ensureExitCode: 0,
+    }).jsonOutput?.result;
+    expect(result?.name).to.equal('myApp');
+    expect(result?.url).to.equal('http://localhost:8080');
   });
 });

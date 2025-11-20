@@ -11,23 +11,11 @@
         "target": {
           "type": "string"
         },
-        "rootDir": {
+        "url": {
           "type": "string"
-        },
-        "port": {
-          "type": "number"
-        },
-        "host": {
-          "type": "string"
-        },
-        "noOpen": {
-          "type": "boolean"
-        },
-        "success": {
-          "type": "boolean"
         }
       },
-      "required": ["name", "port", "host", "noOpen", "success"],
+      "required": ["name", "url"],
       "additionalProperties": false
     }
   }

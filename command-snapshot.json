@@ -1,34 +1,18 @@
 [
   {
     "alias": [],
-    "command": "webapp:deploy",
-    "flagAliases": [],
-    "flagChars": ["n", "o"],
-    "flags": ["flags-dir", "json", "name", "options"],
-    "plugin": "@salesforce/plugin-webapp"
-  },
-  {
-    "alias": [],
     "command": "webapp:dev",
     "flagAliases": [],
-    "flagChars": ["n", "p", "r", "t"],
-    "flags": ["flags-dir", "host", "json", "name", "no-open", "port", "root-dir", "target"],
+    "flagChars": ["n", "p", "t"],
+    "flags": ["flags-dir", "json", "name", "port", "target"],
     "plugin": "@salesforce/plugin-webapp"
   },
   {
     "alias": [],
     "command": "webapp:generate",
     "flagAliases": [],
-    "flagChars": ["l", "n", "r", "t", "w"],
-    "flags": ["flags-dir", "json", "label", "name", "target", "template", "wizard"],
-    "plugin": "@salesforce/plugin-webapp"
-  },
-  {
-    "alias": [],
-    "command": "webapp:retrieve",
-    "flagAliases": [],
-    "flagChars": ["i", "n"],
-    "flags": ["flags-dir", "ignore", "json", "name", "no-overwrite"],
+    "flagChars": ["l", "n", "t", "w"],
+    "flags": ["flags-dir", "json", "label", "name", "template", "wizard"],
     "plugin": "@salesforce/plugin-webapp"
   }
 ]

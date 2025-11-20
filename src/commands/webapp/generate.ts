@@ -23,7 +23,6 @@ const messages = Messages.loadMessages('@salesforce/plugin-webapp', 'webapp.gene
 export type WebappGenerateResult = {
   name: string;
   label: string;
-  target: string;
   template: string;
   wizard: boolean;
 };
@@ -44,15 +43,9 @@ export default class WebappGenerate extends SfCommand<WebappGenerateResult> {
       char: 'l',
       required: true,
     }),
-    target: Flags.string({
-      summary: messages.getMessage('flags.target.summary'),
-      char: 't',
-      options: ['Site', 'Embed', 'Lightning'],
-      default: 'empty',
-    }),
     template: Flags.string({
       summary: messages.getMessage('flags.template.summary'),
-      char: 'r',
+      char: 't',
       default: 'empty',
     }),
     wizard: Flags.boolean({
@@ -68,7 +61,6 @@ export default class WebappGenerate extends SfCommand<WebappGenerateResult> {
     this.log('Generating your web app, give us a moment...');
     this.log(`Name: ${flags.name}`);
     this.log(`Label: ${flags.label}`);
-    this.log(`Target: ${flags.target}`);
     this.log(`Template: ${flags.template}`);
     this.log(`Wizard mode: ${flags.wizard}`);
 
@@ -84,7 +76,6 @@ export default class WebappGenerate extends SfCommand<WebappGenerateResult> {
     return {
       name: flags.name,
       label: flags.label,
-      target: flags.target ?? 'empty',
       template: flags.template ?? 'empty',
       wizard: flags.wizard,
     };

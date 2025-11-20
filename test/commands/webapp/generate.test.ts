@@ -34,26 +34,22 @@ describe('webapp generate', () => {
     const result = await WebappGenerate.run(['--name', 'myWebApp', '--label', 'My Web App']);
     expect(result.name).to.equal('myWebApp');
     expect(result.label).to.equal('My Web App');
-    expect(result.target).to.equal('empty');
     expect(result.template).to.equal('empty');
     expect(result.wizard).to.be.false;
   });
 
-  it('generates webapp with target and template', async () => {
+  it('generates webapp with template', async () => {
     const result = await WebappGenerate.run([
       '--name',
       'testApp',
       '--label',
       'Test App',
-      '--target',
-      'Site',
       '--template',
-      'default',
+      'React app starter',
     ]);
     expect(result.name).to.equal('testApp');
     expect(result.label).to.equal('Test App');
-    expect(result.target).to.equal('Site');
-    expect(result.template).to.equal('default');
+    expect(result.template).to.equal('React app starter');
   });
 
   it('generates webapp with wizard mode', async () => {

@@ -23,11 +23,7 @@ const messages = Messages.loadMessages('@salesforce/plugin-webapp', 'webapp.dev'
 export type WebappDevResult = {
   name: string;
   target?: string;
-  rootDir?: string;
-  port: number;
-  host: string;
-  noOpen: boolean;
-  success: boolean;
+  url: string;
 };
 
 export default class WebappDev extends SfCommand<WebappDevResult> {
@@ -46,23 +42,10 @@ export default class WebappDev extends SfCommand<WebappDevResult> {
       char: 't',
       required: false,
     }),
-    'root-dir': Flags.string({
-      summary: messages.getMessage('flags.root-dir.summary'),
-      char: 'r',
-      required: false,
-    }),
     port: Flags.integer({
       summary: messages.getMessage('flags.port.summary'),
       char: 'p',
-      default: 8080,
-    }),
-    host: Flags.string({
-      summary: messages.getMessage('flags.host.summary'),
-      default: 'localhost',
-    }),
-    'no-open': Flags.boolean({
-      summary: messages.getMessage('flags.no-open.summary'),
-      default: false,
+      default: 5173,
     }),
   };
 
@@ -70,41 +53,25 @@ export default class WebappDev extends SfCommand<WebappDevResult> {
     const { flags } = await this.parse(WebappDev);
 
     this.log(`Starting development server for web app: ${flags.name}`);
-
     if (flags.target) {
       this.log(`Using target: ${flags.target}`);
-    } else {
-      this.log('Using default target from Web Application configuration');
     }
 
-    if (flags['root-dir']) {
-      this.log(`Root directory: ${flags['root-dir']}`);
-    }
+    const url = `http://localhost:${flags.port}`;
+    this.log(`Server running on ${url}`);
+    this.log('Opening browser...');
 
-    this.log(`Server running on http://${flags.host}:${flags.port}`);
-
-    if (!flags['no-open']) {
-      this.log('Opening browser...');
-    }
-
-    // TODO: Implement local development server logic
+    // TODO: Implement dev server logic
     // This would typically involve:
-    // 1. Resolving the Web Application metadata from CMS
-    // 2. Reading configuration (targets, routes, etc.)
-    // 3. Deriving or using the specified local path
-    // 4. Starting a local development server on specified host:port
-    // 5. Watching for file changes with hot reloading
-    // 6. Opening browser automatically unless --no-open is set
-    // 7. Proxying API calls to Salesforce org if needed
+    // 1. Starting a local development server
+    // 2. Watching for file changes
+    // 3. Hot reloading
+    // 4. Opening browser
 
     return {
       name: flags.name,
       target: flags.target,
-      rootDir: flags['root-dir'],
-      port: flags.port,
-      host: flags.host,
-      noOpen: flags['no-open'],
-      success: true,
+      url,
     };
   }
 }
