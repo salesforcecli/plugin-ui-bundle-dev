@@ -18,34 +18,60 @@ import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages } from '@salesforce/core';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
-const messages = Messages.loadMessages('@salesforce/plugin-webapp', 'hello.world');
+const messages = Messages.loadMessages('@salesforce/plugin-webapp', 'webapp.dev');
 
-export type HelloWorldResult = {
+export type WebappDevResult = {
   name: string;
-  time: string;
+  target?: string;
+  url: string;
 };
 
-export default class World extends SfCommand<HelloWorldResult> {
+export default class WebappDev extends SfCommand<WebappDevResult> {
   public static readonly summary = messages.getMessage('summary');
   public static readonly description = messages.getMessage('description');
   public static readonly examples = messages.getMessages('examples');
 
   public static readonly flags = {
     name: Flags.string({
-      char: 'n',
       summary: messages.getMessage('flags.name.summary'),
-      description: messages.getMessage('flags.name.description'),
-      default: 'World',
+      char: 'n',
+      required: true,
+    }),
+    target: Flags.string({
+      summary: messages.getMessage('flags.target.summary'),
+      char: 't',
+      required: false,
+    }),
+    port: Flags.integer({
+      summary: messages.getMessage('flags.port.summary'),
+      char: 'p',
+      default: 5173,
     }),
   };
 
-  public async run(): Promise<HelloWorldResult> {
-    const { flags } = await this.parse(World);
-    const time = new Date().toDateString();
-    this.log(messages.getMessage('info.hello', [flags.name, time]));
+  public async run(): Promise<WebappDevResult> {
+    const { flags } = await this.parse(WebappDev);
+
+    this.log(`Starting development server for web app: ${flags.name}`);
+    if (flags.target) {
+      this.log(`Using target: ${flags.target}`);
+    }
+
+    const url = `http://localhost:${flags.port}`;
+    this.log(`Server running on ${url}`);
+    this.log('Opening browser...');
+
+    // TODO: Implement dev server logic
+    // This would typically involve:
+    // 1. Starting a local development server
+    // 2. Watching for file changes
+    // 3. Hot reloading
+    // 4. Opening browser
+
     return {
       name: flags.name,
-      time,
+      target: flags.target,
+      url,
     };
   }
 }

@@ -1,18 +1,21 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$ref": "#/definitions/HelloWorldResult",
+  "$ref": "#/definitions/WebappDevResult",
   "definitions": {
-    "HelloWorldResult": {
+    "WebappDevResult": {
       "type": "object",
       "properties": {
         "name": {
           "type": "string"
         },
-        "time": {
+        "target": {
+          "type": "string"
+        },
+        "url": {
           "type": "string"
         }
       },
-      "required": ["name", "time"],
+      "required": ["name", "url"],
       "additionalProperties": false
     }
   }

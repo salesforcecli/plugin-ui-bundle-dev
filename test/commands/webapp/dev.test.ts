@@ -16,9 +16,9 @@
 import { TestContext } from '@salesforce/core/testSetup';
 import { expect } from 'chai';
 import { stubSfCommandUx } from '@salesforce/sf-plugins-core';
-import World from '../../../src/commands/hello/world.js';
+import WebappDev from '../../../src/commands/webapp/dev.js';
 
-describe('hello world', () => {
+describe('webapp dev', () => {
   const $$ = new TestContext();
   let sfCommandStubs: ReturnType<typeof stubSfCommandUx>;
 
@@ -30,31 +30,32 @@ describe('hello world', () => {
     $$.restore();
   });
 
-  it('runs hello world', async () => {
-    await World.run([]);
+  it('runs webapp dev with required flags', async () => {
+    const result = await WebappDev.run(['--name', 'myApp']);
+    expect(result.name).to.equal('myApp');
+    expect(result.url).to.equal('http://localhost:5173');
+  });
+
+  it('runs webapp dev with target flag', async () => {
+    const result = await WebappDev.run(['--name', 'myApp', '--target', 'LightningApp']);
+    expect(result.name).to.equal('myApp');
+    expect(result.target).to.equal('LightningApp');
+    expect(result.url).to.equal('http://localhost:5173');
+  });
+
+  it('runs webapp dev with custom port', async () => {
+    const result = await WebappDev.run(['--name', 'myApp', '--port', '8080']);
+    expect(result.name).to.equal('myApp');
+    expect(result.url).to.equal('http://localhost:8080');
+  });
+
+  it('outputs dev server messages', async () => {
+    await WebappDev.run(['--name', 'myApp']);
     const output = sfCommandStubs.log
       .getCalls()
       .flatMap((c) => c.args)
       .join('\n');
-    expect(output).to.include('Hello World');
-  });
-
-  it('runs hello world with --json and no provided name', async () => {
-    const result = await World.run([]);
-    expect(result.name).to.equal('World');
-  });
-
-  it('runs hello world --name Astro', async () => {
-    await World.run(['--name', 'Astro']);
-    const output = sfCommandStubs.log
-      .getCalls()
-      .flatMap((c) => c.args)
-      .join('\n');
-    expect(output).to.include('Hello Astro');
-  });
-
-  it('runs hello world --name Astro --json', async () => {
-    const result = await World.run(['--name', 'Astro', '--json']);
-    expect(result.name).to.equal('Astro');
+    expect(output).to.include('Starting development server');
+    expect(output).to.include('Server running on');
   });
 });
