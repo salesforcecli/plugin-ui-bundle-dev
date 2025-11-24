@@ -139,8 +139,10 @@ describe('StackTraceFormatter', () => {
       const formatter = new StackTraceFormatter({ workspaceRoot: '/workspace' });
       const result = formatter.format(stackTrace);
 
-      expect(result.text).to.include('src/file.ts');
-      expect(result.text).to.not.include('/workspace/src/file.ts');
+      // Normalize path separators for cross-platform compatibility (Windows uses backslashes)
+      const normalizedText = result.text.replace(/\\/g, '/');
+      expect(normalizedText).to.include('src/file.ts');
+      expect(normalizedText).to.not.include('/workspace/src/file.ts');
     });
 
     it('should truncate long absolute paths', () => {
