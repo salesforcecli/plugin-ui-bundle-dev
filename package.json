@@ -92,7 +92,7 @@
       ]
     },
     "compile": {
-      "command": "tsc -p . --pretty --incremental && mkdir -p lib/schemas lib/templates && cp src/schemas/*.json lib/schemas/ && cp src/templates/*.html lib/templates/",
+      "command": "tsc -p . --pretty --incremental && mkdir -p lib/schemas && cp src/schemas/*.json lib/schemas/ && mkdir -p lib/templates && cp src/templates/*.html lib/templates/",
       "files": [
         "src/**/*.ts",
         "src/**/*.json",
