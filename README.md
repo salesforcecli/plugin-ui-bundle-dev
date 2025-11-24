@@ -40,11 +40,62 @@ Additionally, there are some additional tests that the Salesforce CLI will enfor
 - [@salesforce/dev-config](https://github.com/forcedotcom/dev-config)
 - [@salesforce/dev-scripts](https://github.com/forcedotcom/dev-scripts)
 
-# Everything past here is only a suggestion as to what should be in your specific plugin's description
+# Salesforce CLI Webapp Plugin
+
+A Salesforce CLI plugin for building and deploying web applications that integrate with Salesforce. This plugin provides tools for local development, packaging, and deployment of webapps with built-in Salesforce authentication.
 
 This plugin is bundled with the [Salesforce CLI](https://developer.salesforce.com/tools/sfdxcli). For more information on the CLI, read the [getting started guide](https://developer.salesforce.com/docs/atlas.en-us.sfdx_setup.meta/sfdx_setup/sfdx_setup_intro.htm).
 
 We always recommend using the latest version of these commands bundled with the CLI, however, you can install a specific version or tag if needed.
+
+## Features
+
+- 🔐 **Local Development Proxy** - Run webapps locally with automatic Salesforce authentication
+- 🌐 **Intelligent Request Routing** - Automatically routes requests between Salesforce APIs and dev servers
+- 🔄 **Dev Server Management** - Spawns and monitors dev servers (Vite, CRA, Next.js)
+- 🎨 **Beautiful Error Handling** - HTML error pages with auto-refresh and diagnostics
+- 💚 **Health Monitoring** - Periodic health checks with status updates
+- 🔧 **Hot Config Reload** - Detects `webapp.json` changes automatically
+
+## Quick Start
+
+1. **Install the plugin:**
+
+   ```bash
+   sf plugins install @salesforce/plugin-webapp
+   ```
+
+2. **Authenticate with Salesforce:**
+
+   ```bash
+   sf org login web --alias myorg
+   ```
+
+3. **Create webapp.json:**
+
+   ```json
+   {
+     "name": "myapp",
+     "label": "My Web App",
+     "version": "1.0.0",
+     "apiVersion": "60.0",
+     "outputDir": "dist",
+     "dev": {
+       "command": "npm run dev"
+     }
+   }
+   ```
+
+4. **Start development:**
+   ```bash
+   sf webapp dev --name myapp --target-org myorg --open
+   ```
+
+## Documentation
+
+- **[Quick Reference](docs/QUICK_REFERENCE.md)** - One-liners and common issues
+- **[Complete Documentation](docs/SF_WEBAPP_DEV_DOCUMENTATION.md)** - Comprehensive guide
+- **[API Reference](docs/SF_WEBAPP_DEV_DOCUMENTATION.md#api-reference)** - Command flags and options
 
 ## Install
 
@@ -105,45 +156,90 @@ sf plugins
 
 ## Commands
 
-<!-- commands -->
+### `sf webapp dev`
 
-- [`sf hello world`](#sf-hello-world)
+Start a local development proxy server for webapp development with Salesforce authentication.
 
-## `sf hello world`
-
-Say hello.
-
-```
+```bash
 USAGE
-  $ sf hello world [--json] [--flags-dir <value>] [-n <value>]
+  $ sf webapp dev --name <webapp-name> --target-org <org-alias> [options]
 
-FLAGS
-  -n, --name=<value>  [default: World] The name of the person you'd like to say hello to.
+REQUIRED FLAGS
+  -n, --name=<value>         Name of the webapp (must match webapp.json)
+  -o, --target-org=<value>   Salesforce org to authenticate against
+
+OPTIONAL FLAGS
+  -u, --url=<value>          Dev server URL (overrides webapp.json)
+  -p, --port=<value>         Proxy server port (default: 4545)
+  --open                     Open browser automatically
 
 GLOBAL FLAGS
-  --flags-dir=<value>  Import flag values from a directory.
-  --json               Format output as json.
+  --flags-dir=<value>        Import flag values from a directory
+  --json                     Format output as json
 
 DESCRIPTION
-  Say hello.
+  Start a local development proxy server for webapp development.
 
-  Say hello either to the world or someone you know.
+  This command starts a local HTTP proxy server that handles Salesforce
+  authentication and routes requests between your local dev server and
+  Salesforce APIs. It automatically spawns and monitors your dev server,
+  detects the URL, and provides health monitoring.
 
 EXAMPLES
-  Say hello to the world:
+  Start proxy with automatic dev server management:
 
-    $ sf hello world
+    $ sf webapp dev --name myapp --target-org myorg --open
 
-  Say hello to someone you know:
+  Use existing dev server:
 
-    $ sf hello world --name Astro
+    $ sf webapp dev --name myapp --target-org myorg --url http://localhost:5173 --open
 
-FLAG DESCRIPTIONS
-  -n, --name=<value>  The name of the person you'd like to say hello to.
+  Use custom proxy port:
 
-    This person can be anyone in the world!
+    $ sf webapp dev --name myapp --target-org myorg --port 8080 --open
+
+SUPPORTED DEV SERVERS
+  - Vite
+  - Create React App (Webpack)
+  - Next.js
+  - Any server that outputs http://localhost:PORT
+
+FEATURES
+  - Automatic Salesforce authentication injection
+  - Intelligent request routing (Salesforce vs dev server)
+  - WebSocket support for Hot Module Replacement (HMR)
+  - Beautiful HTML error pages with auto-refresh
+  - Periodic health monitoring (every 5s)
+  - Configuration file watching (webapp.json)
+  - Graceful shutdown on Ctrl+C
+
+SEE ALSO
+  - Quick Reference: docs/QUICK_REFERENCE.md
+  - Full Documentation: docs/SF_WEBAPP_DEV_DOCUMENTATION.md
 ```
 
-_See code: [src/commands/hello/world.ts](https://github.com/salesforcecli/plugin-webapp/blob/1.1.73/src/commands/hello/world.ts)_
+### `sf webapp generate`
+
+Generate webapp package files for deployment.
+
+```bash
+USAGE
+  $ sf webapp generate --name <webapp-name> [options]
+
+REQUIRED FLAGS
+  -n, --name=<value>   Name of the webapp (must match webapp.json)
+
+DESCRIPTION
+  Generate webapp package files for deployment to Salesforce.
+
+  This command reads your webapp.json configuration and generates the
+  necessary metadata and package files for deploying your webapp to
+  a Salesforce org.
+
+EXAMPLES
+  Generate webapp package:
+
+    $ sf webapp generate --name myapp
+```
 
 <!-- commandsstop -->
