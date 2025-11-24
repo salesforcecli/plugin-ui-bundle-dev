@@ -205,7 +205,7 @@ export class DevServerManager extends EventEmitter {
   public start(): void {
     // If explicit URL is provided, skip process spawning
     if (this.options.explicitUrl) {
-      this.logger.info(`Using explicit dev server URL: ${this.options.explicitUrl}`);
+      this.logger.debug(`Using explicit dev server URL: ${this.options.explicitUrl}`);
       this.detectedUrl = this.options.explicitUrl;
       this.isReady = true;
       this.emit('ready', this.detectedUrl);
@@ -221,7 +221,7 @@ export class DevServerManager extends EventEmitter {
       );
     }
 
-    this.logger.info(`Starting dev server with command: ${this.options.command}`);
+    this.logger.debug(`Starting dev server with command: ${this.options.command}`);
 
     // Parse command into executable and arguments
     const [cmd, ...args] = DevServerManager.parseCommand(this.options.command);
@@ -266,7 +266,7 @@ export class DevServerManager extends EventEmitter {
       return;
     }
 
-    this.logger.info('Stopping dev server process...');
+    this.logger.debug('Stopping dev server process...');
 
     // Clear startup timer
     if (this.startupTimer) {
@@ -284,7 +284,7 @@ export class DevServerManager extends EventEmitter {
 
       // Setup exit handler
       const onExit = (): void => {
-        this.logger.info('Dev server process stopped');
+        this.logger.debug('Dev server process stopped');
         this.process = null;
         resolve();
       };
@@ -412,7 +412,7 @@ export class DevServerManager extends EventEmitter {
       this.startupTimer = null;
     }
 
-    this.logger.info(`Dev server detected at: ${url}`);
+    this.logger.debug(`Dev server detected at: ${url}`);
     this.emit('ready', url);
   }
 
@@ -426,7 +426,7 @@ export class DevServerManager extends EventEmitter {
    * @param signal Signal that caused exit (if any)
    */
   private handleProcessExit(code: number | null, signal: string | null): void {
-    this.logger.info(`Dev server process exited with code ${code ?? 'null'}, signal ${signal ?? 'null'}`);
+    this.logger.debug(`Dev server process exited with code ${code ?? 'null'}, signal ${signal ?? 'null'}`);
 
     // Clear startup timeout
     if (this.startupTimer) {
@@ -438,10 +438,10 @@ export class DevServerManager extends EventEmitter {
     this.emit('exit', code, signal);
 
     // Attempt restart if:
-    // 1. Exit was unexpected (not from stop() method)
+    // 1. Exit was unexpected (not from stop() method or user interrupt)
     // 2. Process was previously ready (not a startup failure)
     // 3. Restart limit not reached
-    const wasExpectedExit = signal === 'SIGTERM' || signal === 'SIGKILL';
+    const wasExpectedExit = signal === 'SIGTERM' || signal === 'SIGKILL' || signal === 'SIGINT';
     if (!wasExpectedExit && this.isReady && this.restartCount < this.options.maxRestarts) {
       this.restartCount += 1;
       this.logger.warn(`Dev server crashed, attempting restart (${this.restartCount}/${this.options.maxRestarts})...`);

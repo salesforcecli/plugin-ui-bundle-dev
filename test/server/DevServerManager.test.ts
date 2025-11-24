@@ -23,7 +23,7 @@ describe('DevServerManager', () => {
 
   afterEach(async function () {
     // Increase timeout for cleanup
-    this.timeout(10000);
+    this.timeout(10_000);
 
     // Cleanup: stop any running manager
     if (manager) {
@@ -94,12 +94,12 @@ describe('DevServerManager', () => {
   describe.skip('URL Detection', () => {
     // Skipped: These tests spawn real processes which can cause timing issues in CI/CD
     it('should detect Vite format: "Local: http://localhost:5173/"', async function () {
-      this.timeout(3_000);
+      this.timeout(3000);
 
       manager = new DevServerManager({
         command: 'echo "  ➜  Local:   http://localhost:5173/"',
         debug: false,
-        startupTimeout: 2_000,
+        startupTimeout: 2000,
       });
 
       const readyPromise = new Promise<string>((resolve, reject) => {
@@ -121,12 +121,12 @@ describe('DevServerManager', () => {
     });
 
     it('should detect Create React App format: "On Your Network: http://localhost:3000"', async function () {
-      this.timeout(3_000);
+      this.timeout(3000);
 
       manager = new DevServerManager({
         command: 'echo "On Your Network:  http://localhost:3000"',
         debug: false,
-        startupTimeout: 2_000,
+        startupTimeout: 2000,
       });
 
       const readyPromise = new Promise<string>((resolve, reject) => {
@@ -148,12 +148,12 @@ describe('DevServerManager', () => {
     });
 
     it('should detect Next.js format: "ready - started server on 0.0.0.0:3000, url: http://localhost:3000"', async function () {
-      this.timeout(3_000);
+      this.timeout(3000);
 
       manager = new DevServerManager({
         command: 'echo "ready - started server on 0.0.0.0:3000, url: http://localhost:3000"',
         debug: false,
-        startupTimeout: 2_000,
+        startupTimeout: 2000,
       });
 
       const readyPromise = new Promise<string>((resolve, reject) => {
@@ -175,12 +175,12 @@ describe('DevServerManager', () => {
     });
 
     it('should normalize 0.0.0.0 to localhost', async function () {
-      this.timeout(3_000);
+      this.timeout(3000);
 
       manager = new DevServerManager({
         command: 'echo "Server running at http://0.0.0.0:8080"',
         debug: false,
-        startupTimeout: 2_000,
+        startupTimeout: 2000,
       });
 
       const readyPromise = new Promise<string>((resolve, reject) => {
@@ -202,12 +202,12 @@ describe('DevServerManager', () => {
     });
 
     it('should detect URL from stderr if not found in stdout', async function () {
-      this.timeout(3_000);
+      this.timeout(3000);
 
       manager = new DevServerManager({
         command: 'node -e "console.error(\'Dev server started at http://localhost:4000\')"',
         debug: false,
-        startupTimeout: 2_000,
+        startupTimeout: 2000,
       });
 
       const readyPromise = new Promise<string>((resolve, reject) => {
@@ -232,12 +232,12 @@ describe('DevServerManager', () => {
   describe.skip('Process Management', () => {
     // Skipped: These tests spawn real processes which can cause timing issues in CI/CD
     it('should get status with URL and pid when running', function (done) {
-      this.timeout(3_000);
+      this.timeout(3000);
 
       manager = new DevServerManager({
         command: 'echo "Server at http://localhost:5555"',
         debug: false,
-        startupTimeout: 2_000,
+        startupTimeout: 2000,
       });
 
       const timeout = setTimeout(() => done(new Error('Test timeout')), 2000);
@@ -286,7 +286,7 @@ describe('DevServerManager', () => {
   describe.skip('Error Handling', () => {
     // Skipped: These tests spawn real processes which can cause timing issues in CI/CD
     it('should emit error on startup timeout', async function () {
-      this.timeout(3_000);
+      this.timeout(3000);
 
       manager = new DevServerManager({
         command: 'sleep 10', // Command that takes too long
@@ -310,12 +310,12 @@ describe('DevServerManager', () => {
     });
 
     it('should emit error for invalid command', async function () {
-      this.timeout(3_000);
+      this.timeout(3000);
 
       manager = new DevServerManager({
         command: 'this-command-does-not-exist-12345',
         debug: false,
-        startupTimeout: 1_000,
+        startupTimeout: 1000,
       });
 
       const errorPromise = new Promise<Error>((resolve, reject) => {
@@ -359,7 +359,7 @@ describe('DevServerManager', () => {
     });
 
     it('should emit exit event when process stops', async function () {
-      this.timeout(3_000);
+      this.timeout(3000);
 
       manager = new DevServerManager({
         command: 'echo "test"',
@@ -385,12 +385,12 @@ describe('DevServerManager', () => {
   describe('Process Restart', () => {
     it.skip('should attempt restart on unexpected exit (up to max limit)', async function () {
       // Skipped: This test involves complex restart logic that can hang in CI/CD
-      this.timeout(10000);
+      this.timeout(10_000);
 
       manager = new DevServerManager({
         command: 'echo "Server at http://localhost:7777" && exit 1',
         debug: false,
-        startupTimeout: 2_000,
+        startupTimeout: 2000,
         maxRestarts: 2,
       });
 
@@ -413,7 +413,7 @@ describe('DevServerManager', () => {
 
     it.skip('should not restart on expected exit (SIGTERM)', async function () {
       // Skipped: This test spawns a process and has timing issues
-      this.timeout(3_000);
+      this.timeout(3000);
 
       manager = new DevServerManager({
         command: 'sleep 30',
@@ -451,7 +451,7 @@ describe('DevServerManager', () => {
   describe.skip('Output Streaming', () => {
     // Skipped: These tests spawn real processes which can cause timing issues in CI/CD
     it('should emit stdout events', function (done) {
-      this.timeout(3_000);
+      this.timeout(3000);
 
       manager = new DevServerManager({
         command: 'echo "test output"',
@@ -475,7 +475,7 @@ describe('DevServerManager', () => {
     });
 
     it('should emit stderr events', function (done) {
-      this.timeout(3_000);
+      this.timeout(3000);
 
       manager = new DevServerManager({
         command: 'node -e "console.error(\'error output\')"',

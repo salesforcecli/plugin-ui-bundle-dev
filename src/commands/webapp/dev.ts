@@ -24,6 +24,7 @@ import { AuthManager } from '../../auth/AuthManager.js';
 import { ProxyServer } from '../../proxy/ProxyServer.js';
 import { Logger } from '../../utils/Logger.js';
 import { ErrorHandler } from '../../error/ErrorHandler.js';
+import { GlobalErrorCapture } from '../../error/GlobalErrorCapture.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@salesforce/plugin-webapp', 'webapp.dev');
@@ -74,6 +75,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
   private devServerManager: DevServerManager | null = null;
   private proxyServer: ProxyServer | null = null;
   private logger: Logger | null = null;
+  private errorCapture: GlobalErrorCapture | null = null;
 
   /**
    * Open the proxy URL in the default browser
@@ -112,7 +114,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
 
     try {
       // Step 1: Load and validate manifest
-      this.logger.info(messages.getMessage('info.loading-manifest'));
+      this.logger.debug(messages.getMessage('info.loading-manifest'));
       const manifestPath = 'webapp.json';
       this.manifestWatcher = new ManifestWatcher({ manifestPath, watch: true });
 
@@ -123,7 +125,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
         throw ErrorHandler.createManifestNotFoundError();
       }
 
-      this.logger.info(messages.getMessage('info.manifest-loaded', [manifest.name]));
+      this.logger.debug(messages.getMessage('info.manifest-loaded', [manifest.name]));
 
       // Setup manifest change handler
       this.manifestWatcher.on('change', (event) => {
@@ -142,13 +144,13 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
       // Priority: --url flag > manifest dev.url > spawn dev.command
       if (flags.url) {
         devServerUrl = flags.url;
-        this.logger.info(messages.getMessage('info.using-explicit-url', [devServerUrl]));
+        this.logger.debug(messages.getMessage('info.using-explicit-url', [devServerUrl]));
       } else if (manifest.dev?.url) {
         devServerUrl = manifest.dev.url;
-        this.logger.info(messages.getMessage('info.using-manifest-url', [devServerUrl]));
+        this.logger.debug(messages.getMessage('info.using-manifest-url', [devServerUrl]));
       } else if (manifest.dev?.command) {
         // Start dev server
-        this.logger.info(messages.getMessage('info.starting-dev-server', [manifest.dev.command]));
+        this.logger.debug(messages.getMessage('info.starting-dev-server', [manifest.dev.command]));
         this.devServerManager = new DevServerManager({
           command: manifest.dev.command,
           cwd: process.cwd(),
@@ -157,15 +159,15 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
 
         // Setup dev server event handlers
         this.devServerManager.on('ready', (url: string) => {
-          this.logger?.info(messages.getMessage('info.dev-server-ready', [url]));
+          this.logger?.debug(messages.getMessage('info.dev-server-ready', [url]));
         });
 
         this.devServerManager.on('error', (error: SfError) => {
           this.logger?.error(messages.getMessage('error.dev-server-failed', [error.message]));
         });
 
-        this.devServerManager.on('exit', (code: number | null, signal: string | null) => {
-          this.logger?.warn(messages.getMessage('info.dev-server-exit', [String(code ?? signal ?? 'unknown')]));
+        this.devServerManager.on('exit', () => {
+          this.logger?.debug(messages.getMessage('info.dev-server-exit'));
         });
 
         this.devServerManager.start();
@@ -193,12 +195,12 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
       // Step 3: Initialize authentication
       const orgConnection = flags['target-org'].getConnection(undefined);
       orgUsername = flags['target-org'].getUsername() ?? orgConnection.getUsername() ?? 'unknown';
-      this.logger.info(messages.getMessage('info.initializing-auth', [orgUsername]));
+      this.logger.debug(messages.getMessage('info.initializing-auth', [orgUsername]));
       const authManager = new AuthManager(orgUsername, this.logger);
       await authManager.initialize();
 
       // Step 4: Start proxy server
-      this.logger.info(messages.getMessage('info.starting-proxy', [String(flags.port)]));
+      this.logger.debug(messages.getMessage('info.starting-proxy', [String(flags.port)]));
       const salesforceInstanceUrl = orgConnection.instanceUrl;
       this.proxyServer = new ProxyServer({
         devServerUrl,
@@ -210,7 +212,32 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
 
       await this.proxyServer.start();
       const proxyUrl = this.proxyServer.getProxyUrl();
-      this.logger.info(messages.getMessage('info.proxy-running', [proxyUrl]));
+      this.logger.debug(messages.getMessage('info.proxy-running', [proxyUrl]));
+
+      // Initialize global error capture AFTER proxy server is ready
+      // This ensures this.proxyServer is available when errors are captured
+      this.errorCapture = GlobalErrorCapture.getInstance({
+        captureExceptions: true,
+        captureRejections: true,
+        filterNodeModules: true,
+        filterNodeInternals: true,
+        exitOnCritical: false,
+        workspaceRoot: process.cwd(),
+        onError: (metadata) => {
+          // Log error when captured
+          this.logger?.error(`Runtime error captured: ${metadata.type}: ${metadata.message}`);
+
+          // Set the error as active in the proxy server so it's displayed automatically
+          // on all requests (just like dev server errors)
+          if (this.proxyServer) {
+            this.proxyServer.setActiveRuntimeError(metadata);
+            this.logger?.error('⚠️  Error will be displayed automatically in your browser');
+            this.logger?.info('💡 Fix the error and save - the page will auto-refresh to your app');
+          }
+        },
+      });
+      this.errorCapture.start();
+      this.logger.debug('Global error capture enabled');
 
       // Listen for dev server status changes (minimal output)
       this.proxyServer.on('dev-server-up', (url: string) => {
@@ -229,7 +256,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
 
       // Step 6: Open browser if requested
       if (flags.open) {
-        this.logger.info(messages.getMessage('info.opening-browser'));
+        this.logger.debug(messages.getMessage('info.opening-browser'));
         WebappDev.openBrowser(proxyUrl);
       }
 
@@ -241,9 +268,18 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
       this.log(messages.getMessage('info.press-ctrl-c'));
       this.log('');
 
-      // Keep the command running (it will exit on SIGINT/SIGTERM)
-      await new Promise<void>(() => {
-        // This promise never resolves - command runs until SIGINT
+      // Keep the command running until interrupted or dev server exits
+      await new Promise<void>((resolve) => {
+        // Exit if dev server exits with SIGINT (user pressed Ctrl+C)
+        this.devServerManager?.on('exit', (code: number | null, signal: string | null) => {
+          if (signal === 'SIGINT') {
+            this.logger?.debug('Dev server received SIGINT, exiting command');
+            resolve();
+          }
+        });
+
+        // The command will also exit on process SIGINT/SIGTERM
+        // which triggers the finally() cleanup
       });
 
       // Return result (never reached, but required for type safety)
@@ -303,9 +339,20 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
   }
 
   /**
-   * Cleanup all resources (proxy, dev server, file watcher)
+   * Cleanup all resources (proxy, dev server, file watcher, error capture)
    */
   private async cleanup(): Promise<void> {
+    // Stop global error capture
+    if (this.errorCapture) {
+      try {
+        this.errorCapture.stop();
+        this.logger?.debug('Global error capture stopped');
+      } catch (error) {
+        this.logger?.debug(`Failed to stop error capture: ${(error as Error).message}`);
+      }
+      this.errorCapture = null;
+    }
+
     // Stop proxy server
     if (this.proxyServer) {
       try {

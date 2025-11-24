@@ -148,7 +148,7 @@ Shutting down (%s)...
 
 # info.dev-server-exit
 
-Dev server exited with code/signal: %s
+Dev server stopped
 
 # info.dev-server-healthy
 

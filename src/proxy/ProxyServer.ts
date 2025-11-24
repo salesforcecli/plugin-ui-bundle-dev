@@ -25,6 +25,8 @@ import type { AuthManager } from '../auth/AuthManager.js';
 import { ErrorPageRenderer } from '../templates/ErrorPageRenderer.js';
 import type { ErrorPageData } from '../templates/ErrorPageRenderer.js';
 import { Logger } from '../utils/Logger.js';
+import type { ErrorMetadata, RuntimeErrorPageData } from '../error/types.js';
+import { ErrorHandler } from '../error/ErrorHandler.js';
 import { RequestRouter } from './RequestRouter.js';
 import type { RouterConfig } from './RequestRouter.js';
 
@@ -111,6 +113,9 @@ export class ProxyServer extends EventEmitter {
   private healthCheckInterval: NodeJS.Timeout | null = null;
   private devServerStatus: 'unknown' | 'up' | 'down' = 'unknown';
   private readonly workspaceScript: string;
+  private activeRuntimeError: ErrorMetadata | null = null;
+  private errorClearTimeout: NodeJS.Timeout | null = null;
+  private readonly activeConnections: Set<import('net').Socket> = new Set();
 
   public constructor(config: ProxyServerConfig) {
     super(); // Call EventEmitter constructor
@@ -131,7 +136,7 @@ export class ProxyServer extends EventEmitter {
     // Detect Code Builder environment
     this.isCodeBuilder = ProxyServer.detectCodeBuilder();
     if (this.isCodeBuilder) {
-      this.logger.info('Code Builder environment detected');
+      this.logger.debug('Code Builder environment detected');
     }
 
     // Create http-proxy instance
@@ -226,11 +231,19 @@ export class ProxyServer extends EventEmitter {
         // Determine host to bind to
         const host = this.getBindHost();
 
+        // Track connections for graceful shutdown
+        this.server.on('connection', (socket) => {
+          this.activeConnections.add(socket);
+          socket.once('close', () => {
+            this.activeConnections.delete(socket);
+          });
+        });
+
         // Start listening
         this.server.listen(this.config.port, host, () => {
-          this.logger.info(`Proxy server listening on http://${host}:${this.config.port}`);
-          this.logger.info(`Forwarding to dev server: ${this.config.devServerUrl}`);
-          this.logger.info(`Forwarding to Salesforce: ${this.config.salesforceInstanceUrl}`);
+          this.logger.debug(`Proxy server listening on http://${host}:${this.config.port}`);
+          this.logger.debug(`Forwarding to dev server: ${this.config.devServerUrl}`);
+          this.logger.debug(`Forwarding to Salesforce: ${this.config.salesforceInstanceUrl}`);
 
           // Start periodic health check
           this.startHealthCheck();
@@ -282,12 +295,42 @@ export class ProxyServer extends EventEmitter {
       this.healthCheckInterval = null;
     }
 
+    // Clear any error timeout
+    if (this.errorClearTimeout) {
+      clearTimeout(this.errorClearTimeout);
+      this.errorClearTimeout = null;
+    }
+
+    // Clear active runtime error
+    this.activeRuntimeError = null;
+
+    // Destroy all active connections to force immediate shutdown
+    for (const socket of this.activeConnections) {
+      socket.destroy();
+    }
+    this.activeConnections.clear();
+
     return new Promise((resolve, reject) => {
+      // Set a timeout to force resolve if server.close() hangs
+      const forceCloseTimeout = setTimeout(() => {
+        this.logger.debug('Proxy server stop timeout, forcing shutdown');
+        this.server = null;
+        resolve();
+      }, 2000); // 2 second timeout
+
       this.server!.close((error) => {
+        clearTimeout(forceCloseTimeout);
         if (error) {
-          reject(new SfError(`Failed to stop proxy server: ${error.message}`, 'ProxyStopFailed'));
+          // Don't reject on ENOTCONN or similar - server might already be closing
+          if (error.message.includes('Server is not running')) {
+            this.logger.debug('Proxy server already stopped');
+            this.server = null;
+            resolve();
+          } else {
+            reject(new SfError(`Failed to stop proxy server: ${error.message}`, 'ProxyStopFailed'));
+          }
         } else {
-          this.logger.info('Proxy server stopped');
+          this.logger.debug('Proxy server stopped');
           this.server = null;
           resolve();
         }
@@ -330,6 +373,156 @@ export class ProxyServer extends EventEmitter {
   }
 
   /**
+   * Set an active runtime error that will be displayed on all requests
+   *
+   * This makes the error visible automatically without requiring developers
+   * to navigate to a special URL. The error will be displayed on any page
+   * until it's cleared or times out.
+   *
+   * @param metadata - Error metadata from GlobalErrorCapture
+   */
+  public setActiveRuntimeError(metadata: ErrorMetadata): void {
+    this.activeRuntimeError = metadata;
+    this.logger.debug('Runtime error is now active - will be displayed on all requests');
+
+    // Clear any existing timeout
+    if (this.errorClearTimeout) {
+      clearTimeout(this.errorClearTimeout);
+    }
+
+    // Auto-clear error after 5 minutes (in case developer doesn't fix it)
+    // This prevents the error page from being stuck indefinitely
+    this.errorClearTimeout = setTimeout(() => {
+      this.clearActiveRuntimeError();
+      this.logger.debug('Runtime error auto-cleared after timeout');
+    }, 5 * 60 * 1000); // 5 minutes
+  }
+
+  /**
+   * Clear the active runtime error
+   *
+   * This should be called when the error is fixed or no longer relevant.
+   * After clearing, normal proxying will resume.
+   */
+  public clearActiveRuntimeError(): void {
+    if (this.activeRuntimeError) {
+      this.logger.debug('Runtime error cleared - resuming normal operation');
+      this.activeRuntimeError = null;
+    }
+
+    if (this.errorClearTimeout) {
+      clearTimeout(this.errorClearTimeout);
+      this.errorClearTimeout = null;
+    }
+  }
+
+  /**
+   * Check if there's an active runtime error
+   *
+   * @returns True if there's an active runtime error
+   */
+  public hasActiveRuntimeError(): boolean {
+    return this.activeRuntimeError !== null;
+  }
+
+  /**
+   * Serve a runtime error page to the browser
+   *
+   * This method formats and serves a beautiful error page when runtime errors occur
+   *
+   * @param metadata - Error metadata from GlobalErrorCapture
+   * @param res - HTTP response object
+   */
+  public serveRuntimeErrorPage(metadata: ErrorMetadata, res: ServerResponse): void {
+    try {
+      // Format timestamp
+      const timestamp = new Date(metadata.timestamp);
+      const timestampFormatted = timestamp.toLocaleString('en-US', {
+        dateStyle: 'medium',
+        timeStyle: 'medium',
+      });
+
+      // Get context-aware suggestions
+      const suggestions = ErrorHandler.getSuggestionsForError(metadata.originalError as Error);
+
+      // Prepare error report JSON
+      const errorReport = {
+        type: metadata.type,
+        message: metadata.message,
+        code: metadata.code,
+        timestamp: metadata.timestamp,
+        severity: metadata.severity,
+        stack: metadata.formattedStack.text,
+        frames: metadata.formattedStack.frames.map((frame) => ({
+          function: frame.functionName,
+          file: frame.fileName,
+          line: frame.lineNumber,
+          column: frame.columnNumber,
+        })),
+        system: {
+          nodeVersion: metadata.nodeVersion,
+          platform: metadata.platform,
+          pid: metadata.pid,
+          memory: metadata.memoryUsage,
+        },
+        context: metadata.context,
+        isUnhandledRejection: metadata.isUnhandledRejection,
+      };
+
+      // Prepare runtime error page data
+      const pageData: RuntimeErrorPageData = {
+        errorType: metadata.type,
+        errorMessage: metadata.message,
+        formattedStackHtml: metadata.formattedStack.html,
+        formattedStackText: metadata.formattedStack.text,
+        timestamp: metadata.timestamp,
+        timestampFormatted,
+        severity: metadata.severity,
+        metadata: {
+          nodeVersion: metadata.nodeVersion,
+          platform: metadata.platform,
+          pid: metadata.pid,
+          heapUsedMB: metadata.memoryUsage.heapUsedMB,
+          heapTotalMB: metadata.memoryUsage.heapTotalMB,
+          rssMB: metadata.memoryUsage.rssMB,
+        },
+        suggestions,
+        errorCode: metadata.code,
+        errorReportJson: JSON.stringify(errorReport, null, 2),
+      };
+
+      // Render the error page
+      const html = this.errorPageRenderer.renderRuntimeError(pageData);
+
+      // Send response
+      res.writeHead(500, {
+        'Content-Type': 'text/html',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      });
+      res.end(html);
+
+      this.logger.debug(`Served runtime error page: ${metadata.type}: ${metadata.message}`);
+    } catch (renderError) {
+      // Fallback if rendering fails
+      const errorMessage = renderError instanceof Error ? renderError.message : String(renderError);
+      this.logger.error(`Failed to render error page template: ${errorMessage}`);
+      this.logger.debug('Using fallback error page');
+
+      const fallbackHtml = ErrorPageRenderer.renderRuntimeErrorFallback(
+        metadata.type,
+        metadata.message,
+        metadata.formattedStack.text
+      );
+
+      res.writeHead(500, {
+        'Content-Type': 'text/html',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      });
+      res.end(fallbackHtml);
+    }
+  }
+
+  /**
    * Checks if running in Code Builder environment
    */
   public isCodeBuilderEnvironment(): boolean {
@@ -345,7 +538,7 @@ export class ProxyServer extends EventEmitter {
    */
   public setupGracefulShutdown(onShutdown?: () => void | Promise<void>): () => void {
     const handleShutdown = async (signal: string): Promise<void> => {
-      this.logger.info(`Received ${signal}, shutting down gracefully...`);
+      this.logger.debug(`Received ${signal}, shutting down gracefully...`);
 
       // Run optional callback
       if (onShutdown) {
@@ -460,6 +653,24 @@ export class ProxyServer extends EventEmitter {
     const method = req.method ?? 'GET';
     this.logger.debug(`[${method}] ${url}`);
 
+    // Special route to clear active runtime error (for manual clearing)
+    if (url === '/__clear_error__') {
+      this.clearActiveRuntimeError();
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(
+        '<html><body><h1>Error Cleared</h1><p>Runtime error has been cleared. <a href="/">Return to app</a></p></body></html>'
+      );
+      return;
+    }
+
+    // If there's an active runtime error, display it on ALL requests
+    // This provides automatic error visibility without requiring navigation to a special URL
+    if (this.activeRuntimeError) {
+      this.logger.debug('Active runtime error - serving error page');
+      this.serveRuntimeErrorPage(this.activeRuntimeError, res);
+      return;
+    }
+
     try {
       // Determine routing
       const decision = this.router.route(req);
@@ -470,6 +681,11 @@ export class ProxyServer extends EventEmitter {
       } else {
         this.proxyDevServerRequest(req, res);
       }
+
+      // If we successfully handled a request and had a previous runtime error,
+      // it might be fixed now. We'll keep the error active for now to let
+      // the auto-refresh mechanism check if the error is truly gone.
+      // The error will auto-clear after timeout if not triggered again.
     } catch (error) {
       this.handleRequestError(error, req, res);
     }
@@ -514,7 +730,7 @@ export class ProxyServer extends EventEmitter {
         // Try to refresh token and retry
         const recovered = await this.config.authManager.handleAuthError(error);
         if (recovered) {
-          this.logger.info('Token refreshed, retrying request');
+          this.logger.debug('Token refreshed, retrying request');
           return this.proxySalesforceRequest(req, res);
         }
       }
