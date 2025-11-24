@@ -107,7 +107,6 @@ The proxy checks dev server health every 5 seconds:
 1. Read full documentation: `docs/SF_WEBAPP_DEV_DOCUMENTATION.md`
 2. Enable debug mode: `--debug`
 3. Check logs in terminal
-4. Report issues with work item: W-20242483
 
 ---
 

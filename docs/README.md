@@ -1,7 +1,3 @@
-# Documentation
-
-Welcome to the `@salesforce/plugin-webapp` documentation!
-
 ## 🚀 Getting Started
 
 **First time user?** Start with [Quick Reference](QUICK_REFERENCE.md)  
