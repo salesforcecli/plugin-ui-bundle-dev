@@ -14,19 +14,21 @@
  * limitations under the License.
  */
 
+import { spawn } from 'node:child_process';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
-import { Messages } from '@salesforce/core';
+import { Messages, SfError } from '@salesforce/core';
+import type { WebAppDevResult, WebAppManifest } from '../../config/types.js';
+import { ManifestWatcher } from '../../config/ManifestWatcher.js';
+import { DevServerManager } from '../../server/DevServerManager.js';
+import { AuthManager } from '../../auth/AuthManager.js';
+import { ProxyServer } from '../../proxy/ProxyServer.js';
+import { Logger } from '../../utils/Logger.js';
+import { ErrorHandler } from '../../error/ErrorHandler.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@salesforce/plugin-webapp', 'webapp.dev');
 
-export type WebappDevResult = {
-  name: string;
-  target?: string;
-  url: string;
-};
-
-export default class WebappDev extends SfCommand<WebappDevResult> {
+export default class WebappDev extends SfCommand<WebAppDevResult> {
   public static readonly summary = messages.getMessage('summary');
   public static readonly description = messages.getMessage('description');
   public static readonly examples = messages.getMessages('examples');
@@ -34,44 +36,309 @@ export default class WebappDev extends SfCommand<WebappDevResult> {
   public static readonly flags = {
     name: Flags.string({
       summary: messages.getMessage('flags.name.summary'),
+      description: messages.getMessage('flags.name.description'),
       char: 'n',
       required: true,
     }),
-    target: Flags.string({
-      summary: messages.getMessage('flags.target.summary'),
-      char: 't',
+    url: Flags.string({
+      summary: messages.getMessage('flags.url.summary'),
+      description: messages.getMessage('flags.url.description'),
+      char: 'u',
       required: false,
     }),
     port: Flags.integer({
       summary: messages.getMessage('flags.port.summary'),
+      description: messages.getMessage('flags.port.description'),
       char: 'p',
-      default: 5173,
+      default: 4545,
+    }),
+    'target-org': Flags.requiredOrg({
+      summary: messages.getMessage('flags.target-org.summary'),
+      description: messages.getMessage('flags.target-org.description'),
+      char: 'o',
+      required: true,
+    }),
+    debug: Flags.boolean({
+      summary: messages.getMessage('flags.debug.summary'),
+      char: 'd',
+      default: false,
+    }),
+    open: Flags.boolean({
+      summary: messages.getMessage('flags.open.summary'),
+      char: 'b',
+      default: false,
     }),
   };
 
-  public async run(): Promise<WebappDevResult> {
-    const { flags } = await this.parse(WebappDev);
+  private manifestWatcher: ManifestWatcher | null = null;
+  private devServerManager: DevServerManager | null = null;
+  private proxyServer: ProxyServer | null = null;
+  private logger: Logger | null = null;
 
-    this.log(`Starting development server for web app: ${flags.name}`);
-    if (flags.target) {
-      this.log(`Using target: ${flags.target}`);
+  /**
+   * Open the proxy URL in the default browser
+   */
+  private static openBrowser(url: string): void {
+    const platform = process.platform;
+    let command: string;
+
+    if (platform === 'darwin') {
+      command = 'open';
+    } else if (platform === 'win32') {
+      command = 'start';
+    } else {
+      command = 'xdg-open';
     }
 
-    const url = `http://localhost:${flags.port}`;
-    this.log(`Server running on ${url}`);
-    this.log('Opening browser...');
+    const child = spawn(command, [url], {
+      detached: true,
+      stdio: 'ignore',
+    });
 
-    // TODO: Implement dev server logic
-    // This would typically involve:
-    // 1. Starting a local development server
-    // 2. Watching for file changes
-    // 3. Hot reloading
-    // 4. Opening browser
+    child.unref();
+  }
 
-    return {
-      name: flags.name,
-      target: flags.target,
-      url,
-    };
+  // eslint-disable-next-line complexity
+  public async run(): Promise<WebAppDevResult> {
+    const { flags } = await this.parse(WebappDev);
+
+    // Initialize logger
+    this.logger = new Logger(flags.debug);
+
+    // Declare variables outside try block for catch block access
+    let manifest: WebAppManifest | null = null;
+    let devServerUrl: string | null = null;
+    let orgUsername = '';
+
+    try {
+      // Step 1: Load and validate manifest
+      this.logger.info(messages.getMessage('info.loading-manifest'));
+      const manifestPath = 'webapp.json';
+      this.manifestWatcher = new ManifestWatcher({ manifestPath, watch: true });
+
+      this.manifestWatcher.initialize();
+      manifest = this.manifestWatcher.getManifest();
+
+      if (!manifest) {
+        throw ErrorHandler.createManifestNotFoundError();
+      }
+
+      this.logger.info(messages.getMessage('info.manifest-loaded', [manifest.name]));
+
+      // Setup manifest change handler
+      this.manifestWatcher.on('change', (event) => {
+        this.logger?.info(messages.getMessage('info.manifest-changed', [event.type]));
+        if (event.type === 'changed' && event.manifest) {
+          this.logger?.info(messages.getMessage('info.manifest-reloaded'));
+        }
+      });
+
+      this.manifestWatcher.on('error', (error: SfError) => {
+        this.logger?.error(messages.getMessage('error.manifest-watch-failed', [error.message]));
+      });
+
+      // Step 2: Determine dev server URL
+
+      // Priority: --url flag > manifest dev.url > spawn dev.command
+      if (flags.url) {
+        devServerUrl = flags.url;
+        this.logger.info(messages.getMessage('info.using-explicit-url', [devServerUrl]));
+      } else if (manifest.dev?.url) {
+        devServerUrl = manifest.dev.url;
+        this.logger.info(messages.getMessage('info.using-manifest-url', [devServerUrl]));
+      } else if (manifest.dev?.command) {
+        // Start dev server
+        this.logger.info(messages.getMessage('info.starting-dev-server', [manifest.dev.command]));
+        this.devServerManager = new DevServerManager({
+          command: manifest.dev.command,
+          cwd: process.cwd(),
+          debug: flags.debug,
+        });
+
+        // Setup dev server event handlers
+        this.devServerManager.on('ready', (url: string) => {
+          this.logger?.info(messages.getMessage('info.dev-server-ready', [url]));
+        });
+
+        this.devServerManager.on('error', (error: SfError) => {
+          this.logger?.error(messages.getMessage('error.dev-server-failed', [error.message]));
+        });
+
+        this.devServerManager.on('exit', (code: number | null, signal: string | null) => {
+          this.logger?.warn(messages.getMessage('info.dev-server-exit', [String(code ?? signal ?? 'unknown')]));
+        });
+
+        this.devServerManager.start();
+
+        // Wait for dev server to be ready
+        devServerUrl = await new Promise<string>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(ErrorHandler.createDevServerTimeoutError(30));
+          }, 30_000);
+
+          this.devServerManager?.on('ready', (url: string) => {
+            clearTimeout(timeout);
+            resolve(url);
+          });
+
+          this.devServerManager?.on('error', (error: SfError) => {
+            clearTimeout(timeout);
+            reject(error);
+          });
+        });
+      } else {
+        throw ErrorHandler.createDevServerCommandRequiredError();
+      }
+
+      // Step 3: Initialize authentication
+      const orgConnection = flags['target-org'].getConnection(undefined);
+      orgUsername = flags['target-org'].getUsername() ?? orgConnection.getUsername() ?? 'unknown';
+      this.logger.info(messages.getMessage('info.initializing-auth', [orgUsername]));
+      const authManager = new AuthManager(orgUsername, this.logger);
+      await authManager.initialize();
+
+      // Step 4: Start proxy server
+      this.logger.info(messages.getMessage('info.starting-proxy', [String(flags.port)]));
+      const salesforceInstanceUrl = orgConnection.instanceUrl;
+      this.proxyServer = new ProxyServer({
+        devServerUrl,
+        salesforceInstanceUrl,
+        port: flags.port,
+        authManager,
+        debug: flags.debug,
+      });
+
+      await this.proxyServer.start();
+      const proxyUrl = this.proxyServer.getProxyUrl();
+      this.logger.info(messages.getMessage('info.proxy-running', [proxyUrl]));
+
+      // Listen for dev server status changes (minimal output)
+      this.proxyServer.on('dev-server-up', (url: string) => {
+        this.log(`✅ Dev server detected at ${url}`);
+      });
+
+      this.proxyServer.on('dev-server-down', (url: string) => {
+        this.log(`⚠️  Dev server unreachable at ${url}`);
+        this.log('   Start your dev server to continue development');
+      });
+
+      // Step 5: Check if dev server is reachable (non-blocking warning)
+      if (devServerUrl) {
+        await this.checkDevServerHealth(devServerUrl);
+      }
+
+      // Step 6: Open browser if requested
+      if (flags.open) {
+        this.logger.info(messages.getMessage('info.opening-browser'));
+        WebappDev.openBrowser(proxyUrl);
+      }
+
+      // Display usage instructions
+      this.log('');
+      this.log(messages.getMessage('info.ready-for-development'));
+      this.log(messages.getMessage('info.proxy-url', [proxyUrl]));
+      this.log(messages.getMessage('info.dev-server-url', [devServerUrl ?? 'N/A']));
+      this.log(messages.getMessage('info.press-ctrl-c'));
+      this.log('');
+
+      // Keep the command running (it will exit on SIGINT/SIGTERM)
+      await new Promise<void>(() => {
+        // This promise never resolves - command runs until SIGINT
+      });
+
+      // Return result (never reached, but required for type safety)
+      return {
+        name: manifest?.name ?? '',
+        url: proxyUrl,
+        port: flags.port,
+        targetOrg: orgUsername,
+        devServerUrl: devServerUrl ?? '',
+      };
+    } catch (error) {
+      // Cleanup on error
+      await this.cleanup();
+
+      // Re-throw as SfError if not already
+      if (error instanceof SfError) {
+        throw error;
+      }
+
+      throw ErrorHandler.wrapError(error, 'Failed to start webapp dev command');
+    }
+  }
+
+  /**
+   * Oclif lifecycle method - called when command exits (including Ctrl+C)
+   * This is the proper way to handle cleanup in oclif commands
+   */
+  protected async finally(): Promise<void> {
+    // Cleanup all resources silently
+    // Don't show messages here as this runs on ALL exits (errors, Ctrl+C, etc)
+    await this.cleanup();
+  }
+
+  /**
+   * Check if dev server is reachable (non-blocking health check)
+   */
+  private async checkDevServerHealth(devServerUrl: string): Promise<void> {
+    try {
+      const response = await fetch(devServerUrl, {
+        method: 'HEAD',
+        signal: AbortSignal.timeout(3000), // 3 second timeout
+      });
+
+      if (response.ok) {
+        this.logger?.info(messages.getMessage('info.dev-server-healthy', [devServerUrl]));
+      } else {
+        this.logger?.warn(
+          messages.getMessage('warning.dev-server-not-responding', [devServerUrl, String(response.status)])
+        );
+      }
+    } catch (error) {
+      // Dev server not reachable - show warning but don't fail
+      this.logger?.warn(messages.getMessage('warning.dev-server-unreachable', [devServerUrl]));
+      this.logger?.warn(messages.getMessage('warning.dev-server-start-hint'));
+      this.logger?.debug(`Dev server check error: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Cleanup all resources (proxy, dev server, file watcher)
+   */
+  private async cleanup(): Promise<void> {
+    // Stop proxy server
+    if (this.proxyServer) {
+      try {
+        await this.proxyServer.stop();
+        this.logger?.debug('Proxy server stopped');
+      } catch (error) {
+        this.logger?.debug(`Failed to stop proxy server: ${(error as Error).message}`);
+      }
+      this.proxyServer = null;
+    }
+
+    // Stop dev server
+    if (this.devServerManager) {
+      try {
+        await this.devServerManager.stop();
+        this.logger?.debug('Dev server stopped');
+      } catch (error) {
+        this.logger?.debug(`Failed to stop dev server: ${(error as Error).message}`);
+      }
+      this.devServerManager = null;
+    }
+
+    // Stop manifest watcher
+    if (this.manifestWatcher) {
+      try {
+        await this.manifestWatcher.stop();
+        this.logger?.debug('Manifest watcher stopped');
+      } catch (error) {
+        this.logger?.debug(`Failed to stop manifest watcher: ${(error as Error).message}`);
+      }
+      this.manifestWatcher = null;
+    }
+
+    this.logger?.debug('Cleanup complete');
   }
 }

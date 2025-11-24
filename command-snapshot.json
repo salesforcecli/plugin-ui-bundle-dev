@@ -3,8 +3,8 @@
     "alias": [],
     "command": "webapp:dev",
     "flagAliases": [],
-    "flagChars": ["n", "p", "t"],
-    "flags": ["flags-dir", "json", "name", "port", "target"],
+    "flagChars": ["b", "d", "n", "o", "p", "u"],
+    "flags": ["debug", "flags-dir", "json", "name", "open", "port", "target-org", "url"],
     "plugin": "@salesforce/plugin-webapp"
   },
   {

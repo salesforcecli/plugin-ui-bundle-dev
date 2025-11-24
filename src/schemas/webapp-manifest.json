@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://schemas.salesforce.com/webapp-config.json",
+  "title": "Salesforce Web Application Configuration",
+  "description": "Configuration schema for Salesforce web applications",
+  "type": "object",
+  "required": ["name", "label", "version", "apiVersion", "outputDir"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Unique name identifier for the web app",
+      "pattern": "^[a-zA-Z][a-zA-Z0-9_]*$",
+      "examples": ["customerPortal", "myApp", "sales_dashboard"]
+    },
+    "label": {
+      "type": "string",
+      "description": "Human-readable label for the web app",
+      "minLength": 1,
+      "examples": ["Customer Portal", "My Application"]
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of the web app"
+    },
+    "version": {
+      "type": "string",
+      "description": "Version of the web app in semantic versioning format",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "examples": ["1.0.0", "2.1.3"]
+    },
+    "apiVersion": {
+      "type": "string",
+      "description": "Salesforce API version",
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "examples": ["60.0", "61.0"]
+    },
+    "outputDir": {
+      "type": "string",
+      "description": "Output directory for built assets",
+      "examples": ["dist", "build", "out"]
+    },
+    "dev": {
+      "type": "object",
+      "description": "Development configuration",
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "Command to run the dev server (e.g., 'npm run dev')",
+          "examples": ["npm run dev", "yarn dev", "pnpm dev"]
+        },
+        "url": {
+          "type": "string",
+          "description": "Explicit URL for the dev server",
+          "pattern": "^https?://[^\\s]+$",
+          "examples": ["http://localhost:3000", "http://localhost:5173"]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}

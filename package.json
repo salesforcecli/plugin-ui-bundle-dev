@@ -8,13 +8,17 @@
     "@oclif/core": "^4",
     "@salesforce/core": "^8.23.4",
     "@salesforce/kit": "^3.2.4",
-    "@salesforce/sf-plugins-core": "^12"
+    "@salesforce/sf-plugins-core": "^12",
+    "ajv": "^8.12.0",
+    "chokidar": "^3.6.0",
+    "http-proxy": "^1.18.1"
   },
   "devDependencies": {
     "@oclif/plugin-command-snapshot": "^5.3.8",
     "@salesforce/cli-plugins-testkit": "^5.3.41",
     "@salesforce/dev-scripts": "^11.0.4",
     "@salesforce/plugin-command-reference": "^3.1.77",
+    "@types/http-proxy": "^1.17.14",
     "eslint-plugin-sf-plugin": "^1.20.33",
     "oclif": "^4.22.40",
     "ts-node": "^10.9.2",
@@ -88,9 +92,11 @@
       ]
     },
     "compile": {
-      "command": "tsc -p . --pretty --incremental",
+      "command": "tsc -p . --pretty --incremental && mkdir -p lib/schemas lib/templates && cp src/schemas/*.json lib/schemas/ && cp src/templates/*.html lib/templates/",
       "files": [
         "src/**/*.ts",
+        "src/**/*.json",
+        "src/**/*.html",
         "**/tsconfig.json",
         "messages/**"
       ],
