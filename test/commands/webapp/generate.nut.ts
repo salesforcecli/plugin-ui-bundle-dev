@@ -35,4 +35,14 @@ describe('webapp generate NUTs', () => {
     expect(output).to.contain(name);
     expect(output).to.contain(label);
   });
+
+  it('should clone vibe-coding-starter repository', () => {
+    const name = `test-vibe-${Date.now()}`;
+    const label = 'Test Vibe App';
+    const command = `webapp generate --name ${name} --label "${label}" --template vibe-coding-starter`;
+    const output = execCmd(command, { ensureExitCode: 0 }).shellOutput.stdout;
+    expect(output).to.contain(name);
+    expect(output).to.contain('Cloning');
+    expect(output).to.contain('vibe-coding-starter');
+  });
 });
