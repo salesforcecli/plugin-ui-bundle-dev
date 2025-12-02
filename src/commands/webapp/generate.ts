@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
-import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
+import { execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { Messages } from '@salesforce/core';
+import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@salesforce/plugin-webapp', 'webapp.generate');
@@ -64,20 +67,47 @@ export default class WebappGenerate extends SfCommand<WebappGenerateResult> {
     this.log(`Template: ${flags.template}`);
     this.log(`Wizard mode: ${flags.wizard}`);
 
-    // TODO: Implement web app generation logic
-    // This would typically involve:
-    // 1. Creating webapp.json configuration
-    // 2. Setting up SFDX project structure
-    // 3. Generating metadata files
-    // 4. Creating necessary bundle structure
+    const template = flags.template ?? 'empty';
+
+    // Clone vibe-coding-starter repository if template is specified
+    if (template === 'vibe-coding-starter') {
+      const repoUrl = 'https://github.com/salesforce-experience-platform-emu/vibe-coding-starter';
+      const directory = resolve(flags.name);
+      this.cloneRepository(repoUrl, directory);
+    } else {
+      // TODO: Implement web app generation logic for other templates
+      // This would typically involve:
+      // 1. Creating webapp.json configuration
+      // 2. Setting up SFDX project structure
+      // 3. Generating metadata files
+      // 4. Creating necessary bundle structure
+    }
 
     this.log('Your Web App has been created, have fun!');
 
     return {
       name: flags.name,
       label: flags.label,
-      template: flags.template ?? 'empty',
+      template,
       wizard: flags.wizard,
     };
+  }
+
+  protected cloneRepository(repoUrl: string, directory: string): void {
+    if (existsSync(directory)) {
+      throw new Error(`Directory ${directory} already exists. Please choose a different name.`);
+    }
+
+    const templateRepo = `git clone ${repoUrl}`;
+    this.log(`Cloning ${repoUrl} into ${directory}...`);
+    try {
+      execSync(`${templateRepo} "${directory}"`, {
+        stdio: 'inherit',
+        cwd: process.cwd(),
+      });
+      this.log(`Successfully cloned ${repoUrl} into ${directory}`);
+    } catch (error) {
+      throw new Error(`Failed to clone repository: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 }
