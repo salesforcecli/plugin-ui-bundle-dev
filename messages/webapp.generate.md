@@ -26,11 +26,11 @@ Run in interactive wizard mode
 
 - Create an empty web app:
 
-  <%= config.bin %> <%= command.id %> --name "myWebApp" --label "My first Web App"
+  <%= config.bin %> <%= command.id %> --name "myWebApp" --label "My first Web App
 
-- Create a web app with a specific template:
+- Create a web app using the vibe-coding-starter template:
 
-  <%= config.bin %> <%= command.id %> --name "myWebApp" --label "My Web App" --template "React app starter"
+  <%= config.bin %> <%= command.id %> --name "myWebApp" --label "My Web App" --template "vibe-coding-starter"
 
 - Create a web app using the wizard:
 
