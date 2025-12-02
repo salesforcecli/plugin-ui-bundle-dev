@@ -93,9 +93,15 @@ We always recommend using the latest version of these commands bundled with the 
 
 ## Documentation
 
-- **[Quick Reference](docs/QUICK_REFERENCE.md)** - One-liners and common issues
-- **[Complete Documentation](docs/SF_WEBAPP_DEV_DOCUMENTATION.md)** - Comprehensive guide
-- **[API Reference](docs/SF_WEBAPP_DEV_DOCUMENTATION.md#api-reference)** - Command flags and options
+📚 **[Complete Guide](SF_WEBAPP_DEV_GUIDE.md)** - Comprehensive documentation covering:
+- Overview and architecture
+- Getting started (5-minute quick start)
+- Building the plugin
+- Command usage and options
+- File structure and components
+- VSCode integration
+- Advanced features (hot reload, error capture, etc.)
+- Troubleshooting and FAQ
 
 ## Install
 
@@ -214,8 +220,7 @@ FEATURES
   - Graceful shutdown on Ctrl+C
 
 SEE ALSO
-  - Quick Reference: docs/QUICK_REFERENCE.md
-  - Full Documentation: docs/SF_WEBAPP_DEV_DOCUMENTATION.md
+  - Complete Guide: SF_WEBAPP_DEV_GUIDE.md
 ```
 
 ### `sf webapp generate`
