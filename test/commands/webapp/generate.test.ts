@@ -67,4 +67,28 @@ describe('webapp generate', () => {
     expect(output).to.include('Generating your web app');
     expect(output).to.include('Your Web App has been created');
   });
+
+  describe('vibe-coding-starter template', () => {
+    it('sets template to vibe-coding-starter when specified', async () => {
+      const uniqueName = `testVibeApp-${Date.now()}`;
+      const result = await WebappGenerate.run([
+        '--name',
+        uniqueName,
+        '--label',
+        'Test Vibe App',
+        '--template',
+        'vibe-coding-starter',
+      ]);
+
+      expect(result.template).to.equal('vibe-coding-starter');
+      expect(result.name).to.equal(uniqueName);
+    });
+
+    it('sets template to vibe when vibe alias is used', async () => {
+      const uniqueName = `testVibeApp-${Date.now()}-vibe`;
+      const result = await WebappGenerate.run(['--name', uniqueName, '--label', 'Test Vibe App', '--template', 'vibe']);
+
+      expect(result.template).to.equal('vibe');
+    });
+  });
 });
