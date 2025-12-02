@@ -198,6 +198,36 @@ export class ProxyServer extends EventEmitter {
   }
 
   /**
+   * Updates the dev server URL and restarts health checks
+   * Used when the manifest changes and specifies a new dev server URL
+   *
+   * @param newDevServerUrl - The new dev server URL
+   */
+  public updateDevServerUrl(newDevServerUrl: string): void {
+    if (this.config.devServerUrl === newDevServerUrl) {
+      this.logger.debug(`Dev server URL unchanged: ${newDevServerUrl}`);
+      return;
+    }
+
+    this.logger.info(`Updating dev server URL: ${this.config.devServerUrl} → ${newDevServerUrl}`);
+    this.config.devServerUrl = newDevServerUrl;
+
+    // Reset dev server status to trigger fresh check
+    this.devServerStatus = 'unknown';
+
+    // Restart health check with new URL
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.startHealthCheck();
+    }
+
+    // Perform immediate health check
+    this.checkDevServerHealth().catch((error) => {
+      this.logger.error(`Failed to check dev server health: ${error instanceof Error ? error.message : String(error)}`);
+    });
+  }
+
+  /**
    * Starts the proxy server
    */
   public async start(): Promise<void> {

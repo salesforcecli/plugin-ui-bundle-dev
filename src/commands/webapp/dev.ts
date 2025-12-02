@@ -132,6 +132,23 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
         this.logger?.info(messages.getMessage('info.manifest-changed', [event.type]));
         if (event.type === 'changed' && event.manifest) {
           this.logger?.info(messages.getMessage('info.manifest-reloaded'));
+
+          // Check for dev.url changes (can be updated dynamically)
+          const oldDevUrl = manifest?.dev?.url;
+          const newDevUrl = event.manifest.dev?.url;
+
+          if (newDevUrl && oldDevUrl !== newDevUrl) {
+            this.logger?.info(messages.getMessage('info.dev-url-changed', [newDevUrl]));
+            this.proxyServer?.updateDevServerUrl(newDevUrl);
+          }
+
+          // Check for dev.command changes (cannot be changed while running)
+          if (event.manifest.dev?.command && event.manifest.dev.command !== manifest?.dev?.command) {
+            this.logger?.warn(messages.getMessage('warning.dev-command-changed', [event.manifest.dev.command]));
+          }
+
+          // Update manifest reference to reflect all changes
+          manifest = event.manifest;
         }
       });
 

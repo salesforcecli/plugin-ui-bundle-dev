@@ -183,6 +183,10 @@ Watching webapp.json for changes...
 
 ✓ Manifest reloaded successfully
 
+# info.dev-url-changed
+
+Dev server URL updated to: %s
+
 # error.manifest-watch-failed
 
 Failed to watch manifest: %s
@@ -259,6 +263,10 @@ webapp.json does not contain dev configuration. Using provided --url flag.
 # warning.manifest-dev-command-override
 
 webapp.json contains dev.command but --url flag provided. Using --url flag.
+
+# warning.dev-command-changed
+
+dev.command changed to "%s" - restart the command to apply this change.
 
 # warning.dev-server-stderr
 
