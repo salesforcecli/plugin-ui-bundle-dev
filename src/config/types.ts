@@ -189,9 +189,49 @@ export type DevServerEvents = {
   /** Emitted when dev server process exits */
   exit: (code: number | null, signal: string | null) => void;
   /** Emitted when dev server encounters an error */
-  error: (error: Error) => void;
+  error: (error: Error | DevServerError) => void;
   /** Emitted when dev server outputs to stdout (in debug mode) */
   stdout: (data: string) => void;
   /** Emitted when dev server outputs to stderr */
   stderr: (data: string) => void;
+};
+
+/**
+ * Parsed dev server error with context and suggestions
+ * Used to provide user-friendly error messages in the browser
+ */
+export type DevServerError = {
+  /** Type of error for categorization */
+  type: 'port-conflict' | 'missing-module' | 'syntax-error' | 'permission-error' | 'file-not-found' | 'unknown';
+  /** Human-readable error title */
+  title: string;
+  /** Detailed error message */
+  message: string;
+  /** Relevant lines from stderr (last 10-15 lines) */
+  stderrLines: string[];
+  /** Actionable suggestions to fix the error */
+  suggestions: string[];
+  /** Original full stderr output (for debugging) */
+  fullStderr?: string;
+  /** Exit code from the process (if available) */
+  exitCode?: number | null;
+  /** Signal that terminated the process (if available) */
+  signal?: string | null;
+};
+
+/**
+ * Error pattern for matching and parsing dev server errors
+ * Used by DevServerErrorParser to categorize errors
+ */
+export type ErrorPattern = {
+  /** Regex pattern to match against stderr */
+  pattern: RegExp;
+  /** Error type identifier */
+  type: DevServerError['type'];
+  /** Human-readable error title */
+  title: string;
+  /** Error message template or function */
+  getMessage: (stderr: string) => string;
+  /** Function to generate context-aware suggestions */
+  getSuggestions: (stderr: string) => string[];
 };

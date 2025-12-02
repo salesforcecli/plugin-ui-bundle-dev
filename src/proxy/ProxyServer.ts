@@ -26,6 +26,7 @@ import { ErrorPageRenderer } from '../templates/ErrorPageRenderer.js';
 import type { ErrorPageData } from '../templates/ErrorPageRenderer.js';
 import { Logger } from '../utils/Logger.js';
 import type { ErrorMetadata, RuntimeErrorPageData } from '../error/types.js';
+import type { DevServerError } from '../config/types.js';
 import { ErrorHandler } from '../error/ErrorHandler.js';
 import { RequestRouter } from './RequestRouter.js';
 import type { RouterConfig } from './RequestRouter.js';
@@ -111,9 +112,10 @@ export class ProxyServer extends EventEmitter {
   private readonly stats: ProxyStats;
   private readonly isCodeBuilder: boolean;
   private healthCheckInterval: NodeJS.Timeout | null = null;
-  private devServerStatus: 'unknown' | 'up' | 'down' = 'unknown';
+  private devServerStatus: 'unknown' | 'up' | 'down' | 'error' = 'unknown';
   private readonly workspaceScript: string;
   private activeRuntimeError: ErrorMetadata | null = null;
+  private activeDevServerError: DevServerError | null = null;
   private errorClearTimeout: NodeJS.Timeout | null = null;
   private readonly activeConnections: Set<import('net').Socket> = new Set();
 
@@ -456,6 +458,39 @@ export class ProxyServer extends EventEmitter {
   }
 
   /**
+   * Set an active dev server error that will be displayed to the user
+   * This is shown when the dev server process fails to start or crashes with errors
+   *
+   * @param error - Parsed dev server error with stderr and suggestions
+   */
+  public setActiveDevServerError(error: DevServerError): void {
+    this.activeDevServerError = error;
+    this.devServerStatus = 'error';
+    this.logger.debug(`Dev server error is now active: ${error.title}`);
+  }
+
+  /**
+   * Clear the active dev server error
+   * Called when dev server starts successfully or recovers
+   */
+  public clearActiveDevServerError(): void {
+    if (this.activeDevServerError) {
+      this.logger.debug('Dev server error cleared - dev server recovered');
+      this.activeDevServerError = null;
+      // Status will be updated by health check
+    }
+  }
+
+  /**
+   * Check if there's an active dev server error
+   *
+   * @returns True if there's an active dev server error
+   */
+  public hasActiveDevServerError(): boolean {
+    return this.activeDevServerError !== null;
+  }
+
+  /**
    * Serve a runtime error page to the browser
    *
    * This method formats and serves a beautiful error page when runtime errors occur
@@ -533,22 +568,16 @@ export class ProxyServer extends EventEmitter {
 
       this.logger.debug(`Served runtime error page: ${metadata.type}: ${metadata.message}`);
     } catch (renderError) {
-      // Fallback if rendering fails
+      // Critical error: template rendering failed
       const errorMessage = renderError instanceof Error ? renderError.message : String(renderError);
-      this.logger.error(`Failed to render error page template: ${errorMessage}`);
-      this.logger.debug('Using fallback error page');
+      this.logger.error(`CRITICAL: Failed to render error page template: ${errorMessage}`);
 
-      const fallbackHtml = ErrorPageRenderer.renderRuntimeErrorFallback(
-        metadata.type,
-        metadata.message,
-        metadata.formattedStack.text
-      );
-
+      // Send plain text error as last resort
       res.writeHead(500, {
-        'Content-Type': 'text/html',
+        'Content-Type': 'text/plain',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
       });
-      res.end(fallbackHtml);
+      res.end(`Runtime Error: ${metadata.type}\n\n${metadata.message}\n\nCheck terminal logs for details.`);
     }
   }
 
@@ -574,8 +603,8 @@ export class ProxyServer extends EventEmitter {
       if (onShutdown) {
         try {
           await onShutdown();
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : String(err);
           this.logger.error(`Shutdown callback error: ${errorMessage}`);
         }
       }
@@ -585,16 +614,16 @@ export class ProxyServer extends EventEmitter {
     };
 
     const sigintHandler = (): void => {
-      handleShutdown('SIGINT').catch((error) => {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+      handleShutdown('SIGINT').catch((err) => {
+        const errorMessage = err instanceof Error ? err.message : String(err);
         this.logger.error(`SIGINT handler error: ${errorMessage}`);
         process.exit(1);
       });
     };
 
     const sigtermHandler = (): void => {
-      handleShutdown('SIGTERM').catch((error) => {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+      handleShutdown('SIGTERM').catch((err) => {
+        const errorMessage = err instanceof Error ? err.message : String(err);
         this.logger.error(`SIGTERM handler error: ${errorMessage}`);
         process.exit(1);
       });
@@ -604,10 +633,38 @@ export class ProxyServer extends EventEmitter {
     process.on('SIGTERM', sigtermHandler);
 
     // Return cleanup function
-    return (): void => {
+    return () => {
       process.off('SIGINT', sigintHandler);
       process.off('SIGTERM', sigtermHandler);
     };
+  }
+
+  /**
+   * Serve a dev server error page to the browser
+   *
+   * This method formats and serves an error page when the dev server
+   * fails to start or crashes with stderr output
+   *
+   * @param error - Parsed dev server error
+   * @param res - HTTP response object
+   */
+  private serveDevServerErrorPage(error: DevServerError, res: ServerResponse): void {
+    try {
+      const html = this.errorPageRenderer.renderDevServerError(error);
+
+      res.writeHead(500, {
+        'Content-Type': 'text/html',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      });
+
+      res.end(html);
+      this.logger.debug('Served dev server error page to browser');
+    } catch (err) {
+      // Fallback if rendering fails
+      this.logger.error(`Failed to render dev server error page: ${err instanceof Error ? err.message : String(err)}`);
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      res.end(`Dev Server Error: ${error.title}\n\n${error.message}\n\nCheck terminal for details.`);
+    }
   }
 
   /**
@@ -642,6 +699,9 @@ export class ProxyServer extends EventEmitter {
         this.devServerStatus = 'up';
         this.emit('dev-server-up', this.config.devServerUrl);
         this.logger.debug(`Dev server is UP: ${this.config.devServerUrl}`);
+
+        // Clear any active dev server error since server is now healthy
+        this.clearActiveDevServerError();
       }
     } catch {
       // Dev server is not responding
@@ -698,6 +758,14 @@ export class ProxyServer extends EventEmitter {
     if (this.activeRuntimeError) {
       this.logger.debug('Active runtime error - serving error page');
       this.serveRuntimeErrorPage(this.activeRuntimeError, res);
+      return;
+    }
+
+    // If there's an active dev server error, display it on ALL requests
+    // This shows parsed stderr and suggestions when dev server fails to start
+    if (this.activeDevServerError) {
+      this.logger.debug('Active dev server error - serving error page');
+      this.serveDevServerErrorPage(this.activeDevServerError, res);
       return;
     }
 
@@ -821,10 +889,15 @@ export class ProxyServer extends EventEmitter {
       });
       res.end(html);
     } catch (error) {
-      // Fallback if error page rendering fails
-      const fallbackHtml = ErrorPageRenderer.renderFallback(this.config.devServerUrl);
-      res.writeHead(503, { 'Content-Type': 'text/html' });
-      res.end(fallbackHtml);
+      // Critical error: template rendering failed
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`CRITICAL: Failed to render dev server error page: ${errorMessage}`);
+
+      // Send plain text error as last resort
+      res.writeHead(503, { 'Content-Type': 'text/plain' });
+      res.end(
+        `Dev Server Unavailable\n\nCannot connect to: ${this.config.devServerUrl}\n\nStart your dev server and refresh this page.`
+      );
     }
   }
 

@@ -17,7 +17,7 @@
 import { spawn } from 'node:child_process';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages, SfError } from '@salesforce/core';
-import type { WebAppDevResult, WebAppManifest } from '../../config/types.js';
+import type { WebAppDevResult, WebAppManifest, DevServerError } from '../../config/types.js';
 import { ManifestWatcher } from '../../config/ManifestWatcher.js';
 import { DevServerManager } from '../../server/DevServerManager.js';
 import { AuthManager } from '../../auth/AuthManager.js';
@@ -177,10 +177,20 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
         // Setup dev server event handlers
         this.devServerManager.on('ready', (url: string) => {
           this.logger?.debug(messages.getMessage('info.dev-server-ready', [url]));
+          // Clear any dev server error when server starts successfully
+          this.proxyServer?.clearActiveDevServerError();
         });
 
-        this.devServerManager.on('error', (error: SfError) => {
-          this.logger?.error(messages.getMessage('error.dev-server-failed', [error.message]));
+        this.devServerManager.on('error', (error: SfError | DevServerError) => {
+          // Check if this is a parsed dev server error (has DevServerError-specific fields)
+          if ('stderrLines' in error && Array.isArray(error.stderrLines) && 'title' in error && 'type' in error) {
+            // This is a DevServerError with parsed stderr
+            this.logger?.error(messages.getMessage('error.dev-server-failed', [error.title]));
+            this.proxyServer?.setActiveDevServerError(error);
+          } else {
+            // Generic SfError
+            this.logger?.error(messages.getMessage('error.dev-server-failed', [error.message]));
+          }
         });
 
         this.devServerManager.on('exit', () => {

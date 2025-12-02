@@ -220,38 +220,6 @@ describe('ErrorPageRenderer', () => {
     });
   });
 
-  describe('Fallback Pages', () => {
-    it('should render fallback dev server error page', () => {
-      const html = ErrorPageRenderer.renderFallback('http://localhost:5173');
-
-      expect(html).to.include('Dev Server Unavailable');
-      expect(html).to.include('http://localhost:5173');
-      expect(html).to.include('Start your dev server');
-      expect(html).to.include('auto-refresh');
-    });
-
-    it('should render fallback runtime error page', () => {
-      const html = ErrorPageRenderer.renderRuntimeErrorFallback(
-        'TypeError',
-        'Cannot read property of undefined',
-        'stack trace here'
-      );
-
-      expect(html).to.include('Runtime Error');
-      expect(html).to.include('TypeError');
-      expect(html).to.include('Cannot read property of undefined');
-      expect(html).to.include('stack trace here');
-    });
-
-    it('should render fallback pages without errors', () => {
-      const html = ErrorPageRenderer.renderRuntimeErrorFallback('TypeError', 'Test error message', 'stack trace here');
-
-      expect(html).to.be.a('string');
-      expect(html).to.include('TypeError');
-      expect(html).to.include('Test error message');
-    });
-  });
-
   describe('Template Loading', () => {
     it('should load templates successfully', () => {
       expect(() => new ErrorPageRenderer()).to.not.throw();

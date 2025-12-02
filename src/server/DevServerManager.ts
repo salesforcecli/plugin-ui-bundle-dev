@@ -19,6 +19,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { SfError } from '@salesforce/core';
 import type { DevServerOptions, DevServerStatus } from '../config/types.js';
 import { Logger } from '../utils/Logger.js';
+import { DevServerErrorParser } from '../error/DevServerErrorParser.js';
 
 /**
  * URL detection patterns for various dev servers
@@ -116,6 +117,8 @@ export class DevServerManager extends EventEmitter {
   private isReady = false;
   private restartCount = 0;
   private logger: Logger;
+  private stderrBuffer: string[] = []; // Buffer to store stderr lines for error parsing
+  private readonly maxStderrLines = 100; // Keep last 100 lines
 
   /**
    * Creates a new DevServerManager instance
@@ -377,6 +380,17 @@ export class DevServerManager extends EventEmitter {
     // Emit output event for consumers
     this.emit(stream, output);
 
+    // Capture stderr lines for error parsing
+    if (stream === 'stderr') {
+      const lines = output.split('\n').filter((line) => line.trim());
+      this.stderrBuffer.push(...lines);
+
+      // Keep only the last N lines to prevent memory issues
+      if (this.stderrBuffer.length > this.maxStderrLines) {
+        this.stderrBuffer = this.stderrBuffer.slice(-this.maxStderrLines);
+      }
+    }
+
     // Log output in debug mode
     if (this.options.debug) {
       const lines = output.split('\n').filter((line) => line.trim());
@@ -412,6 +426,9 @@ export class DevServerManager extends EventEmitter {
       this.startupTimer = null;
     }
 
+    // Clear stderr buffer on successful start
+    this.stderrBuffer = [];
+
     this.logger.debug(`Dev server detected at: ${url}`);
     this.emit('ready', url);
   }
@@ -437,16 +454,58 @@ export class DevServerManager extends EventEmitter {
     // Emit exit event
     this.emit('exit', code, signal);
 
-    // Attempt restart if:
-    // 1. Exit was unexpected (not from stop() method or user interrupt)
-    // 2. Process was previously ready (not a startup failure)
-    // 3. Restart limit not reached
+    // Check if this was an error exit (non-zero code)
     const wasExpectedExit = signal === 'SIGTERM' || signal === 'SIGKILL' || signal === 'SIGINT';
+    const wasErrorExit = code !== null && code !== 0 && !wasExpectedExit;
+
+    // Parse stderr if there was an error and we have stderr content
+    if (wasErrorExit && this.stderrBuffer.length > 0) {
+      const stderrContent = this.stderrBuffer.join('\n');
+      const parsedError = DevServerErrorParser.parseError(stderrContent, code, signal);
+
+      this.logger.error(`Dev server error: ${parsedError.title}`);
+      this.logger.debug(`Error type: ${parsedError.type}`);
+
+      // Emit parsed error
+      this.emit('error', parsedError);
+
+      // Check if we should retry based on error type
+      const shouldRetry = DevServerErrorParser.shouldRetry(parsedError);
+
+      if (shouldRetry && this.restartCount < this.options.maxRestarts) {
+        this.restartCount += 1;
+        this.logger.warn(
+          `Dev server crashed, attempting restart (${this.restartCount}/${this.options.maxRestarts})...`
+        );
+        this.isReady = false;
+        this.detectedUrl = null;
+        this.stderrBuffer = []; // Clear buffer for next attempt
+
+        // Restart after a short delay
+        setTimeout(() => {
+          try {
+            this.start();
+          } catch (error) {
+            const sfError =
+              error instanceof SfError
+                ? error
+                : new SfError(error instanceof Error ? error.message : String(error), 'DevServerRestartError');
+            this.emit('error', sfError);
+          }
+        }, 2000);
+      }
+
+      // Don't retry if it's a permanent error - already emitted above
+      return;
+    }
+
+    // Normal crash handling (no stderr or expected exit)
     if (!wasExpectedExit && this.isReady && this.restartCount < this.options.maxRestarts) {
       this.restartCount += 1;
       this.logger.warn(`Dev server crashed, attempting restart (${this.restartCount}/${this.options.maxRestarts})...`);
       this.isReady = false;
       this.detectedUrl = null;
+      this.stderrBuffer = []; // Clear buffer
 
       // Restart after a short delay
       setTimeout(() => {

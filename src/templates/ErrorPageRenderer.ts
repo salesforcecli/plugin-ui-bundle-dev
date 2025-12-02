@@ -18,6 +18,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { RuntimeErrorPageData } from '../error/types.js';
+import type { DevServerError } from '../config/types.js';
 import { Logger } from '../utils/Logger.js';
 
 export type ErrorPageData = {
@@ -31,147 +32,30 @@ export type ErrorPageData = {
 /**
  * Renders HTML error pages for browser display when dev server is unavailable
  * or when runtime errors occur
+ *
+ * Uses a single template with conditional sections for all error types
  */
 export class ErrorPageRenderer {
   private template: string;
-  private runtimeErrorTemplate: string;
   private logger: Logger;
 
   public constructor() {
     this.logger = new Logger(true); // Enable debug for template loading
 
-    // Load the HTML templates
+    // Load the HTML template
     const currentDir = dirname(fileURLToPath(import.meta.url));
-
-    // Dev server error template
     const templatePath = join(currentDir, 'error-page.html');
-    this.template = readFileSync(templatePath, 'utf-8');
 
-    // Runtime error template
-    const runtimeTemplatePath = join(currentDir, 'runtime-error-page.html');
     try {
-      this.runtimeErrorTemplate = readFileSync(runtimeTemplatePath, 'utf-8');
-      this.logger.debug('[ErrorPageRenderer] Runtime error template loaded successfully');
-      this.logger.debug(`[ErrorPageRenderer] Template length: ${this.runtimeErrorTemplate.length} chars`);
+      this.template = readFileSync(templatePath, 'utf-8');
+      this.logger.debug('[ErrorPageRenderer] Template loaded successfully');
+      this.logger.debug(`[ErrorPageRenderer] Template length: ${this.template.length} chars`);
     } catch (error) {
-      // Fallback if runtime error template doesn't exist
-      this.logger.error('[ErrorPageRenderer] WARNING: Failed to load runtime error template, using fallback!');
+      this.logger.error('[ErrorPageRenderer] CRITICAL: Failed to load template!');
       this.logger.error(`[ErrorPageRenderer] Error: ${error instanceof Error ? error.message : String(error)}`);
-      this.logger.error(`[ErrorPageRenderer] Path: ${runtimeTemplatePath}`);
-      this.runtimeErrorTemplate = this.template;
+      this.logger.error(`[ErrorPageRenderer] Path: ${templatePath}`);
+      throw new Error('Failed to load error template');
     }
-  }
-
-  /**
-   * Render a simple error page for when template loading fails
-   *
-   * @param devServerUrl - The dev server URL that's unreachable
-   * @returns Simple HTML error page
-   */
-  public static renderFallback(devServerUrl: string): string {
-    return `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dev Server Unavailable</title>
-    <style>
-        body { font-family: sans-serif; padding: 40px; max-width: 600px; margin: 0 auto; }
-        h1 { color: #c62828; }
-        code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; }
-    </style>
-    <script>setTimeout(() => window.location.reload(), 5000);</script>
-</head>
-<body>
-    <h1>Dev Server Unavailable</h1>
-    <p>Cannot connect to dev server at <code>${devServerUrl}</code></p>
-    <p>Start your dev server and this page will auto-refresh.</p>
-    <p><em>Refreshing in 5 seconds...</em></p>
-</body>
-</html>`;
-  }
-
-  /**
-   * Render a fallback runtime error page when the template is unavailable
-   *
-   * @param errorType - Error type (e.g., TypeError)
-   * @param errorMessage - Error message
-   * @param stackTrace - Stack trace text
-   * @returns Simple HTML error page
-   */
-  public static renderRuntimeErrorFallback(errorType: string, errorMessage: string, stackTrace: string): string {
-    return `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Runtime Error</title>
-    <style>
-        body { 
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          padding: 40px; 
-          max-width: 1200px; 
-          margin: 0 auto;
-          background: #f5f5f5;
-        }
-        .container {
-          background: white;
-          padding: 40px;
-          border-radius: 12px;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        h1 { color: #c62828; margin-bottom: 20px; }
-        .error-type {
-          background: #ffebee;
-          color: #c62828;
-          padding: 8px 16px;
-          border-radius: 6px;
-          display: inline-block;
-          margin-bottom: 20px;
-          font-weight: 600;
-        }
-        .error-message {
-          background: #fff3e0;
-          padding: 20px;
-          border-left: 4px solid #ff9800;
-          margin-bottom: 30px;
-          border-radius: 4px;
-        }
-        .stack-trace { 
-          background: #1e1e1e;
-          color: #d4d4d4;
-          padding: 20px;
-          border-radius: 8px;
-          overflow-x: auto;
-          white-space: pre-wrap;
-          word-wrap: break-word;
-          font-family: 'Courier New', monospace;
-          font-size: 0.9em;
-          line-height: 1.6;
-        }
-        h2 {
-          color: #032d60;
-          margin-top: 30px;
-          margin-bottom: 15px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-      <h1>⚠️ Runtime Error</h1>
-      <div class="error-type">${errorType}</div>
-      <div class="error-message">
-        <strong>Message:</strong><br>
-        ${errorMessage}
-      </div>
-      <h2>Stack Trace</h2>
-      <div class="stack-trace">${stackTrace}</div>
-      <p style="margin-top: 30px; color: #666;">
-        Check the console and logs for more details.
-      </p>
-    </div>
-</body>
-</html>`;
   }
 
   /**
@@ -190,7 +74,7 @@ export class ErrorPageRenderer {
   }
 
   /**
-   * Render the error page with provided data
+   * Render a simple dev server down error page
    *
    * @param data - The data to inject into the template
    * @returns Rendered HTML string
@@ -198,13 +82,51 @@ export class ErrorPageRenderer {
   public render(data: ErrorPageData): string {
     const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
 
-    return this.template
-      .replace(/\{\{STATUS\}\}/g, data.status)
-      .replace(/\{\{DEV_SERVER_URL\}\}/g, data.devServerUrl)
-      .replace(/\{\{WORKSPACE_SCRIPT\}\}/g, data.workspaceScript)
-      .replace(/\{\{PROXY_URL\}\}/g, data.proxyUrl)
-      .replace(/\{\{ORG_TARGET\}\}/g, data.orgTarget)
-      .replace(/\{\{TIMESTAMP\}\}/g, timestamp);
+    // Extract port from proxy URL (e.g., "http://localhost:4545" -> "4545")
+    const proxyPort = new URL(data.proxyUrl).port || '4545';
+
+    return (
+      this.template
+        // Page metadata
+        .replace(/\{\{PAGE_TITLE\}\}/g, 'Dev Server Unavailable')
+        .replace(/\{\{META_REFRESH\}\}/g, '<meta http-equiv="refresh" content="3" />')
+
+        // Header
+        .replace(/\{\{ERROR_TITLE\}\}/g, 'No Dev Server Detected')
+        .replace(/\{\{STATUS_CLASS\}\}/g, 'warning')
+        .replace(/\{\{ERROR_STATUS\}\}/g, ErrorPageRenderer.escapeHtml(data.status))
+
+        // Message content
+        .replace(
+          /\{\{MESSAGE_CONTENT\}\}/g,
+          `
+          <p>The proxy cannot connect to your dev server. This usually means:</p>
+          <ul>
+            <li>Your dev server isn't running yet</li>
+            <li>The dev server is starting up (please wait)</li>
+            <li>The dev server crashed or exited</li>
+          </ul>
+        `
+        )
+
+        // Diagnostics data
+        .replace(/\{\{DEV_SERVER_URL\}\}/g, ErrorPageRenderer.escapeHtml(data.devServerUrl))
+        .replace(/\{\{PROXY_URL\}\}/g, ErrorPageRenderer.escapeHtml(data.proxyUrl))
+        .replace(/\{\{PROXY_PORT\}\}/g, proxyPort)
+        .replace(/\{\{ORG_TARGET\}\}/g, ErrorPageRenderer.escapeHtml(data.orgTarget))
+        .replace(/\{\{WORKSPACE_SCRIPT\}\}/g, ErrorPageRenderer.escapeHtml(data.workspaceScript))
+        .replace(/\{\{LAST_CHECK_TIME\}\}/g, timestamp)
+
+        // Section visibility (show simple, hide others)
+        .replace(/\{\{SIMPLE_SECTION_CLASS\}\}/g, '')
+        .replace(/\{\{RUNTIME_SECTION_CLASS\}\}/g, 'hidden')
+        .replace(/\{\{DEV_SERVER_SECTION_CLASS\}\}/g, 'hidden')
+        .replace(/\{\{SUGGESTIONS_SECTION_CLASS\}\}/g, '')
+
+        // Auto-refresh
+        .replace(/\{\{AUTO_REFRESH_CLASS\}\}/g, '')
+        .replace(/\{\{AUTO_REFRESH_TEXT\}\}/g, 'Auto-refreshing every 3 seconds...')
+    );
   }
 
   /**
@@ -216,38 +138,59 @@ export class ErrorPageRenderer {
   public renderRuntimeError(data: RuntimeErrorPageData): string {
     try {
       this.logger.debug('[ErrorPageRenderer] Starting renderRuntimeError');
-      this.logger.debug(`[ErrorPageRenderer] Template loaded: ${this.runtimeErrorTemplate ? 'YES' : 'NO'}`);
-      this.logger.debug(`[ErrorPageRenderer] Template length: ${this.runtimeErrorTemplate?.length ?? 0} chars`);
 
       const severityLabel = data.severity.toUpperCase();
-      const suggestions = data.suggestions
-        .map((s) => `<li>${ErrorPageRenderer.escapeHtml(s)}</li>`)
-        .join('\n              ');
 
-      // Handle optional error code
+      // Build suggestions list (just the <li> items, not the wrapping structure)
+      const suggestionsList =
+        data.suggestions.length > 0
+          ? data.suggestions.map((s) => `<li>${ErrorPageRenderer.escapeHtml(s)}</li>`).join('\n')
+          : '<li>No specific suggestions available. Check the error details and stack trace above.</li>';
+
+      // Build error code badge if present
       const errorCodeBadge = data.errorCode
-        ? `<span class="error-type-badge">${ErrorPageRenderer.escapeHtml(data.errorCode)}</span>`
+        ? ` <span class="code">${ErrorPageRenderer.escapeHtml(data.errorCode)}</span>`
         : '';
 
-      let html = this.runtimeErrorTemplate
-        .replace(/\{\{ERROR_TYPE\}\}/g, ErrorPageRenderer.escapeHtml(data.errorType))
-        .replace(/\{\{ERROR_MESSAGE\}\}/g, ErrorPageRenderer.escapeHtml(data.errorMessage))
+      // Use default proxy port for emergency commands
+      const proxyPort = '4545';
+
+      const html = this.template
+        // Page metadata
+        .replace(/\{\{PAGE_TITLE\}\}/g, 'Runtime Error')
+        .replace(/\{\{META_REFRESH\}\}/g, '')
+
+        // Header
+        .replace(/\{\{ERROR_TITLE\}\}/g, ErrorPageRenderer.escapeHtml(data.errorType))
+        .replace(/\{\{STATUS_CLASS\}\}/g, data.severity)
+        .replace(/\{\{ERROR_STATUS\}\}/g, `${severityLabel} Error`)
+
+        // Message content
+        .replace(/\{\{ERROR_MESSAGE_TEXT\}\}/g, ErrorPageRenderer.escapeHtml(data.errorMessage))
+
+        // Runtime error data
         .replace(/\{\{FORMATTED_STACK_HTML\}\}/g, data.formattedStackHtml)
-        .replace(/\{\{FORMATTED_STACK_TEXT\}\}/g, ErrorPageRenderer.escapeHtml(data.formattedStackText))
-        .replace(/\{\{TIMESTAMP_FORMATTED\}\}/g, data.timestampFormatted)
-        .replace(/\{\{SEVERITY\}\}/g, data.severity)
+        .replace(/\{\{ERROR_TYPE\}\}/g, ErrorPageRenderer.escapeHtml(data.errorType))
+        .replace(/\{\{ERROR_CODE_BADGE\}\}/g, errorCodeBadge)
         .replace(/\{\{SEVERITY_LABEL\}\}/g, severityLabel)
+        .replace(/\{\{TIMESTAMP_FORMATTED\}\}/g, data.timestampFormatted)
         .replace(/\{\{NODE_VERSION\}\}/g, ErrorPageRenderer.escapeHtml(data.metadata.nodeVersion))
         .replace(/\{\{PLATFORM\}\}/g, ErrorPageRenderer.escapeHtml(data.metadata.platform))
-        .replace(/\{\{PID\}\}/g, String(data.metadata.pid))
         .replace(/\{\{HEAP_USED_MB\}\}/g, String(data.metadata.heapUsedMB))
         .replace(/\{\{HEAP_TOTAL_MB\}\}/g, String(data.metadata.heapTotalMB))
-        .replace(/\{\{RSS_MB\}\}/g, String(data.metadata.rssMB))
-        .replace(/\{\{SUGGESTIONS\}\}/g, suggestions)
-        .replace(/\{\{ERROR_REPORT_JSON\}\}/g, ErrorPageRenderer.escapeHtml(data.errorReportJson));
+        .replace(/\{\{PID\}\}/g, String(data.metadata.pid))
+        .replace(/\{\{PROXY_PORT\}\}/g, proxyPort)
 
-      // Remove conditional blocks for error code
-      html = html.replace(/\{\{#ERROR_CODE\}\}[\s\S]*?\{\{\/ERROR_CODE\}\}/g, errorCodeBadge);
+        // Suggestions
+        .replace(/\{\{SUGGESTIONS_TITLE\}\}/g, 'How to Fix')
+        .replace(/\{\{SUGGESTIONS_LIST\}\}/g, suggestionsList)
+
+        // Section visibility (show runtime, hide others)
+        .replace(/\{\{SIMPLE_SECTION_CLASS\}\}/g, 'hidden')
+        .replace(/\{\{RUNTIME_SECTION_CLASS\}\}/g, '')
+        .replace(/\{\{DEV_SERVER_SECTION_CLASS\}\}/g, 'hidden')
+        .replace(/\{\{SUGGESTIONS_SECTION_CLASS\}\}/g, '')
+        .replace(/\{\{AUTO_REFRESH_CLASS\}\}/g, 'hidden');
 
       this.logger.debug('[ErrorPageRenderer] Successfully rendered runtime error page');
       this.logger.debug(`[ErrorPageRenderer] Output length: ${html.length} chars`);
@@ -257,6 +200,69 @@ export class ErrorPageRenderer {
       this.logger.error('[ErrorPageRenderer] RENDER ERROR:');
       this.logger.error(String(error));
       throw error;
+    }
+  }
+
+  /**
+   * Render a dev server error page with stderr output and suggestions
+   *
+   * @param error - Parsed dev server error
+   * @returns Rendered HTML string
+   */
+  public renderDevServerError(error: DevServerError): string {
+    try {
+      this.logger.debug('[ErrorPageRenderer] Starting renderDevServerError');
+      this.logger.debug(`[ErrorPageRenderer] Error type: ${error.type}`);
+
+      // Format suggestions list (just the <li> items, structure is in template)
+      const suggestionsList = error.suggestions.map((s) => `<li>${ErrorPageRenderer.escapeHtml(s)}</li>`).join('\n');
+
+      // Format stderr lines with proper escaping (just the text content)
+      const stderrOutput = error.stderrLines.map((line) => ErrorPageRenderer.escapeHtml(line)).join('\n');
+
+      // Use default proxy port for emergency commands
+      const proxyPort = '4545';
+
+      const html = this.template
+        // Page metadata
+        .replace(/\{\{PAGE_TITLE\}\}/g, 'Dev Server Error')
+        .replace(/\{\{META_REFRESH\}\}/g, '<meta http-equiv="refresh" content="5" />')
+
+        // Header
+        .replace(/\{\{ERROR_TITLE\}\}/g, ErrorPageRenderer.escapeHtml(error.title))
+        .replace(/\{\{STATUS_CLASS\}\}/g, 'error')
+        .replace(/\{\{ERROR_STATUS\}\}/g, 'Error Detected')
+
+        // Message content
+        .replace(/\{\{ERROR_MESSAGE_TEXT\}\}/g, ErrorPageRenderer.escapeHtml(error.message))
+
+        // Dev server error data
+        .replace(/\{\{STDERR_OUTPUT\}\}/g, stderrOutput)
+        .replace(/\{\{PROXY_PORT\}\}/g, proxyPort)
+
+        // Suggestions
+        .replace(/\{\{SUGGESTIONS_TITLE\}\}/g, 'How to Fix This')
+        .replace(/\{\{SUGGESTIONS_LIST\}\}/g, suggestionsList)
+
+        // Section visibility (show dev server error, hide others)
+        .replace(/\{\{SIMPLE_SECTION_CLASS\}\}/g, 'hidden')
+        .replace(/\{\{RUNTIME_SECTION_CLASS\}\}/g, 'hidden')
+        .replace(/\{\{DEV_SERVER_SECTION_CLASS\}\}/g, '')
+        .replace(/\{\{SUGGESTIONS_SECTION_CLASS\}\}/g, '')
+
+        // Auto-refresh
+        .replace(/\{\{AUTO_REFRESH_CLASS\}\}/g, '')
+        .replace(
+          /\{\{AUTO_REFRESH_TEXT\}\}/g,
+          'This page will auto-refresh every 5 seconds until the dev server starts successfully'
+        );
+
+      this.logger.debug('[ErrorPageRenderer] Successfully rendered dev server error page');
+      return html;
+    } catch (renderError) {
+      this.logger.error('[ErrorPageRenderer] DEV SERVER ERROR RENDER ERROR:');
+      this.logger.error(String(renderError));
+      throw renderError;
     }
   }
 }
