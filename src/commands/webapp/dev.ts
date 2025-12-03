@@ -298,15 +298,28 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
       // Keep the command running until interrupted or dev server exits
       await new Promise<void>((resolve) => {
         // Exit if dev server exits with SIGINT (user pressed Ctrl+C)
-        this.devServerManager?.on('exit', (code: number | null, signal: string | null) => {
-          if (signal === 'SIGINT') {
-            this.logger?.debug('Dev server received SIGINT, exiting command');
-            resolve();
-          }
+        if (this.devServerManager) {
+          this.devServerManager.on('exit', (code: number | null, signal: string | null) => {
+            if (signal === 'SIGINT') {
+              this.logger?.debug('Dev server received SIGINT, exiting command');
+              resolve();
+            }
+          });
+        }
+
+        // CRITICAL: Use prependOnceListener to add our handlers BEFORE sfCommand's handlers
+        // sfCommand adds process.on('SIGINT', () => this.exit(130)) which throws ExitError
+        // By using prependOnceListener, our resolve() runs FIRST, allowing clean shutdown
+        // This is especially important when there's no dev server (explicit URL mode)
+        process.prependOnceListener('SIGINT', () => {
+          this.logger?.debug('Received SIGINT signal, initiating graceful shutdown');
+          resolve();
         });
 
-        // The command will also exit on process SIGINT/SIGTERM
-        // which triggers the finally() cleanup
+        process.prependOnceListener('SIGTERM', () => {
+          this.logger?.debug('Received SIGTERM signal, initiating graceful shutdown');
+          resolve();
+        });
       });
 
       // Return result (never reached, but required for type safety)

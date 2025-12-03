@@ -22,10 +22,8 @@ lib
 coverage
 test_session*
 
-# generated docs (but allow markdown documentation)
+# generated docs
 docs
-!docs/*.md
-!docs/README.md
 
 # ignore sfdx-trust files
 *.tgz
