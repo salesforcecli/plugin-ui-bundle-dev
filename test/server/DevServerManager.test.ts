@@ -40,7 +40,6 @@ describe('DevServerManager', () => {
     it('should use explicit URL without spawning process', (done) => {
       manager = new DevServerManager({
         explicitUrl: 'http://localhost:5173',
-        debug: false,
       });
 
       manager.on('ready', (url: string) => {
@@ -56,13 +55,12 @@ describe('DevServerManager', () => {
         }
       });
 
-      manager.start();
+      void manager.start();
     });
 
     it('should return ready status immediately with explicit URL', (done) => {
       manager = new DevServerManager({
         explicitUrl: 'http://localhost:3000',
-        debug: false,
       });
 
       manager.on('ready', () => {
@@ -77,17 +75,21 @@ describe('DevServerManager', () => {
         }
       });
 
-      manager.start();
+      void manager.start();
     });
   });
 
   describe('Command Validation', () => {
-    it('should throw error if no command and no explicit URL provided', () => {
-      manager = new DevServerManager({
-        debug: false,
-      });
+    it('should throw error if no command and no explicit URL provided', async () => {
+      manager = new DevServerManager({});
 
-      expect(() => manager?.start()).to.throw(SfError, /Dev server command is required/);
+      try {
+        await manager?.start();
+        expect.fail('Expected start() to throw an error');
+      } catch (error) {
+        expect(error).to.be.instanceOf(SfError);
+        expect((error as SfError).message).to.match(/Dev server command is required/);
+      }
     });
   });
 
@@ -98,7 +100,7 @@ describe('DevServerManager', () => {
 
       manager = new DevServerManager({
         command: 'echo "  ➜  Local:   http://localhost:5173/"',
-        debug: false,
+
         startupTimeout: 2000,
       });
 
@@ -114,7 +116,7 @@ describe('DevServerManager', () => {
         });
       });
 
-      manager.start();
+      void manager.start();
 
       const url = await readyPromise;
       expect(url).to.equal('http://localhost:5173/');
@@ -125,7 +127,7 @@ describe('DevServerManager', () => {
 
       manager = new DevServerManager({
         command: 'echo "On Your Network:  http://localhost:3000"',
-        debug: false,
+
         startupTimeout: 2000,
       });
 
@@ -141,7 +143,7 @@ describe('DevServerManager', () => {
         });
       });
 
-      manager.start();
+      void manager.start();
 
       const url = await readyPromise;
       expect(url).to.equal('http://localhost:3000');
@@ -152,7 +154,7 @@ describe('DevServerManager', () => {
 
       manager = new DevServerManager({
         command: 'echo "ready - started server on 0.0.0.0:3000, url: http://localhost:3000"',
-        debug: false,
+
         startupTimeout: 2000,
       });
 
@@ -168,7 +170,7 @@ describe('DevServerManager', () => {
         });
       });
 
-      manager.start();
+      void manager.start();
 
       const url = await readyPromise;
       expect(url).to.equal('http://localhost:3000');
@@ -179,7 +181,7 @@ describe('DevServerManager', () => {
 
       manager = new DevServerManager({
         command: 'echo "Server running at http://0.0.0.0:8080"',
-        debug: false,
+
         startupTimeout: 2000,
       });
 
@@ -195,7 +197,7 @@ describe('DevServerManager', () => {
         });
       });
 
-      manager.start();
+      void manager.start();
 
       const url = await readyPromise;
       expect(url).to.equal('http://localhost:8080');
@@ -206,7 +208,7 @@ describe('DevServerManager', () => {
 
       manager = new DevServerManager({
         command: 'node -e "console.error(\'Dev server started at http://localhost:4000\')"',
-        debug: false,
+
         startupTimeout: 2000,
       });
 
@@ -222,7 +224,7 @@ describe('DevServerManager', () => {
         });
       });
 
-      manager.start();
+      void manager.start();
 
       const url = await readyPromise;
       expect(url).to.equal('http://localhost:4000');
@@ -236,7 +238,7 @@ describe('DevServerManager', () => {
 
       manager = new DevServerManager({
         command: 'echo "Server at http://localhost:5555"',
-        debug: false,
+
         startupTimeout: 2000,
       });
 
@@ -255,7 +257,7 @@ describe('DevServerManager', () => {
         }
       });
 
-      manager.start();
+      void manager.start();
     });
 
     it('should handle explicit URL override priority', function (done) {
@@ -264,7 +266,6 @@ describe('DevServerManager', () => {
       manager = new DevServerManager({
         command: 'npm run dev', // This would normally spawn a process
         explicitUrl: 'http://localhost:9999', // But explicit URL takes precedence
-        debug: false,
       });
 
       manager.on('ready', (url: string) => {
@@ -279,7 +280,7 @@ describe('DevServerManager', () => {
         }
       });
 
-      manager.start();
+      void manager.start();
     });
   });
 
@@ -290,7 +291,7 @@ describe('DevServerManager', () => {
 
       manager = new DevServerManager({
         command: 'sleep 10', // Command that takes too long
-        debug: false,
+
         startupTimeout: 500, // Very short timeout
       });
 
@@ -302,7 +303,7 @@ describe('DevServerManager', () => {
         });
       });
 
-      manager.start();
+      void manager.start();
 
       const error = await errorPromise;
       expect(error).to.be.instanceOf(SfError);
@@ -314,7 +315,7 @@ describe('DevServerManager', () => {
 
       manager = new DevServerManager({
         command: 'this-command-does-not-exist-12345',
-        debug: false,
+
         startupTimeout: 1000,
       });
 
@@ -326,7 +327,7 @@ describe('DevServerManager', () => {
         });
       });
 
-      manager.start();
+      void manager.start();
 
       const error = await errorPromise;
       expect(error).to.be.instanceOf(Error);
@@ -341,10 +342,9 @@ describe('DevServerManager', () => {
       manager = new DevServerManager({
         command: 'sleep 30',
         explicitUrl: 'http://localhost:5000',
-        debug: false,
       });
 
-      manager.start();
+      void manager.start();
 
       // Wait a bit for process to start
       await new Promise((resolve) => {
@@ -364,7 +364,6 @@ describe('DevServerManager', () => {
       manager = new DevServerManager({
         command: 'echo "test"',
         explicitUrl: 'http://localhost:5000',
-        debug: false,
       });
 
       const exitPromise = new Promise<{ code: number | null; signal: string | null }>((resolve, reject) => {
@@ -375,7 +374,7 @@ describe('DevServerManager', () => {
         });
       });
 
-      manager.start();
+      void manager.start();
 
       const exitInfo = await exitPromise;
       expect(exitInfo.code).to.be.a('number');
@@ -389,7 +388,7 @@ describe('DevServerManager', () => {
 
       manager = new DevServerManager({
         command: 'echo "Server at http://localhost:7777" && exit 1',
-        debug: false,
+
         startupTimeout: 2000,
         maxRestarts: 2,
       });
@@ -404,7 +403,7 @@ describe('DevServerManager', () => {
         });
       });
 
-      manager.start();
+      void manager.start();
 
       const error = await errorPromise;
       expect(error).to.be.instanceOf(SfError);
@@ -418,7 +417,7 @@ describe('DevServerManager', () => {
       manager = new DevServerManager({
         command: 'sleep 30',
         explicitUrl: 'http://localhost:5000',
-        debug: false,
+
         maxRestarts: 3,
       });
 
@@ -429,7 +428,7 @@ describe('DevServerManager', () => {
         }
       });
 
-      manager.start();
+      void manager.start();
 
       // Wait for process to start
       await new Promise((resolve) => {
@@ -456,7 +455,6 @@ describe('DevServerManager', () => {
       manager = new DevServerManager({
         command: 'echo "test output"',
         explicitUrl: 'http://localhost:5000',
-        debug: false,
       });
 
       const timeout = setTimeout(() => done(new Error('Test timeout')), 2000);
@@ -471,7 +469,7 @@ describe('DevServerManager', () => {
         }
       });
 
-      manager.start();
+      void manager.start();
     });
 
     it('should emit stderr events', function (done) {
@@ -480,7 +478,6 @@ describe('DevServerManager', () => {
       manager = new DevServerManager({
         command: 'node -e "console.error(\'error output\')"',
         explicitUrl: 'http://localhost:5000',
-        debug: false,
       });
 
       const timeout = setTimeout(() => done(new Error('Test timeout')), 2000);
@@ -495,7 +492,7 @@ describe('DevServerManager', () => {
         }
       });
 
-      manager.start();
+      void manager.start();
     });
   });
 });

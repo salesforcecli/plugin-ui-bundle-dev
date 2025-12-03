@@ -18,17 +18,13 @@ import { expect } from 'chai';
 import { TestContext } from '@salesforce/core/testSetup';
 import { Org, Connection, SfError } from '@salesforce/core';
 import { AuthManager } from '../../src/auth/AuthManager.js';
-import { Logger } from '../../src/utils/Logger.js';
 
 describe('AuthManager', () => {
   const $$ = new TestContext();
-  let logger: Logger;
   let mockOrg: Partial<Org>;
   let mockConnection: Partial<Connection>;
 
   beforeEach(() => {
-    logger = new Logger(false);
-
     // Create mock connection
     mockConnection = {
       accessToken: 'test-access-token',
@@ -52,7 +48,7 @@ describe('AuthManager', () => {
     it('should successfully initialize with valid org', async () => {
       $$.SANDBOX.stub(Org, 'create').resolves(mockOrg as Org);
 
-      const authManager = new AuthManager('testorg', logger);
+      const authManager = new AuthManager('testorg');
       await authManager.initialize();
 
       expect(authManager.getInstanceUrl()).to.equal('https://test.salesforce.com');
@@ -61,7 +57,7 @@ describe('AuthManager', () => {
     it('should throw OrgNotFoundError when org does not exist', async () => {
       $$.SANDBOX.stub(Org, 'create').rejects(new Error('No authorization information found'));
 
-      const authManager = new AuthManager('nonexistent', logger);
+      const authManager = new AuthManager('nonexistent');
 
       try {
         await authManager.initialize();
@@ -77,7 +73,7 @@ describe('AuthManager', () => {
     it('should throw OrgAuthFailedError on other auth errors', async () => {
       $$.SANDBOX.stub(Org, 'create').rejects(new Error('Authentication failed'));
 
-      const authManager = new AuthManager('testorg', logger);
+      const authManager = new AuthManager('testorg');
 
       try {
         await authManager.initialize();
@@ -94,7 +90,7 @@ describe('AuthManager', () => {
     it('should return authorization headers with bearer token', async () => {
       $$.SANDBOX.stub(Org, 'create').resolves(mockOrg as Org);
 
-      const authManager = new AuthManager('testorg', logger);
+      const authManager = new AuthManager('testorg');
       await authManager.initialize();
 
       const headers = authManager.getAuthHeaders();
@@ -105,7 +101,7 @@ describe('AuthManager', () => {
     });
 
     it('should throw error if not initialized', () => {
-      const authManager = new AuthManager('testorg', logger);
+      const authManager = new AuthManager('testorg');
 
       try {
         authManager.getAuthHeaders();
@@ -128,7 +124,7 @@ describe('AuthManager', () => {
 
       $$.SANDBOX.stub(Org, 'create').resolves(mockOrgWithoutToken as unknown as Org);
 
-      const authManager = new AuthManager('testorg', logger);
+      const authManager = new AuthManager('testorg');
       await authManager.initialize();
 
       try {
@@ -146,7 +142,7 @@ describe('AuthManager', () => {
     it('should return the Salesforce instance URL', async () => {
       $$.SANDBOX.stub(Org, 'create').resolves(mockOrg as Org);
 
-      const authManager = new AuthManager('testorg', logger);
+      const authManager = new AuthManager('testorg');
       await authManager.initialize();
 
       const instanceUrl = authManager.getInstanceUrl();
@@ -155,7 +151,7 @@ describe('AuthManager', () => {
     });
 
     it('should throw error if not initialized', () => {
-      const authManager = new AuthManager('testorg', logger);
+      const authManager = new AuthManager('testorg');
 
       try {
         authManager.getInstanceUrl();
@@ -171,7 +167,7 @@ describe('AuthManager', () => {
     it('should refresh token successfully', async () => {
       const orgCreateStub = $$.SANDBOX.stub(Org, 'create').resolves(mockOrg as Org);
 
-      const authManager = new AuthManager('testorg', logger);
+      const authManager = new AuthManager('testorg');
       await authManager.initialize();
 
       await authManager.refreshToken();
@@ -185,7 +181,7 @@ describe('AuthManager', () => {
       orgCreateStub.onFirstCall().resolves(mockOrg as Org);
       orgCreateStub.onSecondCall().rejects(new Error('Refresh failed'));
 
-      const authManager = new AuthManager('testorg', logger);
+      const authManager = new AuthManager('testorg');
       await authManager.initialize();
 
       try {
@@ -202,7 +198,7 @@ describe('AuthManager', () => {
     it('should return true for valid token', async () => {
       $$.SANDBOX.stub(Org, 'create').resolves(mockOrg as Org);
 
-      const authManager = new AuthManager('testorg', logger);
+      const authManager = new AuthManager('testorg');
       await authManager.initialize();
 
       const isValid = await authManager.isTokenValid();
@@ -222,7 +218,7 @@ describe('AuthManager', () => {
 
       $$.SANDBOX.stub(Org, 'create').resolves(mockOrgWithError as unknown as Org);
 
-      const authManager = new AuthManager('testorg', logger);
+      const authManager = new AuthManager('testorg');
       await authManager.initialize();
 
       const isValid = await authManager.isTokenValid();
@@ -231,7 +227,7 @@ describe('AuthManager', () => {
     });
 
     it('should return false if not initialized', async () => {
-      const authManager = new AuthManager('testorg', logger);
+      const authManager = new AuthManager('testorg');
 
       const isValid = await authManager.isTokenValid();
 
@@ -241,7 +237,7 @@ describe('AuthManager', () => {
 
   describe('getOrgAlias', () => {
     it('should return the target org alias', () => {
-      const authManager = new AuthManager('testorg', logger);
+      const authManager = new AuthManager('testorg');
 
       expect(authManager.getOrgAlias()).to.equal('testorg');
     });
@@ -251,14 +247,14 @@ describe('AuthManager', () => {
     it('should return the org username', async () => {
       $$.SANDBOX.stub(Org, 'create').resolves(mockOrg as Org);
 
-      const authManager = new AuthManager('testorg', logger);
+      const authManager = new AuthManager('testorg');
       await authManager.initialize();
 
       expect(authManager.getUsername()).to.equal('test@example.com');
     });
 
     it('should return undefined if not initialized', () => {
-      const authManager = new AuthManager('testorg', logger);
+      const authManager = new AuthManager('testorg');
 
       expect(authManager.getUsername()).to.be.undefined;
     });
@@ -268,14 +264,14 @@ describe('AuthManager', () => {
     it('should return the org ID', async () => {
       $$.SANDBOX.stub(Org, 'create').resolves(mockOrg as Org);
 
-      const authManager = new AuthManager('testorg', logger);
+      const authManager = new AuthManager('testorg');
       await authManager.initialize();
 
       expect(authManager.getOrgId()).to.equal('00D000000000001');
     });
 
     it('should return undefined if not initialized', () => {
-      const authManager = new AuthManager('testorg', logger);
+      const authManager = new AuthManager('testorg');
 
       expect(authManager.getOrgId()).to.be.undefined;
     });
@@ -285,7 +281,7 @@ describe('AuthManager', () => {
     it('should attempt token refresh on auth error', async () => {
       $$.SANDBOX.stub(Org, 'create').resolves(mockOrg as Org);
 
-      const authManager = new AuthManager('testorg', logger);
+      const authManager = new AuthManager('testorg');
       await authManager.initialize();
 
       const authError = new Error('401 Unauthorized');
@@ -295,7 +291,7 @@ describe('AuthManager', () => {
     });
 
     it('should return false for non-auth errors', async () => {
-      const authManager = new AuthManager('testorg', logger);
+      const authManager = new AuthManager('testorg');
       await authManager.initialize();
 
       const networkError = new Error('Network timeout');
@@ -309,7 +305,7 @@ describe('AuthManager', () => {
       orgCreateStub.onFirstCall().resolves(mockOrg as Org);
       orgCreateStub.onSecondCall().rejects(new Error('Refresh failed'));
 
-      const authManager = new AuthManager('testorg', logger);
+      const authManager = new AuthManager('testorg');
       await authManager.initialize();
 
       const authError = new Error('Token expired');

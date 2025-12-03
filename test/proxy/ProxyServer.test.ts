@@ -57,20 +57,6 @@ describe('ProxyServer', () => {
       expect(proxy.isRunning()).to.be.false;
     });
 
-    it('should initialize with debug mode', () => {
-      const config: ProxyServerConfig = {
-        port: 4545,
-        devServerUrl: 'http://localhost:5173',
-        salesforceInstanceUrl: 'https://test.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
-        debug: true,
-      };
-
-      const proxy = new ProxyServer(config);
-
-      expect(proxy).to.be.instanceOf(ProxyServer);
-    });
-
     it('should initialize statistics', () => {
       const config: ProxyServerConfig = {
         port: 4545,
@@ -295,7 +281,6 @@ describe('ProxyServer', () => {
         authManager: mockAuthManager as AuthManager,
         routerConfig: {
           customSalesforcePaths: ['/api/custom'],
-          debug: true,
         },
       };
 

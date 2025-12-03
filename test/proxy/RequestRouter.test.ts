@@ -508,19 +508,4 @@ describe('RequestRouter', () => {
       expect(router.route(req2).target).to.equal('salesforce'); // Matched
     });
   });
-
-  describe('Debug Logging', () => {
-    it('should support debug mode', () => {
-      const debugRouter = new RequestRouter({ debug: true });
-      expect(debugRouter).to.be.instanceOf(RequestRouter);
-    });
-
-    it('should work without debug mode', () => {
-      const normalRouter = new RequestRouter({ debug: false });
-      const req = createMockRequest('/services/data/v60.0/sobjects');
-      const decision = normalRouter.route(req);
-
-      expect(decision.target).to.equal('salesforce');
-    });
-  });
 });

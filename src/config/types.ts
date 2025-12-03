@@ -173,8 +173,6 @@ export type DevServerOptions = {
   cwd?: string;
   /** Timeout in milliseconds to wait for dev server to start */
   startupTimeout?: number;
-  /** Enable debug logging */
-  debug?: boolean;
   /** Maximum number of restart attempts on crash */
   maxRestarts?: number;
 };
@@ -190,7 +188,7 @@ export type DevServerEvents = {
   exit: (code: number | null, signal: string | null) => void;
   /** Emitted when dev server encounters an error */
   error: (error: Error | DevServerError) => void;
-  /** Emitted when dev server outputs to stdout (in debug mode) */
+  /** Emitted when dev server outputs to stdout (when SF_LOG_LEVEL=debug) */
   stdout: (data: string) => void;
   /** Emitted when dev server outputs to stderr */
   stderr: (data: string) => void;

@@ -15,7 +15,6 @@
  */
 
 import type { IncomingMessage } from 'node:http';
-import { Logger } from '../utils/Logger.js';
 
 /**
  * Route decision result
@@ -47,10 +46,6 @@ export type RouterConfig = {
    * Custom path patterns to route to dev server (overrides defaults)
    */
   customDevServerPaths?: string[];
-  /**
-   * Enable debug logging
-   */
-  debug?: boolean;
 };
 
 /**
@@ -74,8 +69,6 @@ export type RouterConfig = {
  * - Any path not matching Salesforce patterns
  */
 export class RequestRouter {
-  private readonly logger: Logger;
-
   /**
    * Default Salesforce API path patterns
    * These paths will always be routed to Salesforce
@@ -136,8 +129,6 @@ export class RequestRouter {
   ];
 
   public constructor(config: RouterConfig = {}) {
-    this.logger = new Logger(config.debug ?? false);
-
     // Merge custom paths if provided
     if (config.customSalesforcePaths) {
       this.salesforcePaths.push(...config.customSalesforcePaths);
@@ -146,10 +137,6 @@ export class RequestRouter {
     if (config.customDevServerPaths) {
       this.devServerPaths.unshift(...config.customDevServerPaths);
     }
-
-    this.logger.debug('RequestRouter initialized with configuration:');
-    this.logger.debug(`  Salesforce paths: ${this.salesforcePaths.length}`);
-    this.logger.debug(`  Dev server paths: ${this.devServerPaths.length}`);
   }
 
   /**
@@ -173,18 +160,12 @@ export class RequestRouter {
    */
   public route(req: IncomingMessage): RouteDecision {
     const url = req.url ?? '/';
-    const method = req.method ?? 'GET';
-
-    this.logger.debug(`Routing ${method} ${url}`);
 
     // Extract just the path without query string
     const path = url.split('?')[0];
 
     // Check for WebSocket upgrade requests
     const isWebSocketUpgrade = RequestRouter.isWebSocketUpgrade(req);
-    if (isWebSocketUpgrade) {
-      this.logger.debug('→ WebSocket upgrade detected');
-    }
 
     // Check for dev server-specific paths first (HMR, WebSocket, etc.)
     for (const devPath of this.devServerPaths) {
@@ -194,7 +175,6 @@ export class RequestRouter {
           reason: `matches dev server path pattern: ${devPath}`,
           ...(isWebSocketUpgrade && { isWebSocket: true }),
         };
-        this.logger.debug(`→ ${decision.target}: ${decision.reason}`);
         return decision;
       }
     }
@@ -207,7 +187,6 @@ export class RequestRouter {
           reason: `matches Salesforce API path: ${sfPath}`,
           ...(isWebSocketUpgrade && { isWebSocket: true }),
         };
-        this.logger.debug(`→ ${decision.target}: ${decision.reason}`);
         return decision;
       }
     }
@@ -220,7 +199,6 @@ export class RequestRouter {
           reason: `matches dev server file extension: ${ext}`,
           ...(isWebSocketUpgrade && { isWebSocket: true }),
         };
-        this.logger.debug(`→ ${decision.target}: ${decision.reason}`);
         return decision;
       }
     }
@@ -231,7 +209,6 @@ export class RequestRouter {
       reason: 'default route (no specific pattern matched)',
       ...(isWebSocketUpgrade && { isWebSocket: true }),
     };
-    this.logger.debug(`→ ${decision.target}: ${decision.reason}`);
     return decision;
   }
 
@@ -281,7 +258,6 @@ export class RequestRouter {
   public addSalesforcePath(path: string): void {
     if (!this.salesforcePaths.includes(path)) {
       this.salesforcePaths.push(path);
-      this.logger.debug(`Added custom Salesforce path: ${path}`);
     }
   }
 
@@ -293,7 +269,6 @@ export class RequestRouter {
   public addDevServerPath(path: string): void {
     if (!this.devServerPaths.includes(path)) {
       this.devServerPaths.unshift(path); // Add to beginning for priority
-      this.logger.debug(`Added custom dev server path: ${path}`);
     }
   }
 }

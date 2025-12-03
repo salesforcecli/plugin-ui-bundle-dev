@@ -16,10 +16,6 @@ Identifies the Web Application
 
 The unique name of the web application as defined in webapp.json. This is used to load the appropriate configuration and settings.
 
-# flags.target.summary
-
-Selects which Web Application target to use for the preview (e.g., Lightning App, Site)
-
 # flags.url.summary
 
 Dev server origin to forward UI/HMR/static requests
@@ -36,29 +32,9 @@ Local proxy port
 
 The port on which the proxy server will listen. Your browser should connect to this port, not directly to the dev server. The proxy will forward authenticated requests to Salesforce and other requests to your dev server.
 
-# flags.target-org.summary
-
-Org to use for auth
-
-# flags.target-org.description
-
-The Salesforce org alias or username to use for authentication. The proxy will use this org's credentials to authenticate API requests to Salesforce.
-
-# flags.debug.summary
-
-Enable verbose proxy logging
-
-# flags.debug.description
-
-When enabled, the proxy will log detailed information about each request including headers, routing decisions, and response status. Useful for debugging authentication or routing issues. Note: Access tokens are never logged even in debug mode.
-
 # flags.open.summary
 
 Auto-open proxy URL in default browser
-
-# flags.open.description
-
-When enabled, automatically opens the proxy URL in your default browser after the proxy server starts.
 
 # examples
 
@@ -74,110 +50,13 @@ When enabled, automatically opens the proxy URL in your default browser after th
 
   <%= config.bin %> <%= command.id %> --name myWebApp --target-org myorg --port 4546 --open
 
-- Start with debug logging:
+- Start with debug logging (using SF_LOG_LEVEL environment variable):
 
-  <%= config.bin %> <%= command.id %> --name myWebApp --target-org myorg --debug
-
-# info.loading-manifest
-
-Loading webapp.json manifest...
-
-# info.manifest-loaded
-
-Manifest loaded: %s
+  SF_LOG_LEVEL=debug <%= config.bin %> <%= command.id %> --name myWebApp --target-org myorg
 
 # info.manifest-changed
 
 Manifest %s detected
-
-# info.using-explicit-url
-
-Using explicit dev server URL: %s
-
-# info.using-manifest-url
-
-Using dev server URL from manifest: %s
-
-# info.initializing-auth
-
-Initializing authentication for org: %s
-
-# info.starting-proxy
-
-Starting proxy server on port %s...
-
-# info.starting
-
-Starting development server for web app: %s
-
-# info.using-target-org
-
-Using target org: %s
-
-# info.proxy-running
-
-✓ Proxy server running on %s
-
-# info.dev-server-url
-
-Dev server URL: %s
-
-# info.proxy-url
-
-Proxy URL: %s (open this in your browser)
-
-# info.opening-browser
-
-Opening browser...
-
-# info.ready-for-development
-
-✓ Ready for development!
-
-# info.press-ctrl-c
-
-Press Ctrl+C to stop the server
-
-# info.shutting-down
-
-Shutting down (%s)...
-
-# info.dev-server-ready
-
-✓ Dev server ready at: %s
-
-# info.dev-server-exit
-
-Dev server stopped
-
-# info.dev-server-healthy
-
-✓ Dev server is responding at: %s
-
-# warning.dev-server-not-responding
-
-⚠ Dev server returned status %s from: %s
-
-# warning.dev-server-unreachable
-
-⚠ Dev server is not responding at: %s
-
-# warning.dev-server-start-hint
-
-The proxy server is running, but the dev server may not be started yet.
-Make sure to start your dev server (e.g., 'npm run dev') before opening the browser.
-
-# info.starting-dev-server
-
-Starting dev server with command: %s
-
-# info.dev-server-started
-
-Dev server started at: %s
-
-# info.watching-manifest
-
-Watching webapp.json for changes...
 
 # info.manifest-reloaded
 
@@ -187,123 +66,59 @@ Watching webapp.json for changes...
 
 Dev server URL updated to: %s
 
-# error.manifest-watch-failed
+# info.dev-server-url
 
-Failed to watch manifest: %s
+Dev server URL: %s
 
-# error.manifest-not-found
+# info.proxy-url
 
-webapp.json not found in the current directory. Run 'sf webapp generate' to create a new web app.
+Proxy URL: %s (open this in your browser)
 
-# error.manifest-invalid
+# info.ready-for-development
 
-Invalid webapp.json: %s
+✓ Ready for development!
 
-# error.manifest-validation-failed
+# info.press-ctrl-c
 
-Manifest validation failed:
-%s
+Press Ctrl+C to stop the server
 
-# error.org-not-found
+# info.dev-server-healthy
 
-Org '%s' not found. Check available orgs with 'sf org list'.
+✓ Dev server is responding at: %s
 
-# error.org-auth-failed
+# info.dev-server-detected
 
-Failed to authenticate with org '%s'. Run 'sf org login web --alias %s' to re-authenticate.
+✅ Dev server detected at %s
 
-# error.token-expired
+# info.start-dev-server-hint
 
-Your org authentication has expired. Run 'sf org login web --alias %s' to re-authenticate.
+Start your dev server to continue development
 
-# error.token-refresh-failed
+# warning.dev-server-not-responding
 
-Failed to refresh access token. Run 'sf org login web --alias %s' to re-authenticate.
+⚠ Dev server returned status %s from: %s
 
-# error.dev-server-failed
+# warning.dev-server-unreachable
 
-Dev server failed to start: %s
+⚠ Dev server is not responding at: %s
 
-# error.dev-server-command-required
+# warning.dev-server-unreachable-status
 
-No dev server URL provided and webapp.json does not contain dev.command or dev.url. Please provide --url flag or configure dev settings in webapp.json.
+⚠️ Dev server unreachable at %s
 
-# error.dev-server-timeout
+# warning.dev-server-start-hint
 
-Dev server did not start within 30 seconds. Check the command in webapp.json and ensure your dev server outputs its URL to stdout.
-
-# error.port-in-use
-
-Port %s is already in use. Try a different port with --port flag.
-
-# error.proxy-start-failed
-
-Failed to start proxy server: %s
-
-# error.network-error
-
-Network error: %s. Check your internet connection.
-
-# error.request-failed
-
-Request to %s failed: %s
-
-# error.invalid-url
-
-Invalid URL: %s
-
-# error.connection-refused
-
-Connection refused to %s. Ensure the dev server is running.
-
-# warning.no-manifest-dev-config
-
-webapp.json does not contain dev configuration. Using provided --url flag.
-
-# warning.manifest-dev-command-override
-
-webapp.json contains dev.command but --url flag provided. Using --url flag.
+The proxy server is running, but the dev server may not be started yet.
+Make sure to start your dev server (e.g., 'npm run dev') before opening the browser.
 
 # warning.dev-command-changed
 
 dev.command changed to "%s" - restart the command to apply this change.
 
-# warning.dev-server-stderr
+# error.manifest-watch-failed
 
-Dev server error: %s
+Failed to watch manifest: %s
 
-# debug.request-received
+# error.dev-server-failed
 
-[REQUEST] %s %s
-
-# debug.routing-decision
-
-[ROUTING] %s -> %s (auth: %s)
-
-# debug.auth-headers-injected
-
-[AUTH] Authorization headers injected
-
-# debug.proxying-request
-
-[PROXY] Forwarding to %s
-
-# debug.response-received
-
-[RESPONSE] %s %s
-
-# debug.websocket-upgrade
-
-[WEBSOCKET] Upgrading connection for %s
-
-# debug.manifest-change-detected
-
-[MANIFEST] Change detected, reloading...
-
-# debug.token-refresh-attempt
-
-[AUTH] Token expired, attempting refresh...
-
-# debug.token-refresh-success
-
-[AUTH] Token refresh successful
+Dev server failed to start: %s

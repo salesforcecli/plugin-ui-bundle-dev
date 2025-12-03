@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-import { Connection, Org, SfError } from '@salesforce/core';
+import { Connection, Logger, Org, SfError } from '@salesforce/core';
 import { AuthHeaders } from '../config/types.js';
-import { Logger } from '../utils/Logger.js';
 
 /**
  * Manages authentication for Salesforce API requests
@@ -25,18 +24,20 @@ import { Logger } from '../utils/Logger.js';
 export class AuthManager {
   private org: Org | null = null;
   private connection: Connection | null = null;
-  private logger: Logger;
+  private logger: Logger | null = null;
   private targetOrg: string;
 
-  public constructor(targetOrg: string, logger: Logger) {
+  public constructor(targetOrg: string) {
     this.targetOrg = targetOrg;
-    this.logger = logger;
   }
 
   /**
    * Initialize the auth manager by loading the org
    */
   public async initialize(): Promise<void> {
+    // Initialize logger
+    this.logger = await Logger.child('AuthManager');
+
     try {
       this.org = await Org.create({ aliasOrUsername: this.targetOrg });
       this.connection = this.org.getConnection();
@@ -108,7 +109,7 @@ export class AuthManager {
     }
 
     try {
-      this.logger.debug('Token expired, attempting refresh...');
+      this.logger?.debug('Token expired, attempting refresh...');
 
       // Recreate the org connection to force a token refresh
       this.org = await Org.create({ aliasOrUsername: this.targetOrg });
@@ -117,7 +118,7 @@ export class AuthManager {
       // Force a token refresh by making a lightweight request
       await this.connection.request('/services/data');
 
-      this.logger.debug('Token refresh successful');
+      this.logger?.debug('Token refresh successful');
     } catch (error) {
       if (error instanceof Error) {
         throw new SfError(

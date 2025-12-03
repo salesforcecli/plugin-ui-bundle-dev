@@ -17,7 +17,6 @@
 import { expect } from 'chai';
 import { TestContext } from '@salesforce/core/testSetup';
 import { SfError } from '@salesforce/core';
-import { Logger } from '../../../src/utils/Logger.js';
 import { ErrorHandler } from '../../../src/error/ErrorHandler.js';
 import type { WebAppManifest, WebAppDevResult } from '../../../src/config/types.js';
 
@@ -127,27 +126,6 @@ describe('webapp:dev command integration', () => {
       expect(error).to.be.instanceOf(SfError);
       expect(error.name).to.equal('AuthenticationFailedError');
       expect(error.message).to.include('test@example.com');
-    });
-  });
-
-  describe('Logger Integration', () => {
-    it('should create logger with debug disabled by default', () => {
-      const logger = new Logger(false);
-      expect(logger.isDebugEnabled()).to.be.false;
-    });
-
-    it('should create logger with debug enabled when specified', () => {
-      const logger = new Logger(true);
-      expect(logger.isDebugEnabled()).to.be.true;
-    });
-
-    it('should have all required logging methods', () => {
-      const logger = new Logger(false);
-      expect(typeof logger.info).to.equal('function');
-      expect(typeof logger.error).to.equal('function');
-      expect(typeof logger.warn).to.equal('function');
-      expect(typeof logger.debug).to.equal('function');
-      expect(typeof logger.isDebugEnabled).to.equal('function');
     });
   });
 
