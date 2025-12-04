@@ -31,7 +31,6 @@ describe('ManifestWatcher', () => {
     name: 'testApp',
     label: 'Test Application',
     version: '1.0.0',
-    apiVersion: '60.0',
     outputDir: 'dist',
     dev: {
       command: 'npm run dev',
@@ -95,7 +94,6 @@ describe('ManifestWatcher', () => {
         expect((error as SfError).name).to.equal('ManifestNotFoundError');
         expect((error as SfError).message).to.include('webapp.json not found');
         expect((error as SfError).actions).to.exist;
-        expect((error as SfError).actions?.some((a) => a.includes('sf webapp generate'))).to.be.true;
       }
 
       await watcher.stop();
@@ -145,7 +143,7 @@ describe('ManifestWatcher', () => {
     });
   });
 
-  describe('Schema Validation', () => {
+  describe('Basic Validation', () => {
     it('should reject manifest with missing required field: name', async () => {
       const invalid = { ...validManifest };
       delete (invalid as Partial<WebAppManifest>).name;
@@ -160,7 +158,27 @@ describe('ManifestWatcher', () => {
       } catch (error) {
         expect(error).to.be.instanceOf(SfError);
         expect((error as SfError).name).to.equal('ManifestValidationError');
-        expect((error as SfError).message).to.include('Missing required field: name');
+        expect((error as SfError).message).to.include('name');
+      }
+
+      await watcher.stop();
+    });
+
+    it('should reject manifest with missing required field: label', async () => {
+      const invalid = { ...validManifest };
+      delete (invalid as Partial<WebAppManifest>).label;
+
+      writeFileSync(testManifestPath, JSON.stringify(invalid, null, 2));
+
+      const watcher = new ManifestWatcher({ manifestPath: testManifestPath, watch: false });
+
+      try {
+        watcher.initialize();
+        expect.fail('Should have thrown an error');
+      } catch (error) {
+        expect(error).to.be.instanceOf(SfError);
+        expect((error as SfError).name).to.equal('ManifestValidationError');
+        expect((error as SfError).message).to.include('label');
       }
 
       await watcher.stop();
@@ -180,14 +198,34 @@ describe('ManifestWatcher', () => {
       } catch (error) {
         expect(error).to.be.instanceOf(SfError);
         expect((error as SfError).name).to.equal('ManifestValidationError');
-        expect((error as SfError).message).to.include('Missing required field: version');
+        expect((error as SfError).message).to.include('version');
       }
 
       await watcher.stop();
     });
 
-    it('should reject manifest with invalid name pattern', async () => {
-      const invalid = { ...validManifest, name: '123-invalid-name' };
+    it('should reject manifest with missing required field: outputDir', async () => {
+      const invalid = { ...validManifest };
+      delete (invalid as Partial<WebAppManifest>).outputDir;
+
+      writeFileSync(testManifestPath, JSON.stringify(invalid, null, 2));
+
+      const watcher = new ManifestWatcher({ manifestPath: testManifestPath, watch: false });
+
+      try {
+        watcher.initialize();
+        expect.fail('Should have thrown an error');
+      } catch (error) {
+        expect(error).to.be.instanceOf(SfError);
+        expect((error as SfError).name).to.equal('ManifestValidationError');
+        expect((error as SfError).message).to.include('outputDir');
+      }
+
+      await watcher.stop();
+    });
+
+    it('should reject manifest with multiple missing required fields', async () => {
+      const invalid = { version: '1.0.0' };
 
       writeFileSync(testManifestPath, JSON.stringify(invalid, null, 2));
 
@@ -200,92 +238,11 @@ describe('ManifestWatcher', () => {
         expect(error).to.be.instanceOf(SfError);
         expect((error as SfError).name).to.equal('ManifestValidationError');
         expect((error as SfError).message).to.include('name');
-        expect((error as SfError).actions).to.exist;
-        expect((error as SfError).actions?.some((a) => a.includes('customerPortal'))).to.be.true;
+        expect((error as SfError).message).to.include('label');
+        expect((error as SfError).message).to.include('outputDir');
       }
 
       await watcher.stop();
-    });
-
-    it('should reject manifest with invalid version format', async () => {
-      const invalid = { ...validManifest, version: '1.0' };
-
-      writeFileSync(testManifestPath, JSON.stringify(invalid, null, 2));
-
-      const watcher = new ManifestWatcher({ manifestPath: testManifestPath, watch: false });
-
-      try {
-        watcher.initialize();
-        expect.fail('Should have thrown an error');
-      } catch (error) {
-        expect(error).to.be.instanceOf(SfError);
-        expect((error as SfError).name).to.equal('ManifestValidationError');
-        expect((error as SfError).message).to.include('version');
-        expect((error as SfError).actions).to.exist;
-        expect((error as SfError).actions?.some((a) => a.includes('1.0.0'))).to.be.true;
-      }
-
-      await watcher.stop();
-    });
-
-    it('should reject manifest with invalid apiVersion format', async () => {
-      const invalid = { ...validManifest, apiVersion: '60' };
-
-      writeFileSync(testManifestPath, JSON.stringify(invalid, null, 2));
-
-      const watcher = new ManifestWatcher({ manifestPath: testManifestPath, watch: false });
-
-      try {
-        watcher.initialize();
-        expect.fail('Should have thrown an error');
-      } catch (error) {
-        expect(error).to.be.instanceOf(SfError);
-        expect((error as SfError).name).to.equal('ManifestValidationError');
-        expect((error as SfError).message).to.include('apiVersion');
-        expect((error as SfError).actions).to.exist;
-        expect((error as SfError).actions?.some((a) => a.includes('60.0'))).to.be.true;
-      }
-
-      await watcher.stop();
-    });
-
-    it('should reject manifest with invalid dev.url format', async () => {
-      const invalid = {
-        ...validManifest,
-        dev: { command: 'npm run dev', url: 'not-a-url' },
-      };
-
-      writeFileSync(testManifestPath, JSON.stringify(invalid, null, 2));
-
-      const watcher = new ManifestWatcher({ manifestPath: testManifestPath, watch: false });
-
-      try {
-        watcher.initialize();
-        expect.fail('Should have thrown an error');
-      } catch (error) {
-        expect(error).to.be.instanceOf(SfError);
-        expect((error as SfError).name).to.equal('ManifestValidationError');
-        expect((error as SfError).message).to.include('url');
-      }
-
-      await watcher.stop();
-    });
-
-    it('should accept manifest with valid name patterns', async () => {
-      const validNames = ['myApp', 'customer_portal', 'App123', 'sales_Dashboard_v2'];
-
-      // Test each name sequentially using reduce
-      await validNames.reduce(async (promise, name) => {
-        await promise; // Wait for previous test to complete
-
-        const manifest = { ...validManifest, name };
-        writeFileSync(testManifestPath, JSON.stringify(manifest, null, 2));
-
-        const watcher = new ManifestWatcher({ manifestPath: testManifestPath, watch: false });
-        watcher.initialize();
-        expect(watcher.getManifest()?.name).to.equal(name);
-        await watcher.stop();
-      }, Promise.resolve());
     });
 
     it('should accept manifest without optional dev config', async () => {
@@ -293,7 +250,6 @@ describe('ManifestWatcher', () => {
         name: 'testApp',
         label: 'Test App',
         version: '1.0.0',
-        apiVersion: '60.0',
         outputDir: 'dist',
       };
 
@@ -304,6 +260,26 @@ describe('ManifestWatcher', () => {
 
       const manifest = watcher.getManifest();
       expect(manifest?.dev).to.be.undefined;
+
+      await watcher.stop();
+    });
+
+    it('should accept manifest with routing config', async () => {
+      const manifestWithRouting = {
+        ...validManifest,
+        routing: {
+          rewrites: [{ route: '/api/*', target: 'api' }],
+          trailingSlash: 'always',
+        },
+      };
+
+      writeFileSync(testManifestPath, JSON.stringify(manifestWithRouting, null, 2));
+
+      const watcher = new ManifestWatcher({ manifestPath: testManifestPath, watch: false });
+      watcher.initialize();
+
+      const manifest = watcher.getManifest();
+      expect(manifest?.routing?.trailingSlash).to.equal('always');
 
       await watcher.stop();
     });

@@ -14,108 +14,11 @@
  * limitations under the License.
  */
 
-/**
- * Development configuration for webapp.json manifest
- * This tells the CLI how to start and connect to your dev server
- */
-export type WebAppDevConfig = {
-  /** Command to run the dev server (e.g., "npm run dev") */
-  command?: string;
-  /** Explicit URL for the dev server (overrides auto-detection) */
-  url?: string;
-};
+// Re-export manifest types from manifest.ts
+export type { WebAppManifest, DevConfig, RoutingConfig, RewriteRule, RedirectRule } from './manifest.js';
 
-/**
- * Complete webapp.json manifest schema
- * This is the configuration file users create in their project
- */
-export type WebAppManifest = {
-  /** Additional custom properties allowed */
-  [key: string]: unknown;
-  /** Unique name identifier for the web app (e.g., "customerPortal") */
-  name: string;
-  /** Human-readable label for the web app (e.g., "Customer Portal") */
-  label: string;
-  /** Description of the web app */
-  description?: string;
-  /** Version of the web app (semantic versioning: "1.0.0") */
-  version: string;
-  /** Salesforce API version (e.g., "60.0") */
-  apiVersion: string;
-  /** Output directory for built assets (e.g., "dist" or "build") */
-  outputDir: string;
-  /** Development configuration (optional) */
-  dev?: WebAppDevConfig;
-};
-
-/**
- * Proxy server configuration
- * Internal config used to set up the proxy server
- */
-export type ProxyConfig = {
-  /** Port for the proxy server (default: 4545) */
-  port: number;
-  /** URL of the dev server to proxy to (e.g., http://localhost:5173) */
-  devServerUrl: string;
-  /** Salesforce org instance URL (e.g., https://your-org.salesforce.com) */
-  instanceUrl: string;
-  /** Enable debug logging */
-  debug: boolean;
-  /** Target org alias (e.g., "myorg") */
-  targetOrg: string;
-};
-
-/**
- * Authentication headers for Salesforce requests
- * These are injected into API requests going to Salesforce
- */
-export type AuthHeaders = {
-  /** Additional headers can be added as needed */
-  [key: string]: string;
-  /** Authorization header with bearer token */
-  authorization: string;
-};
-
-/**
- * Routing decision result
- * Tells us where to send a request and if it needs auth
- */
-export type RouteTarget = {
-  /** Target URL to proxy the request to */
-  targetUrl: string;
-  /** Whether this is a Salesforce API request requiring authentication */
-  requiresAuth: boolean;
-  /** Request type identifier */
-  type: 'salesforce-api' | 'dev-server';
-};
-
-/**
- * Dev server process status
- * Information about the running dev server process
- */
-export type DevServerStatus = {
-  /** Whether the dev server is running */
-  running: boolean;
-  /** Detected or configured URL of the dev server */
-  url?: string;
-  /** Process ID if running */
-  pid?: number;
-  /** Error message if failed to start */
-  error?: string;
-};
-
-/**
- * Proxy server status
- * Information about the running proxy server
- */
-export type ProxyStatus = {
-  /** Whether the proxy is running */
-  running: boolean;
-  /** Proxy server URL (e.g., http://localhost:4545) */
-  url?: string;
-  /** Port the proxy is listening on */
-  port?: number;
-};
+// Re-export from ManifestWatcher
+export type { ManifestChangeEvent } from './ManifestWatcher.js';
 
 /**
  * Command execution result
@@ -135,29 +38,18 @@ export type WebAppDevResult = {
 };
 
 /**
- * Manifest validation error
- * Used when webapp.json has invalid data
+ * Dev server process status
+ * Information about the running dev server process
  */
-export type ManifestValidationError = {
-  /** Field that has the error (e.g., "name", "version") */
-  field: string;
-  /** Error message explaining what's wrong */
-  message: string;
-  /** Suggested fix to help the user */
-  suggestion?: string;
-};
-
-/**
- * Manifest change event
- * Emitted when webapp.json file changes
- */
-export type ManifestChangeEvent = {
-  /** Type of change */
-  type: 'added' | 'changed' | 'removed';
-  /** Path to the manifest file */
-  path: string;
-  /** New manifest data (if added or changed) */
-  manifest?: WebAppManifest;
+export type DevServerStatus = {
+  /** Whether the dev server is running */
+  running: boolean;
+  /** Detected or configured URL of the dev server */
+  url?: string;
+  /** Process ID if running */
+  pid?: number;
+  /** Error message if failed to start */
+  error?: string;
 };
 
 /**

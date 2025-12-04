@@ -3,7 +3,6 @@
   "label": "Customer Portal",
   "description": "A customer self-service portal built with React",
   "version": "1.0.0",
-  "apiVersion": "60.0",
   "outputDir": "dist",
   "dev": {
     "command": "npm run dev",

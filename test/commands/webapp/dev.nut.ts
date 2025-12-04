@@ -25,7 +25,6 @@ describe('webapp dev NUTs', () => {
     name: 'testWebApp',
     label: 'Test Web App',
     version: '1.0.0',
-    apiVersion: '60.0',
     outputDir: 'dist',
     dev: {
       url: 'http://localhost:5173',

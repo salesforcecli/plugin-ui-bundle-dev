@@ -17,10 +17,10 @@
 import open from 'open';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Logger, Messages, SfError } from '@salesforce/core';
-import type { WebAppDevResult, WebAppManifest, DevServerError } from '../../config/types.js';
+import type { WebAppDevResult, DevServerError } from '../../config/types.js';
+import type { WebAppManifest } from '../../config/manifest.js';
 import { ManifestWatcher } from '../../config/ManifestWatcher.js';
 import { DevServerManager } from '../../server/DevServerManager.js';
-import { AuthManager } from '../../auth/AuthManager.js';
 import { ProxyServer } from '../../proxy/ProxyServer.js';
 import { ErrorHandler } from '../../error/ErrorHandler.js';
 
@@ -54,6 +54,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
     'target-org': Flags.requiredOrg(),
     open: Flags.boolean({
       summary: messages.getMessage('flags.open.summary'),
+      description: messages.getMessage('flags.open.description'),
       char: 'b',
       default: false,
     }),
@@ -118,6 +119,9 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
           if (event.manifest.dev?.command && event.manifest.dev.command !== manifest?.dev?.command) {
             this.warn(messages.getMessage('warning.dev-command-changed', [event.manifest.dev.command]));
           }
+
+          // Update proxy server with new manifest (for routing changes)
+          this.proxyServer?.updateManifest(event.manifest);
 
           // Update manifest reference to reflect all changes
           manifest = event.manifest;
@@ -190,12 +194,10 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
         throw ErrorHandler.createDevServerCommandRequiredError();
       }
 
-      // Step 3: Initialize authentication
+      // Step 3: Get org info for authentication
       const orgConnection = flags['target-org'].getConnection(undefined);
       orgUsername = flags['target-org'].getUsername() ?? orgConnection.getUsername() ?? 'unknown';
-      this.logger.debug(`Initializing authentication for org: ${orgUsername}`);
-      const authManager = new AuthManager(orgUsername);
-      await authManager.initialize();
+      this.logger.debug(`Using authentication for org: ${orgUsername}`);
 
       // Step 4: Start proxy server
       this.logger.debug(`Starting proxy server on port ${flags.port}...`);
@@ -204,7 +206,8 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
         devServerUrl,
         salesforceInstanceUrl,
         port: flags.port,
-        authManager,
+        manifest,
+        orgAlias: orgUsername,
       });
 
       await this.proxyServer.start();

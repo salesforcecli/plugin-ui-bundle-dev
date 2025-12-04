@@ -21,40 +21,24 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import httpProxy from 'http-proxy';
 import { Logger, SfError } from '@salesforce/core';
-import type { AuthManager } from '../auth/AuthManager.js';
-import { ErrorPageRenderer } from '../templates/ErrorPageRenderer.js';
-import type { ErrorPageData } from '../templates/ErrorPageRenderer.js';
+import type { OrgInfo } from '../auth/org.js';
+import { getOrgInfo, getAuthHeaders } from '../auth/org.js';
+import type { WebAppManifest } from '../config/manifest.js';
 import type { DevServerError } from '../config/types.js';
-import { RequestRouter } from './RequestRouter.js';
-import type { RouterConfig } from './RequestRouter.js';
+import type { ErrorPageData } from '../templates/ErrorPageRenderer.js';
+import { ErrorPageRenderer } from '../templates/ErrorPageRenderer.js';
+import type { ProxyHandler } from './handler.js';
+import { createProxyHandler } from './handler.js';
 
 /**
  * Configuration for the proxy server
  */
 export type ProxyServerConfig = {
-  /**
-   * Port to listen on
-   */
   port: number;
-  /**
-   * Dev server URL (e.g., http://localhost:5173)
-   */
   devServerUrl: string;
-  /**
-   * Salesforce instance URL (from AuthManager)
-   */
   salesforceInstanceUrl: string;
-  /**
-   * AuthManager instance for token injection
-   */
-  authManager: AuthManager;
-  /**
-   * Optional router configuration
-   */
-  routerConfig?: RouterConfig;
-  /**
-   * Host to bind to (0.0.0.0 for all interfaces, 127.0.0.1 for localhost only)
-   */
+  manifest?: WebAppManifest;
+  orgAlias?: string;
   host?: string;
 };
 
@@ -73,33 +57,12 @@ export type ProxyStats = {
 /**
  * ProxyServer manages the HTTP proxy that sits between the web application
  * and both the Salesforce instance and the local development server.
- *
- * It performs the following key functions:
- * - Routes requests to either Salesforce or dev server based on URL patterns
- * - Injects Salesforce authentication headers for API requests
- * - Proxies WebSocket connections for HMR (Hot Module Replacement)
- * - Handles Code Builder environment specifics
- * - Provides error handling and logging
- * - Periodic health checks of dev server with status updates
- * - HTML error pages for browser when dev server is down
- *
- * Architecture:
- * - Browser sends request to ProxyServer
- * - RequestRouter decides where to route (Salesforce or dev server)
- * - AuthManager provides authentication headers for Salesforce requests
- * - http-proxy forwards the request to the appropriate target
- * - Periodic health check monitors dev server availability
- * - On dev server down, serves HTML error page to browser
- *
- * Events:
- * - 'dev-server-up': Dev server became available
- * - 'dev-server-down': Dev server became unavailable
  */
 export class ProxyServer extends EventEmitter {
-  private readonly config: ProxyServerConfig;
+  // Instance fields
+  private config: ProxyServerConfig;
   private logger: Logger | null = null;
-  private readonly router: RequestRouter;
-  private readonly proxy: httpProxy;
+  private readonly wsProxy: httpProxy;
   private readonly errorPageRenderer: ErrorPageRenderer;
   private server: Server | null = null;
   private readonly stats: ProxyStats;
@@ -110,11 +73,13 @@ export class ProxyServer extends EventEmitter {
   private activeDevServerError: DevServerError | null = null;
   private errorClearTimeout: NodeJS.Timeout | null = null;
   private readonly activeConnections: Set<import('net').Socket> = new Set();
+  private proxyHandler: ProxyHandler | null = null;
+  private orgInfo: OrgInfo | undefined;
 
+  // Constructor
   public constructor(config: ProxyServerConfig) {
-    super(); // Call EventEmitter constructor
+    super();
     this.config = config;
-    this.router = new RequestRouter(config.routerConfig);
     this.errorPageRenderer = new ErrorPageRenderer();
     this.workspaceScript = ProxyServer.detectWorkspaceScript();
     this.stats = {
@@ -126,54 +91,31 @@ export class ProxyServer extends EventEmitter {
       startTime: new Date(),
     };
 
-    // Detect Code Builder environment (sync, no logger needed)
     this.isCodeBuilder = ProxyServer.detectCodeBuilder();
 
-    // Create http-proxy instance
-    this.proxy = httpProxy.createProxyServer({
+    this.wsProxy = httpProxy.createProxyServer({
       changeOrigin: true,
-      ws: true, // Enable WebSocket proxying
-      xfwd: true, // Add X-Forwarded-* headers
+      ws: true,
+      xfwd: true,
     });
 
-    // Set up proxy error handling
-    this.proxy.on('error', (err, req, res) => {
+    this.wsProxy.on('error', (err, req, res) => {
       this.handleProxyError(err, req, res);
     });
-
-    this.logger?.debug('ProxyServer initialized');
-    this.logger?.debug(`  Dev server: ${config.devServerUrl}`);
-    this.logger?.debug(`  Salesforce: ${config.salesforceInstanceUrl}`);
-    this.logger?.debug(`  Port: ${config.port}`);
-    this.logger?.debug(`  Code Builder: ${this.isCodeBuilder}`);
   }
 
-  /**
-   * Detects if running in Code Builder environment
-   * Code Builder sets specific environment variables
-   */
+  // Private static methods
   private static detectCodeBuilder(): boolean {
-    // Code Builder sets these environment variables
-    const codeBuilderIndicators = [
-      'SBQQ_STUDIO_WORKSPACE', // Code Builder workspace indicator
-      'SALESFORCE_PROJECT_ID', // Project ID in Code Builder
-      'CODE_BUILDER_SESSION', // Session indicator
-    ];
-
+    const codeBuilderIndicators = ['SBQQ_STUDIO_WORKSPACE', 'SALESFORCE_PROJECT_ID', 'CODE_BUILDER_SESSION'];
     return codeBuilderIndicators.some((indicator) => process.env[indicator] !== undefined);
   }
 
-  /**
-   * Detects workspace dev server script from package.json
-   */
   private static detectWorkspaceScript(): string {
     try {
-      // Try to read package.json from current working directory
       const packageJsonPath = join(process.cwd(), 'package.json');
       const packageJsonContent = readFileSync(packageJsonPath, 'utf-8');
       const packageJson = JSON.parse(packageJsonContent) as { scripts?: Record<string, string> };
 
-      // Look for common dev script names
       const commonScripts = ['dev', 'start', 'serve'];
       for (const scriptName of commonScripts) {
         if (packageJson.scripts?.[scriptName]) {
@@ -187,46 +129,90 @@ export class ProxyServer extends EventEmitter {
     }
   }
 
-  /**
-   * Updates the dev server URL and restarts health checks
-   * Used when the manifest changes and specifies a new dev server URL
-   *
-   * @param newDevServerUrl - The new dev server URL
-   */
-  public updateDevServerUrl(newDevServerUrl: string): void {
-    if (this.config.devServerUrl === newDevServerUrl) {
-      this.logger?.debug(`Dev server URL unchanged: ${newDevServerUrl}`);
-      return;
+  // Public instance methods
+  public clearActiveDevServerError(): void {
+    if (this.activeDevServerError) {
+      this.logger?.debug('Dev server error cleared - dev server recovered');
+      this.activeDevServerError = null;
     }
-
-    this.logger?.info(`Updating dev server URL: ${this.config.devServerUrl} → ${newDevServerUrl}`);
-    this.config.devServerUrl = newDevServerUrl;
-
-    // Reset dev server status to trigger fresh check
-    this.devServerStatus = 'unknown';
-
-    // Restart health check with new URL
-    if (this.healthCheckInterval) {
-      clearInterval(this.healthCheckInterval);
-      this.startHealthCheck();
-    }
-
-    // Perform immediate health check
-    this.checkDevServerHealth().catch((error) => {
-      this.logger?.error(
-        `Failed to check dev server health: ${error instanceof Error ? error.message : String(error)}`
-      );
-    });
   }
 
-  /**
-   * Starts the proxy server
-   */
+  public getDevServerStatus(): string {
+    return this.devServerStatus;
+  }
+
+  public getProxyUrl(): string {
+    const host = this.getBindHost();
+    const displayHost = host === '0.0.0.0' || host === '127.0.0.1' ? 'localhost' : host;
+    return `http://${displayHost}:${this.config.port}`;
+  }
+
+  public getStats(): ProxyStats {
+    return { ...this.stats };
+  }
+
+  public hasActiveDevServerError(): boolean {
+    return this.activeDevServerError !== null;
+  }
+
+  public isCodeBuilderEnvironment(): boolean {
+    return this.isCodeBuilder;
+  }
+
+  public isRunning(): boolean {
+    return this.server !== null && this.server.listening;
+  }
+
+  public setActiveDevServerError(error: DevServerError): void {
+    this.activeDevServerError = error;
+    this.devServerStatus = 'error';
+    this.logger?.debug(`Dev server error is now active: ${error.title}`);
+  }
+
+  public setupGracefulShutdown(onShutdown?: () => void | Promise<void>): () => void {
+    const handleShutdown = async (signal: string): Promise<void> => {
+      this.logger?.debug(`Received ${signal}, shutting down gracefully...`);
+
+      if (onShutdown) {
+        try {
+          await onShutdown();
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          this.logger?.error(`Shutdown callback error: ${errorMessage}`);
+        }
+      }
+
+      await this.stop();
+    };
+
+    const sigintHandler = (): void => {
+      handleShutdown('SIGINT').catch((err) => {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        this.logger?.error(`SIGINT handler error: ${errorMessage}`);
+        process.exit(1);
+      });
+    };
+
+    const sigtermHandler = (): void => {
+      handleShutdown('SIGTERM').catch((err) => {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        this.logger?.error(`SIGTERM handler error: ${errorMessage}`);
+        process.exit(1);
+      });
+    };
+
+    process.on('SIGINT', sigintHandler);
+    process.on('SIGTERM', sigtermHandler);
+
+    return () => {
+      process.off('SIGINT', sigintHandler);
+      process.off('SIGTERM', sigtermHandler);
+    };
+  }
+
   public async start(): Promise<void> {
-    // Initialize logger (respects SF_LOG_LEVEL environment variable)
     this.logger = await Logger.child('ProxyServer');
 
-    // Log Code Builder detection (detection happened in constructor)
     if (this.isCodeBuilder) {
       this.logger.debug('Code Builder environment detected');
     }
@@ -235,9 +221,20 @@ export class ProxyServer extends EventEmitter {
       throw new SfError('Proxy server is already running', 'ProxyAlreadyRunning');
     }
 
+    // Get org info for auth
+    if (this.config.orgAlias) {
+      try {
+        this.orgInfo = await getOrgInfo(this.config.orgAlias);
+        this.logger.debug(`Org info loaded for: ${this.orgInfo.username}`);
+      } catch (error) {
+        this.logger.warn(`Failed to get org info: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+
+    this.initializeProxyHandler();
+
     return new Promise((resolve, reject) => {
       try {
-        // Create HTTP server
         this.server = createServer((req, res) => {
           this.handleRequest(req, res).catch((error) => {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -246,7 +243,6 @@ export class ProxyServer extends EventEmitter {
           });
         });
 
-        // Handle WebSocket upgrades
         this.server.on('upgrade', (req, socket, head) => {
           try {
             this.handleWebSocketUpgrade(req, socket, head);
@@ -258,10 +254,8 @@ export class ProxyServer extends EventEmitter {
           }
         });
 
-        // Determine host to bind to
         const host = this.getBindHost();
 
-        // Track connections for graceful shutdown
         this.server.on('connection', (socket) => {
           this.activeConnections.add(socket);
           socket.once('close', () => {
@@ -269,15 +263,11 @@ export class ProxyServer extends EventEmitter {
           });
         });
 
-        // Start listening
         this.server.listen(this.config.port, host, () => {
           this.logger?.debug(`Proxy server listening on http://${host}:${this.config.port}`);
           this.logger?.debug(`Forwarding to dev server: ${this.config.devServerUrl}`);
           this.logger?.debug(`Forwarding to Salesforce: ${this.config.salesforceInstanceUrl}`);
-
-          // Start periodic health check
           this.startHealthCheck();
-
           resolve();
         });
 
@@ -311,44 +301,36 @@ export class ProxyServer extends EventEmitter {
     });
   }
 
-  /**
-   * Stops the proxy server
-   */
   public async stop(): Promise<void> {
     if (!this.server) {
       return;
     }
 
-    // Stop health check
     if (this.healthCheckInterval) {
       clearInterval(this.healthCheckInterval);
       this.healthCheckInterval = null;
     }
 
-    // Clear any error timeout
     if (this.errorClearTimeout) {
       clearTimeout(this.errorClearTimeout);
       this.errorClearTimeout = null;
     }
 
-    // Destroy all active connections to force immediate shutdown
     for (const socket of this.activeConnections) {
       socket.destroy();
     }
     this.activeConnections.clear();
 
     return new Promise((resolve, reject) => {
-      // Set a timeout to force resolve if server.close() hangs
       const forceCloseTimeout = setTimeout(() => {
         this.logger?.debug('Proxy server stop timeout, forcing shutdown');
         this.server = null;
         resolve();
-      }, 2000); // 2 second timeout
+      }, 2000);
 
       this.server!.close((error) => {
         clearTimeout(forceCloseTimeout);
         if (error) {
-          // Don't reject on ENOTCONN or similar - server might already be closing
           if (error.message.includes('Server is not running')) {
             this.logger?.debug('Proxy server already stopped');
             this.server = null;
@@ -363,143 +345,203 @@ export class ProxyServer extends EventEmitter {
         }
       });
 
-      // Close the http-proxy instance
-      this.proxy.close();
+      this.wsProxy.close();
     });
   }
 
-  /**
-   * Gets current server statistics
-   */
-  public getStats(): ProxyStats {
-    return { ...this.stats };
+  public updateDevServerUrl(newDevServerUrl: string): void {
+    if (this.config.devServerUrl === newDevServerUrl) {
+      this.logger?.debug(`Dev server URL unchanged: ${newDevServerUrl}`);
+      return;
+    }
+
+    this.logger?.info(`Updating dev server URL: ${this.config.devServerUrl} → ${newDevServerUrl}`);
+    this.config.devServerUrl = newDevServerUrl;
+
+    this.initializeProxyHandler();
+
+    this.devServerStatus = 'unknown';
+
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.startHealthCheck();
+    }
+
+    this.checkDevServerHealth().catch((error) => {
+      this.logger?.error(
+        `Failed to check dev server health: ${error instanceof Error ? error.message : String(error)}`
+      );
+    });
   }
 
-  /**
-   * Gets the proxy server URL
-   */
-  public getProxyUrl(): string {
-    const host = this.getBindHost();
-    // Always display localhost for local addresses
-    const displayHost = host === '0.0.0.0' || host === '127.0.0.1' ? 'localhost' : host;
-    return `http://${displayHost}:${this.config.port}`;
+  public updateManifest(manifest: WebAppManifest): void {
+    this.config.manifest = manifest;
+    this.initializeProxyHandler();
+    this.logger?.debug('Proxy handler reinitialized with updated manifest');
   }
 
-  /**
-   * Checks if the proxy server is running
-   */
-  public isRunning(): boolean {
-    return this.server !== null && this.server.listening;
-  }
+  // Private instance methods
+  private async checkDevServerHealth(): Promise<void> {
+    try {
+      await fetch(this.config.devServerUrl, {
+        method: 'HEAD',
+        signal: AbortSignal.timeout(3000),
+      });
 
-  /**
-   * Get current dev server status
-   */
-  public getDevServerStatus(): string {
-    return this.devServerStatus;
-  }
-
-  /**
-   * Set an active runtime error that will be displayed on all requests
-   * Set an active dev server error that will be displayed to the user
-   * This is shown when the dev server process fails to start or crashes with errors
-   *
-   * @param error - Parsed dev server error with stderr and suggestions
-   */
-  public setActiveDevServerError(error: DevServerError): void {
-    this.activeDevServerError = error;
-    this.devServerStatus = 'error';
-    this.logger?.debug(`Dev server error is now active: ${error.title}`);
-  }
-
-  /**
-   * Clear the active dev server error
-   * Called when dev server starts successfully or recovers
-   */
-  public clearActiveDevServerError(): void {
-    if (this.activeDevServerError) {
-      this.logger?.debug('Dev server error cleared - dev server recovered');
-      this.activeDevServerError = null;
-      // Status will be updated by health check
+      if (this.devServerStatus !== 'up') {
+        this.devServerStatus = 'up';
+        this.emit('dev-server-up', this.config.devServerUrl);
+        this.logger?.debug(`Dev server is UP: ${this.config.devServerUrl}`);
+        this.clearActiveDevServerError();
+      }
+    } catch {
+      if (this.devServerStatus !== 'down') {
+        this.devServerStatus = 'down';
+        this.emit('dev-server-down', this.config.devServerUrl);
+        this.logger?.debug(`Dev server is DOWN: ${this.config.devServerUrl}`);
+      }
     }
   }
 
-  /**
-   * Check if there's an active dev server error
-   *
-   * @returns True if there's an active dev server error
-   */
-  public hasActiveDevServerError(): boolean {
-    return this.activeDevServerError !== null;
+  private getBindHost(): string {
+    if (this.config.host) {
+      return this.config.host;
+    }
+
+    if (this.isCodeBuilder) {
+      this.logger?.debug('Code Builder: Binding to 0.0.0.0 (all interfaces)');
+      return '0.0.0.0';
+    }
+
+    return '127.0.0.1';
   }
 
-  /**
-   * Checks if running in Code Builder environment
-   */
-  public isCodeBuilderEnvironment(): boolean {
-    return this.isCodeBuilder;
+  private handleProxyError(error: Error, req: IncomingMessage, res: ServerResponse | NodeJS.Socket): void {
+    this.stats.errors++;
+    const url = req.url ?? '/';
+    this.logger?.error(`Proxy error for ${url}: ${error.message}`);
+
+    if ('writeHead' in res && 'headersSent' in res && !res.headersSent) {
+      res.writeHead(502, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          error: 'Proxy Error',
+          message: error.message,
+        })
+      );
+    }
   }
 
-  /**
-   * Sets up graceful shutdown handlers for process signals
-   * Call this method to automatically handle SIGINT and SIGTERM
-   *
-   * @param onShutdown Optional callback to run before shutdown
-   * @returns Cleanup function to remove signal handlers
-   */
-  public setupGracefulShutdown(onShutdown?: () => void | Promise<void>): () => void {
-    const handleShutdown = async (signal: string): Promise<void> => {
-      this.logger?.debug(`Received ${signal}, shutting down gracefully...`);
+  private async handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    this.stats.requestCount++;
 
-      // Run optional callback
-      if (onShutdown) {
-        try {
-          await onShutdown();
-        } catch (err) {
-          const errorMessage = err instanceof Error ? err.message : String(err);
-          this.logger?.error(`Shutdown callback error: ${errorMessage}`);
+    const url = req.url ?? '/';
+    const method = req.method ?? 'GET';
+    this.logger?.debug(`[${method}] ${url}`);
+
+    if (this.activeDevServerError) {
+      this.logger?.debug('Active dev server error - serving error page');
+      this.serveDevServerErrorPage(this.activeDevServerError, res);
+      return;
+    }
+
+    if (this.devServerStatus === 'down' && !url.includes('/services')) {
+      this.serveErrorPage(res);
+      return;
+    }
+
+    if (this.proxyHandler) {
+      try {
+        if (url.includes('/services')) {
+          this.stats.salesforceRequests++;
+        } else {
+          this.stats.devServerRequests++;
         }
+
+        await this.proxyHandler(req, res);
+      } catch (error) {
+        this.handleRequestError(error, req, res);
       }
-
-      // Stop the proxy server
-      await this.stop();
-    };
-
-    const sigintHandler = (): void => {
-      handleShutdown('SIGINT').catch((err) => {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        this.logger?.error(`SIGINT handler error: ${errorMessage}`);
-        process.exit(1);
-      });
-    };
-
-    const sigtermHandler = (): void => {
-      handleShutdown('SIGTERM').catch((err) => {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        this.logger?.error(`SIGTERM handler error: ${errorMessage}`);
-        process.exit(1);
-      });
-    };
-
-    process.on('SIGINT', sigintHandler);
-    process.on('SIGTERM', sigtermHandler);
-
-    // Return cleanup function
-    return () => {
-      process.off('SIGINT', sigintHandler);
-      process.off('SIGTERM', sigtermHandler);
-    };
+    } else {
+      this.logger?.error('Proxy handler not initialized');
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Proxy not initialized' }));
+    }
   }
 
-  /**
-   * Serve a dev server error page to the browser
-   *
-   * This method formats and serves an error page when the dev server
-   * fails to start or crashes with stderr output
-   *
-   * @param error - Parsed dev server error
-   * @param res - HTTP response object
-   */
+  private handleRequestError(error: unknown, req: IncomingMessage, res: ServerResponse): void {
+    this.stats.errors++;
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const url = req.url ?? '/';
+    this.logger?.error(`Request error for ${url}: ${errorMessage}`);
+
+    if (!res.headersSent) {
+      if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('fetch failed')) {
+        this.serveErrorPage(res);
+      } else {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            error: 'Internal Server Error',
+            message: 'Failed to process request',
+          })
+        );
+      }
+    }
+  }
+
+  private handleWebSocketUpgrade(req: IncomingMessage, socket: NodeJS.Socket, head: Buffer): void {
+    this.stats.webSocketUpgrades++;
+
+    const url = req.url ?? '/';
+    this.logger?.debug(`[WebSocket] Upgrade request: ${url}`);
+
+    try {
+      const isSalesforceWs = url.includes('/cometd') || url.includes('/bayeux');
+
+      if (isSalesforceWs && this.orgInfo) {
+        this.logger?.debug(`→ Salesforce WebSocket: ${url}`);
+        const authHeaders = getAuthHeaders(this.orgInfo);
+        this.wsProxy.ws(
+          req,
+          socket,
+          head,
+          {
+            target: this.config.salesforceInstanceUrl,
+            headers: authHeaders,
+          },
+          (error) => {
+            if (error) {
+              this.logger?.error(`WebSocket proxy error: ${error.message}`);
+              socket.end();
+            }
+          }
+        );
+      } else {
+        this.logger?.debug(`→ Dev Server WebSocket: ${url}`);
+        this.wsProxy.ws(req, socket, head, {
+          target: this.config.devServerUrl,
+        });
+      }
+    } catch (error) {
+      this.logger?.error(`WebSocket upgrade failed: ${error instanceof Error ? error.message : String(error)}`);
+      socket.end();
+    }
+  }
+
+  private initializeProxyHandler(): void {
+    const manifest: WebAppManifest = this.config.manifest ?? {
+      name: 'webapp',
+      label: 'WebApp',
+      version: '1.0.0',
+      outputDir: 'dist',
+    };
+
+    this.proxyHandler = createProxyHandler(manifest, this.orgInfo, this.config.devServerUrl, undefined, {
+      debug: process.env.SF_LOG_LEVEL === 'debug',
+    });
+  }
+
   private serveDevServerErrorPage(error: DevServerError, res: ServerResponse): void {
     try {
       const html = this.errorPageRenderer.renderDevServerError(error);
@@ -512,199 +554,12 @@ export class ProxyServer extends EventEmitter {
       res.end(html);
       this.logger?.debug('Served dev server error page to browser');
     } catch (err) {
-      // Fallback if rendering fails
       this.logger?.error(`Failed to render dev server error page: ${err instanceof Error ? err.message : String(err)}`);
       res.writeHead(500, { 'Content-Type': 'text/plain' });
       res.end(`Dev Server Error: ${error.title}\n\n${error.message}\n\nCheck terminal for details.`);
     }
   }
 
-  /**
-   * Start periodic health check of dev server
-   */
-  private startHealthCheck(): void {
-    // Initial check
-    this.checkDevServerHealth().catch((error) => {
-      this.logger?.debug(`Initial health check error: ${String(error)}`);
-    });
-
-    // Check every 10 seconds
-    this.healthCheckInterval = setInterval(() => {
-      this.checkDevServerHealth().catch((error) => {
-        this.logger?.debug(`Health check error: ${String(error)}`);
-      });
-    }, 10_000); // 10 seconds
-  }
-
-  /**
-   * Check if dev server is reachable
-   */
-  private async checkDevServerHealth(): Promise<void> {
-    try {
-      await fetch(this.config.devServerUrl, {
-        method: 'HEAD',
-        signal: AbortSignal.timeout(3000), // 3 second timeout
-      });
-
-      // Dev server is responding
-      if (this.devServerStatus !== 'up') {
-        this.devServerStatus = 'up';
-        this.emit('dev-server-up', this.config.devServerUrl);
-        this.logger?.debug(`Dev server is UP: ${this.config.devServerUrl}`);
-
-        // Clear any active dev server error since server is now healthy
-        this.clearActiveDevServerError();
-      }
-    } catch {
-      // Dev server is not responding
-      if (this.devServerStatus !== 'down') {
-        this.devServerStatus = 'down';
-        this.emit('dev-server-down', this.config.devServerUrl);
-        this.logger?.debug(`Dev server is DOWN: ${this.config.devServerUrl}`);
-      }
-    }
-  }
-
-  /**
-   * Determines the appropriate host to bind to based on environment
-   */
-  private getBindHost(): string {
-    // If host is explicitly configured, use it
-    if (this.config.host) {
-      return this.config.host;
-    }
-
-    // Code Builder requires binding to all interfaces (0.0.0.0)
-    // so it can be accessed from the browser preview
-    if (this.isCodeBuilder) {
-      this.logger?.debug('Code Builder: Binding to 0.0.0.0 (all interfaces)');
-      return '0.0.0.0';
-    }
-
-    // Default: localhost only for security
-    return '127.0.0.1';
-  }
-
-  /**
-   * Handles incoming HTTP requests
-   */
-  private async handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    this.stats.requestCount++;
-
-    const url = req.url ?? '/';
-    const method = req.method ?? 'GET';
-    this.logger?.debug(`[${method}] ${url}`);
-
-    // If there's an active dev server error, display it on ALL requests
-    // This shows parsed stderr and suggestions when dev server fails to start
-    if (this.activeDevServerError) {
-      this.logger?.debug('Active dev server error - serving error page');
-      this.serveDevServerErrorPage(this.activeDevServerError, res);
-      return;
-    }
-
-    try {
-      // Determine routing
-      const decision = this.router.route(req);
-      this.logger?.debug(`Routing decision: ${decision.target} (${decision.reason})`);
-
-      if (decision.target === 'salesforce') {
-        await this.proxySalesforceRequest(req, res);
-      } else {
-        this.proxyDevServerRequest(req, res);
-      }
-
-      // If we successfully handled a request and had a previous runtime error,
-      // it might be fixed now. We'll keep the error active for now to let
-      // the auto-refresh mechanism check if the error is truly gone.
-      // The error will auto-clear after timeout if not triggered again.
-    } catch (error) {
-      this.handleRequestError(error, req, res);
-    }
-  }
-
-  /**
-   * Proxies a request to Salesforce with authentication
-   */
-  private async proxySalesforceRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    this.stats.salesforceRequests++;
-
-    try {
-      // Get auth headers from AuthManager
-      const authHeaders = this.config.authManager.getAuthHeaders();
-
-      // Prepare target URL
-      const targetUrl = this.prepareSalesforceUrl(req.url ?? '/');
-
-      this.logger?.debug(`→ Salesforce: ${targetUrl}`);
-
-      // Proxy the request with auth headers
-      this.proxy.web(
-        req,
-        res,
-        {
-          target: this.config.salesforceInstanceUrl,
-          headers: {
-            ...authHeaders,
-            // Preserve original host for some Salesforce APIs
-            'X-Original-Host': req.headers.host ?? '',
-          },
-        },
-        (error) => {
-          if (error) {
-            this.handleProxyError(error, req, res);
-          }
-        }
-      );
-    } catch (error) {
-      // Check if it's a token error that can be recovered
-      if (error instanceof SfError && error.name === 'TokenExpiredError') {
-        // Try to refresh token and retry
-        const recovered = await this.config.authManager.handleAuthError(error);
-        if (recovered) {
-          this.logger?.debug('Token refreshed, retrying request');
-          return this.proxySalesforceRequest(req, res);
-        }
-      }
-
-      throw error;
-    }
-  }
-
-  /**
-   * Proxies a request to the dev server
-   */
-  private proxyDevServerRequest(req: IncomingMessage, res: ServerResponse): void {
-    this.stats.devServerRequests++;
-
-    const url = req.url ?? '/';
-    this.logger?.debug(`→ Dev Server: ${url}`);
-
-    // If dev server is known to be down, serve HTML error page immediately
-    if (this.devServerStatus === 'down') {
-      this.serveErrorPage(res);
-      return;
-    }
-
-    // Attempt to proxy the request to dev server
-    this.proxy.web(
-      req,
-      res,
-      {
-        target: this.config.devServerUrl,
-      },
-      (error) => {
-        if (error) {
-          // On error, serve HTML error page instead of JSON error
-          this.serveErrorPage(res);
-        }
-      }
-    );
-  }
-
-  /**
-   * Serves HTML error page when dev server is unavailable
-   */
   private serveErrorPage(res: ServerResponse): void {
     try {
       const errorPageData: ErrorPageData = {
@@ -723,11 +578,9 @@ export class ProxyServer extends EventEmitter {
       });
       res.end(html);
     } catch (error) {
-      // Critical error: template rendering failed
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger?.error(`CRITICAL: Failed to render dev server error page: ${errorMessage}`);
 
-      // Send plain text error as last resort
       res.writeHead(503, { 'Content-Type': 'text/plain' });
       res.end(
         `Dev Server Unavailable\n\nCannot connect to: ${this.config.devServerUrl}\n\nStart your dev server and refresh this page.`
@@ -735,177 +588,15 @@ export class ProxyServer extends EventEmitter {
     }
   }
 
-  /**
-   * Handles WebSocket upgrade requests
-   */
-  private handleWebSocketUpgrade(req: IncomingMessage, socket: NodeJS.Socket, head: Buffer): void {
-    this.stats.webSocketUpgrades++;
+  private startHealthCheck(): void {
+    this.checkDevServerHealth().catch((error) => {
+      this.logger?.debug(`Initial health check error: ${String(error)}`);
+    });
 
-    const url = req.url ?? '/';
-    this.logger?.debug(`[WebSocket] Upgrade request: ${url}`);
-
-    try {
-      // Determine routing
-      const decision = this.router.route(req);
-
-      if (!decision.isWebSocket) {
-        this.logger?.warn(`Upgrade request but not detected as WebSocket: ${url}`);
-      }
-
-      // WebSocket upgrades typically go to dev server (HMR)
-      if (decision.target === 'devserver') {
-        this.logger?.debug(`→ Dev Server WebSocket: ${url}`);
-        this.proxy.ws(req, socket, head, {
-          target: this.config.devServerUrl,
-        });
-      } else {
-        // Salesforce WebSocket (rare, but possible for streaming APIs)
-        this.logger?.debug(`→ Salesforce WebSocket: ${url}`);
-        const authHeaders = this.config.authManager.getAuthHeaders();
-        this.proxy.ws(
-          req,
-          socket,
-          head,
-          {
-            target: this.config.salesforceInstanceUrl,
-            headers: authHeaders,
-          },
-          (error) => {
-            if (error) {
-              this.logger?.error(`WebSocket proxy error: ${error.message}`);
-              socket.end();
-            }
-          }
-        );
-      }
-    } catch (error) {
-      this.logger?.error(`WebSocket upgrade failed: ${error instanceof Error ? error.message : String(error)}`);
-      socket.end();
-    }
-  }
-
-  /**
-   * Prepares Salesforce URL for Code Builder environment
-   * Code Builder requires special URI format handling
-   */
-  private prepareSalesforceUrl(url: string): string {
-    if (!this.isCodeBuilder) {
-      return url;
-    }
-
-    // Code Builder may require URI encoding adjustments
-    // This ensures proper handling of special characters in Code Builder's proxy layer
-    return url;
-  }
-
-  /**
-   * Handles proxy errors with user-friendly messages
-   */
-  private handleProxyError(error: Error, req: IncomingMessage, res: ServerResponse | NodeJS.Socket): void {
-    this.stats.errors++;
-    const url = req.url ?? '/';
-    this.logger?.error(`Proxy error for ${url}: ${error.message}`);
-
-    // If response hasn't been sent, send error
-    // Check if res has writeHead method (ServerResponse) vs destroy (Socket)
-    if ('writeHead' in res && 'headersSent' in res && !res.headersSent) {
-      const errorInfo = this.getProxyErrorInfo(error, req);
-      res.writeHead(errorInfo.statusCode, { 'Content-Type': 'application/json' });
-      res.end(
-        JSON.stringify({
-          error: errorInfo.error,
-          message: errorInfo.message,
-          suggestion: errorInfo.suggestion,
-        })
-      );
-    }
-  }
-
-  /**
-   * Determines user-friendly error information based on error type
-   */
-  private getProxyErrorInfo(
-    error: Error,
-    req: IncomingMessage
-  ): { statusCode: number; error: string; message: string; suggestion?: string } {
-    const nodeError = error as NodeJS.ErrnoException;
-
-    // Determine which target this request was going to
-    const decision = this.router.route(req);
-    const target = decision.target === 'salesforce' ? this.config.salesforceInstanceUrl : this.config.devServerUrl;
-
-    // Check for specific error codes
-    if (nodeError.code === 'ECONNREFUSED') {
-      if (decision.target === 'devserver') {
-        return {
-          statusCode: 503,
-          error: 'Dev Server Unavailable',
-          message: `Cannot connect to dev server at ${this.config.devServerUrl}`,
-          suggestion: 'Make sure your development server is running (e.g., npm run dev)',
-        };
-      } else {
-        return {
-          statusCode: 503,
-          error: 'Salesforce Unavailable',
-          message: `Cannot connect to Salesforce at ${this.config.salesforceInstanceUrl}`,
-          suggestion: 'Check your network connection and Salesforce org status',
-        };
-      }
-    }
-
-    if (nodeError.code === 'ETIMEDOUT' || nodeError.code === 'ESOCKETTIMEDOUT') {
-      return {
-        statusCode: 504,
-        error: 'Gateway Timeout',
-        message: `Request to ${target} timed out`,
-        suggestion: 'The target server took too long to respond. Please try again.',
-      };
-    }
-
-    if (nodeError.code === 'ENOTFOUND') {
-      return {
-        statusCode: 502,
-        error: 'Host Not Found',
-        message: `Cannot resolve hostname for ${target}`,
-        suggestion: 'Check your network connection and the target URL configuration',
-      };
-    }
-
-    if (nodeError.code === 'ECONNRESET') {
-      return {
-        statusCode: 502,
-        error: 'Connection Reset',
-        message: `Connection to ${target} was reset`,
-        suggestion: 'The target server closed the connection unexpectedly. Please try again.',
-      };
-    }
-
-    // Generic proxy error
-    return {
-      statusCode: 502,
-      error: 'Proxy Error',
-      message: `Failed to proxy request to ${target}`,
-      suggestion: 'Set SF_LOG_LEVEL=debug for more details',
-    };
-  }
-
-  /**
-   * Handles request processing errors
-   */
-  private handleRequestError(error: unknown, req: IncomingMessage, res: ServerResponse): void {
-    this.stats.errors++;
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const url = req.url ?? '/';
-    this.logger?.error(`Request error for ${url}: ${errorMessage}`);
-
-    if (!res.headersSent) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(
-        JSON.stringify({
-          error: 'Internal Server Error',
-          message: 'Failed to process request',
-        })
-      );
-    }
+    this.healthCheckInterval = setInterval(() => {
+      this.checkDevServerHealth().catch((error) => {
+        this.logger?.debug(`Health check error: ${String(error)}`);
+      });
+    }, 10_000);
   }
 }

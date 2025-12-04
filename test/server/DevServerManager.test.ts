@@ -17,6 +17,7 @@
 import { expect } from 'chai';
 import { SfError } from '@salesforce/core';
 import { DevServerManager } from '../../src/server/DevServerManager.js';
+import type { DevServerStatus } from '../../src/config/types.js';
 
 describe('DevServerManager', () => {
   let manager: DevServerManager | null = null;
@@ -46,9 +47,10 @@ describe('DevServerManager', () => {
         try {
           expect(url).to.equal('http://localhost:5173');
           expect(manager?.getUrl()).to.equal('http://localhost:5173');
-          expect(manager?.getStatus().running).to.be.true;
-          expect(manager?.getStatus().url).to.equal('http://localhost:5173');
-          expect(manager?.getStatus().pid).to.be.undefined; // No process spawned
+          const status: DevServerStatus | undefined = manager?.getStatus();
+          expect(status?.running).to.be.true;
+          expect(status?.url).to.equal('http://localhost:5173');
+          expect(status?.pid).to.be.undefined; // No process spawned
           done();
         } catch (error) {
           done(error);
@@ -65,7 +67,7 @@ describe('DevServerManager', () => {
 
       manager.on('ready', () => {
         try {
-          const status = manager?.getStatus();
+          const status: DevServerStatus | undefined = manager?.getStatus();
           expect(status?.running).to.be.true;
           expect(status?.url).to.equal('http://localhost:3000');
           expect(status?.pid).to.be.undefined; // No process spawned
@@ -247,7 +249,7 @@ describe('DevServerManager', () => {
       manager.on('ready', () => {
         clearTimeout(timeout);
         try {
-          const status = manager?.getStatus();
+          const status: DevServerStatus | undefined = manager?.getStatus();
           expect(status?.running).to.be.true;
           expect(status?.url).to.equal('http://localhost:5555');
           expect(status?.pid).to.be.a('number');
@@ -272,7 +274,7 @@ describe('DevServerManager', () => {
         try {
           expect(url).to.equal('http://localhost:9999');
           // Process should not be spawned
-          const status = manager?.getStatus();
+          const status: DevServerStatus | undefined = manager?.getStatus();
           expect(status?.pid).to.be.undefined;
           done();
         } catch (error) {
@@ -354,7 +356,7 @@ describe('DevServerManager', () => {
       // Stop the manager
       await manager.stop();
 
-      const status = manager.getStatus();
+      const status: DevServerStatus = manager.getStatus();
       expect(status.running).to.be.false;
     });
 
@@ -423,7 +425,8 @@ describe('DevServerManager', () => {
 
       let restartAttempted = false;
       manager.on('ready', () => {
-        if (manager?.getStatus().running) {
+        const status: DevServerStatus | undefined = manager?.getStatus();
+        if (status?.running) {
           restartAttempted = true;
         }
       });

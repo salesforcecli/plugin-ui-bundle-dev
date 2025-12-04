@@ -144,7 +144,7 @@ export class ErrorHandler {
 
     return new SfError(`Web application manifest validation failed:\n${errorList}`, WebAppErrorCode.MANIFEST_INVALID, [
       'Check the webapp.json file for syntax errors',
-      'Ensure all required fields are present: name, label, version, apiVersion, outputDir',
+      'Ensure all required fields are present: name, label, version, outputDir',
       'Refer to the schema documentation for valid field formats',
     ]);
   }

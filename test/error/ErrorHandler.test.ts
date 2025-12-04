@@ -82,7 +82,7 @@ describe('ErrorHandler', () => {
     });
 
     it('should create manifest validation error with multiple issues', () => {
-      const validationErrors = ['name is required', 'version must be semantic', 'apiVersion is invalid'];
+      const validationErrors = ['name is required', 'version must be semantic', 'outputDir is missing'];
 
       const error = ErrorHandler.createManifestValidationError(validationErrors);
 
@@ -91,7 +91,7 @@ describe('ErrorHandler', () => {
       expect(error.message).to.include('validation failed');
       expect(error.message).to.include('name is required');
       expect(error.message).to.include('version must be semantic');
-      expect(error.message).to.include('apiVersion is invalid');
+      expect(error.message).to.include('outputDir is missing');
     });
 
     it('should create manifest parse error', () => {

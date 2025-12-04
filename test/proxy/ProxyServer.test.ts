@@ -18,21 +18,9 @@ import { expect } from 'chai';
 import { TestContext } from '@salesforce/core/testSetup';
 import { ProxyServer } from '../../src/proxy/ProxyServer.js';
 import type { ProxyServerConfig } from '../../src/proxy/ProxyServer.js';
-import { AuthManager } from '../../src/auth/AuthManager.js';
 
 describe('ProxyServer', () => {
   const $$ = new TestContext();
-  let mockAuthManager: Partial<AuthManager>;
-
-  beforeEach(() => {
-    // Create mock AuthManager
-    mockAuthManager = {
-      initialize: $$.SANDBOX.stub().resolves(),
-      getAuthHeaders: $$.SANDBOX.stub().returns({ authorization: 'Bearer test-token' }),
-      getInstanceUrl: $$.SANDBOX.stub().returns('https://test.salesforce.com'),
-      handleAuthError: $$.SANDBOX.stub().resolves(false),
-    };
-  });
 
   afterEach(() => {
     $$.restore();
@@ -48,7 +36,6 @@ describe('ProxyServer', () => {
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
       };
 
       const proxy = new ProxyServer(config);
@@ -62,7 +49,6 @@ describe('ProxyServer', () => {
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
       };
 
       const proxy = new ProxyServer(config);
@@ -85,7 +71,6 @@ describe('ProxyServer', () => {
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
       };
 
       const proxy = new ProxyServer(config);
@@ -100,7 +85,6 @@ describe('ProxyServer', () => {
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
       };
 
       const proxy = new ProxyServer(config);
@@ -115,7 +99,6 @@ describe('ProxyServer', () => {
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
       };
 
       const proxy = new ProxyServer(config);
@@ -128,7 +111,6 @@ describe('ProxyServer', () => {
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
       };
 
       const proxy = new ProxyServer(config);
@@ -143,7 +125,6 @@ describe('ProxyServer', () => {
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
       };
 
       const proxy = new ProxyServer(config);
@@ -160,7 +141,6 @@ describe('ProxyServer', () => {
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
       };
 
       const proxy = new ProxyServer(config);
@@ -176,7 +156,6 @@ describe('ProxyServer', () => {
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
         host: '192.168.1.100',
       };
 
@@ -193,7 +172,6 @@ describe('ProxyServer', () => {
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
         host: '127.0.0.1',
       };
 
@@ -211,7 +189,6 @@ describe('ProxyServer', () => {
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
       };
 
       const proxy = new ProxyServer(config);
@@ -224,7 +201,6 @@ describe('ProxyServer', () => {
         port: 8080,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
       };
 
       const proxy = new ProxyServer(config);
@@ -240,7 +216,6 @@ describe('ProxyServer', () => {
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
       };
 
       const proxy = new ProxyServer(config);
@@ -259,7 +234,6 @@ describe('ProxyServer', () => {
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
       };
 
       const proxy = new ProxyServer(config);
@@ -273,15 +247,30 @@ describe('ProxyServer', () => {
   });
 
   describe('Configuration Validation', () => {
-    it('should accept router configuration', () => {
+    it('should accept manifest configuration', () => {
       const config: ProxyServerConfig = {
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
-        routerConfig: {
-          customSalesforcePaths: ['/api/custom'],
+        manifest: {
+          name: 'test-app',
+          label: 'Test App',
+          version: '1.0.0',
+          outputDir: 'dist',
         },
+      };
+
+      const proxy = new ProxyServer(config);
+
+      expect(proxy).to.be.instanceOf(ProxyServer);
+    });
+
+    it('should accept org alias configuration', () => {
+      const config: ProxyServerConfig = {
+        port: 4545,
+        devServerUrl: 'http://localhost:5173',
+        salesforceInstanceUrl: 'https://test.salesforce.com',
+        orgAlias: 'my-org',
       };
 
       const proxy = new ProxyServer(config);
@@ -294,7 +283,6 @@ describe('ProxyServer', () => {
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
       };
 
       const proxy = new ProxyServer(config);
@@ -312,7 +300,6 @@ describe('ProxyServer', () => {
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
       };
 
       const proxy = new ProxyServer(config);
@@ -329,7 +316,6 @@ describe('ProxyServer', () => {
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
       };
 
       const proxy = new ProxyServer(config);
@@ -343,7 +329,6 @@ describe('ProxyServer', () => {
         port: 3000,
         devServerUrl: 'http://localhost:8080',
         salesforceInstanceUrl: 'https://custom.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
         host: '0.0.0.0',
       };
 
@@ -359,7 +344,6 @@ describe('ProxyServer', () => {
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
       };
 
       const proxy = new ProxyServer(config);
@@ -379,7 +363,6 @@ describe('ProxyServer', () => {
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
       };
 
       const proxy = new ProxyServer(config);
@@ -402,7 +385,6 @@ describe('ProxyServer', () => {
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
       };
 
       const proxy = new ProxyServer(config);
@@ -426,7 +408,6 @@ describe('ProxyServer', () => {
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
       };
 
       const proxy = new ProxyServer(config);
@@ -444,7 +425,6 @@ describe('ProxyServer', () => {
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-        authManager: mockAuthManager as AuthManager,
       };
 
       const proxy = new ProxyServer(config);
@@ -453,6 +433,63 @@ describe('ProxyServer', () => {
       proxy.updateDevServerUrl('http://localhost:5173');
 
       expect(proxy).to.be.instanceOf(ProxyServer);
+    });
+
+    it('should update manifest configuration', () => {
+      const config: ProxyServerConfig = {
+        port: 4545,
+        devServerUrl: 'http://localhost:5173',
+        salesforceInstanceUrl: 'https://test.salesforce.com',
+        manifest: {
+          name: 'test-app',
+          label: 'Test App',
+          version: '1.0.0',
+          outputDir: 'dist',
+        },
+      };
+
+      const proxy = new ProxyServer(config);
+
+      // Update manifest with routing config
+      proxy.updateManifest({
+        name: 'test-app',
+        label: 'Test App',
+        version: '2.0.0',
+        outputDir: 'dist',
+        routing: {
+          trailingSlash: 'always',
+        },
+      });
+
+      expect(proxy).to.be.instanceOf(ProxyServer);
+    });
+  });
+
+  describe('Dev Server Error State', () => {
+    it('should track active dev server error', () => {
+      const config: ProxyServerConfig = {
+        port: 4545,
+        devServerUrl: 'http://localhost:5173',
+        salesforceInstanceUrl: 'https://test.salesforce.com',
+      };
+
+      const proxy = new ProxyServer(config);
+
+      expect(proxy.hasActiveDevServerError()).to.be.false;
+
+      proxy.setActiveDevServerError({
+        type: 'port-conflict',
+        title: 'Port Conflict',
+        message: 'Port 5173 is already in use',
+        stderrLines: ['EADDRINUSE'],
+        suggestions: ['Stop other dev servers'],
+      });
+
+      expect(proxy.hasActiveDevServerError()).to.be.true;
+
+      proxy.clearActiveDevServerError();
+
+      expect(proxy.hasActiveDevServerError()).to.be.false;
     });
   });
 });

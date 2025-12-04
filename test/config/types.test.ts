@@ -15,7 +15,7 @@
  */
 
 import { expect } from 'chai';
-import { WebAppManifest } from '../../src/config/types.js';
+import { WebAppManifest, RoutingConfig } from '../../src/config/types.js';
 
 describe('TypeScript Types', () => {
   it('should allow valid WebAppManifest', () => {
@@ -23,7 +23,6 @@ describe('TypeScript Types', () => {
       name: 'testApp',
       label: 'Test Application',
       version: '1.0.0',
-      apiVersion: '60.0',
       outputDir: 'dist',
     };
 
@@ -36,7 +35,6 @@ describe('TypeScript Types', () => {
       name: 'testApp',
       label: 'Test Application',
       version: '1.0.0',
-      apiVersion: '60.0',
       outputDir: 'dist',
       dev: {
         command: 'npm run dev',
@@ -54,10 +52,30 @@ describe('TypeScript Types', () => {
       label: 'Test Application',
       description: 'This is a test app',
       version: '1.0.0',
-      apiVersion: '60.0',
       outputDir: 'dist',
     };
 
     expect(manifest.description).to.equal('This is a test app');
+  });
+
+  it('should allow WebAppManifest with routing config', () => {
+    const routing: RoutingConfig = {
+      rewrites: [{ route: '/api/:id', target: 'api/handler' }],
+      redirects: [{ route: '/old', target: '/new', statusCode: 301 }],
+      trailingSlash: 'always',
+      fallback: 'index.html',
+    };
+
+    const manifest: WebAppManifest = {
+      name: 'testApp',
+      label: 'Test Application',
+      version: '1.0.0',
+      outputDir: 'dist',
+      routing,
+    };
+
+    expect(manifest.routing?.rewrites).to.have.length(1);
+    expect(manifest.routing?.redirects).to.have.length(1);
+    expect(manifest.routing?.trailingSlash).to.equal('always');
   });
 });

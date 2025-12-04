@@ -36,6 +36,10 @@ The port on which the proxy server will listen. Your browser should connect to t
 
 Auto-open proxy URL in default browser
 
+# flags.open.description
+
+Automatically opens the proxy server URL in your default web browser when the server is ready. This saves you from manually copying and pasting the URL. The browser will open to the proxy URL (not the dev server URL directly), ensuring all requests are properly authenticated.
+
 # examples
 
 - Start the development server with explicit dev server URL:

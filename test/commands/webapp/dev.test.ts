@@ -33,7 +33,6 @@ describe('webapp:dev command integration', () => {
         name: 'testWebApp',
         label: 'Test Web App',
         version: '1.0.0',
-        apiVersion: '60.0',
         outputDir: 'dist',
         dev: {
           url: 'http://localhost:5173',
@@ -73,7 +72,6 @@ describe('webapp:dev command integration', () => {
         name: 'testWebApp',
         label: 'Test Web App',
         version: '1.0.0',
-        apiVersion: '60.0',
         outputDir: 'dist',
         dev: {
           url: 'http://localhost:5173',
@@ -88,7 +86,6 @@ describe('webapp:dev command integration', () => {
         name: 'testWebApp',
         label: 'Test Web App',
         version: '1.0.0',
-        apiVersion: '60.0',
         outputDir: 'dist',
         dev: {
           command: 'npm run dev',
@@ -135,7 +132,6 @@ describe('webapp:dev command integration', () => {
         name: 'testWebApp',
         label: 'Test Web App',
         version: '1.0.0',
-        apiVersion: '60.0',
         outputDir: 'dist',
         dev: {
           url: 'http://localhost:5173',
@@ -153,7 +149,6 @@ describe('webapp:dev command integration', () => {
         name: 'testWebApp',
         label: 'Test Web App',
         version: '1.0.0',
-        apiVersion: '60.0',
         outputDir: 'dist',
         dev: {
           command: 'npm run dev',
