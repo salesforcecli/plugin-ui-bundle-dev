@@ -5,28 +5,16 @@
     "WebAppDevResult": {
       "type": "object",
       "properties": {
-        "name": {
-          "type": "string",
-          "description": "Name of the web app"
-        },
         "url": {
           "type": "string",
           "description": "Proxy server URL (where user should open browser)"
-        },
-        "port": {
-          "type": "number",
-          "description": "Port the proxy is running on"
-        },
-        "targetOrg": {
-          "type": "string",
-          "description": "Target org being used"
         },
         "devServerUrl": {
           "type": "string",
           "description": "Dev server URL being proxied"
         }
       },
-      "required": ["name", "url", "port", "targetOrg", "devServerUrl"],
+      "required": ["url", "devServerUrl"],
       "additionalProperties": false,
       "description": "Command execution result What the sf webapp dev command returns to the user"
     }

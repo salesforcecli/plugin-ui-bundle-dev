@@ -45,16 +45,12 @@ describe('webapp:dev command integration', () => {
 
     it('should have correct WebAppDevResult structure', () => {
       const result: WebAppDevResult = {
-        name: 'testWebApp',
         url: 'http://localhost:4545',
-        port: 4545,
-        targetOrg: 'test@example.com',
         devServerUrl: 'http://localhost:5173',
       };
 
-      expect(result.name).to.equal('testWebApp');
       expect(result.url).to.equal('http://localhost:4545');
-      expect(result.port).to.equal(4545);
+      expect(result.devServerUrl).to.equal('http://localhost:5173');
     });
   });
 

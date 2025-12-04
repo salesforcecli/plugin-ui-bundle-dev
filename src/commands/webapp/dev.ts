@@ -272,10 +272,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
 
       // Return result (never reached, but required for type safety)
       return {
-        name: manifest?.name ?? '',
         url: proxyUrl,
-        port: flags.port,
-        targetOrg: orgUsername,
         devServerUrl: devServerUrl ?? '',
       };
     } catch (error) {

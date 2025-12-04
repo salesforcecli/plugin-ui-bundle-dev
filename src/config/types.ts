@@ -25,14 +25,8 @@ export type { ManifestChangeEvent } from './ManifestWatcher.js';
  * What the sf webapp dev command returns to the user
  */
 export type WebAppDevResult = {
-  /** Name of the web app */
-  name: string;
   /** Proxy server URL (where user should open browser) */
   url: string;
-  /** Port the proxy is running on */
-  port: number;
-  /** Target org being used */
-  targetOrg: string;
   /** Dev server URL being proxied */
   devServerUrl: string;
 };
