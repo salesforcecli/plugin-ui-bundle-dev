@@ -15,8 +15,8 @@
  */
 
 import { dirname } from 'node:path';
-import { createInterface } from 'node:readline';
 import open from 'open';
+import select from '@inquirer/select';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Logger, Messages, SfError } from '@salesforce/core';
 import type { WebAppDevResult, DevServerError } from '../../config/types.js';
@@ -75,6 +75,22 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
     await open(url);
   }
 
+  /**
+   * Prompt user to select a webapp from multiple discovered webapps
+   * Uses interactive arrow-key selection (standard SF CLI pattern)
+   */
+  private static async promptWebappSelection(webapps: DiscoveredWebapp[]): Promise<DiscoveredWebapp> {
+    const choices = webapps.map((webapp) => ({
+      name: `${webapp.manifest.name} - ${webapp.manifest.label} (${webapp.relativePath})`,
+      value: webapp,
+    }));
+
+    return select({
+      message: messages.getMessage('prompt.select-webapp'),
+      choices,
+    });
+  }
+
   // eslint-disable-next-line complexity
   public async run(): Promise<WebAppDevResult> {
     const { flags } = await this.parse(WebappDev);
@@ -99,7 +115,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
       if (!discoveredWebapp) {
         this.log(messages.getMessage('info.multiple-webapps-found', [String(allWebapps.length)]));
 
-        selectedWebapp = await this.promptWebappSelection(allWebapps);
+        selectedWebapp = await WebappDev.promptWebappSelection(allWebapps);
       } else {
         selectedWebapp = discoveredWebapp;
       }
@@ -381,49 +397,5 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
     }
 
     this.logger?.debug('Cleanup complete');
-  }
-
-  /**
-   * Prompt user to select a webapp from multiple discovered webapps
-   */
-  private async promptWebappSelection(webapps: DiscoveredWebapp[]): Promise<DiscoveredWebapp> {
-    // Display numbered list
-    this.log(messages.getMessage('prompt.select-webapp'));
-    webapps.forEach((webapp, index) => {
-      this.log(`  ${index + 1}) ${webapp.manifest.name} - ${webapp.manifest.label} (${webapp.relativePath})`);
-    });
-    this.log('');
-
-    const rl = createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
-
-    return new Promise<DiscoveredWebapp>((resolve, reject) => {
-      let resolved = false;
-
-      const askQuestion = (): void => {
-        rl.question(`Enter number (1-${webapps.length}): `, (answer) => {
-          const num = parseInt(answer.trim(), 10);
-          if (num >= 1 && num <= webapps.length) {
-            resolved = true;
-            rl.close();
-            resolve(webapps[num - 1]);
-          } else {
-            this.warn(`Please enter a number between 1 and ${webapps.length}`);
-            askQuestion();
-          }
-        });
-      };
-
-      rl.on('close', () => {
-        // Handle Ctrl+C - only reject if we haven't already resolved
-        if (!resolved) {
-          reject(new SfError('Selection cancelled', 'UserCancelledError'));
-        }
-      });
-
-      askQuestion();
-    });
   }
 }

@@ -5,6 +5,7 @@
   "author": "Salesforce",
   "bugs": "https://github.com/forcedotcom/cli/issues",
   "dependencies": {
+    "@inquirer/select": "^5.0.2",
     "@oclif/core": "^4",
     "@salesforce/core": "^8.23.4",
     "@salesforce/kit": "^3.2.4",
@@ -91,7 +92,6 @@
     "build": {
       "dependencies": [
         "compile",
-        "copy-resources",
         "lint"
       ]
     },
@@ -103,9 +103,7 @@
         "messages/**"
       ],
       "output": [
-        "lib/**/*.js",
-        "lib/**/*.d.ts",
-        "lib/**/*.js.map",
+        "lib/**",
         "*.tsbuildinfo"
       ],
       "clean": "if-file-deleted"
