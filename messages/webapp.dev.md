@@ -10,11 +10,11 @@ The command launches a local proxy server that sits between your web application
 
 # flags.name.summary
 
-Identifies the Web Application
+Identifies the Web Application (optional)
 
 # flags.name.description
 
-The unique name of the web application as defined in webapp.json. This is used to load the appropriate configuration and settings.
+The unique name of the web application as defined in webapp.json. If not provided, the command will automatically discover webapp.json files in the current directory and subdirectories. If only one webapp.json is found, it will be used automatically. If multiple are found, you will be prompted to select one.
 
 # flags.url.summary
 
@@ -42,21 +42,25 @@ Automatically opens the proxy server URL in your default web browser when the se
 
 # examples
 
+- Start the development server (auto-discovers webapp.json):
+
+  <%= config.bin %> <%= command.id %> --target-org myorg
+
+- Start the development server with explicit webapp name:
+
+  <%= config.bin %> <%= command.id %> --name myWebApp --target-org myorg
+
 - Start the development server with explicit dev server URL:
 
   <%= config.bin %> <%= command.id %> --name myWebApp --url http://localhost:5173 --target-org myorg
 
-- Start the development server using webapp.json configuration:
-
-  <%= config.bin %> <%= command.id %> --name myWebApp --target-org myorg
-
 - Start with custom port and auto-open browser:
 
-  <%= config.bin %> <%= command.id %> --name myWebApp --target-org myorg --port 4546 --open
+  <%= config.bin %> <%= command.id %> --target-org myorg --port 4546 --open
 
 - Start with debug logging (using SF_LOG_LEVEL environment variable):
 
-  SF_LOG_LEVEL=debug <%= config.bin %> <%= command.id %> --name myWebApp --target-org myorg
+  SF_LOG_LEVEL=debug <%= config.bin %> <%= command.id %> --target-org myorg
 
 # info.manifest-changed
 
@@ -126,3 +130,15 @@ Failed to watch manifest: %s
 # error.dev-server-failed
 
 Dev server failed to start: %s
+
+# info.multiple-webapps-found
+
+Found %s webapp.json files in project
+
+# info.using-webapp
+
+Using webapp: %s (%s)
+
+# prompt.select-webapp
+
+Select the webapp to run:

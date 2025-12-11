@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import { dirname } from 'node:path';
+import { createInterface } from 'node:readline';
 import open from 'open';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Logger, Messages, SfError } from '@salesforce/core';
@@ -23,6 +25,7 @@ import { ManifestWatcher } from '../../config/ManifestWatcher.js';
 import { DevServerManager } from '../../server/DevServerManager.js';
 import { ProxyServer } from '../../proxy/ProxyServer.js';
 import { ErrorHandler } from '../../error/ErrorHandler.js';
+import { discoverWebapp, type DiscoveredWebapp } from '../../config/webappDiscovery.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@salesforce/plugin-webapp', 'webapp.dev');
@@ -37,7 +40,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
       summary: messages.getMessage('flags.name.summary'),
       description: messages.getMessage('flags.name.description'),
       char: 'n',
-      required: true,
+      required: false,
     }),
     url: Flags.string({
       summary: messages.getMessage('flags.url.summary'),
@@ -86,9 +89,27 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
     let orgUsername = '';
 
     try {
-      // Step 1: Load and validate manifest
-      this.logger.debug('Loading webapp.json manifest...');
-      const manifestPath = 'webapp.json';
+      // Step 1: Discover and select webapp
+      this.logger.debug('Discovering webapp.json manifest(s)...');
+
+      const { webapp: discoveredWebapp, allWebapps } = await discoverWebapp(flags.name);
+
+      // Handle multiple webapps case - prompt user to select
+      let selectedWebapp: DiscoveredWebapp;
+      if (!discoveredWebapp) {
+        this.log(messages.getMessage('info.multiple-webapps-found', [String(allWebapps.length)]));
+
+        selectedWebapp = await this.promptWebappSelection(allWebapps);
+      } else {
+        selectedWebapp = discoveredWebapp;
+      }
+
+      const manifestPath = selectedWebapp.path;
+      const manifestDir = dirname(manifestPath);
+
+      this.logger.debug(`Using webapp: ${selectedWebapp.manifest.name} at ${selectedWebapp.relativePath}`);
+
+      // Step 2: Load and watch manifest
       this.manifestWatcher = new ManifestWatcher({ manifestPath, watch: true });
 
       this.manifestWatcher.initialize();
@@ -98,6 +119,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
         throw ErrorHandler.createManifestNotFoundError();
       }
 
+      this.log(messages.getMessage('info.using-webapp', [manifest.name, selectedWebapp.relativePath]));
       this.logger.debug(`Manifest loaded: ${manifest.name}`);
 
       // Setup manifest change handler
@@ -142,11 +164,11 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
         devServerUrl = manifest.dev.url;
         this.logger.debug(`Using dev server URL from manifest: ${devServerUrl}`);
       } else if (manifest.dev?.command) {
-        // Start dev server
+        // Start dev server from the directory containing webapp.json
         this.logger.debug(`Starting dev server with command: ${manifest.dev.command}`);
         this.devServerManager = new DevServerManager({
           command: manifest.dev.command,
-          cwd: process.cwd(),
+          cwd: manifestDir,
         });
 
         // Setup dev server event handlers
@@ -359,5 +381,49 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
     }
 
     this.logger?.debug('Cleanup complete');
+  }
+
+  /**
+   * Prompt user to select a webapp from multiple discovered webapps
+   */
+  private async promptWebappSelection(webapps: DiscoveredWebapp[]): Promise<DiscoveredWebapp> {
+    // Display numbered list
+    this.log(messages.getMessage('prompt.select-webapp'));
+    webapps.forEach((webapp, index) => {
+      this.log(`  ${index + 1}) ${webapp.manifest.name} - ${webapp.manifest.label} (${webapp.relativePath})`);
+    });
+    this.log('');
+
+    const rl = createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+
+    return new Promise<DiscoveredWebapp>((resolve, reject) => {
+      let resolved = false;
+
+      const askQuestion = (): void => {
+        rl.question(`Enter number (1-${webapps.length}): `, (answer) => {
+          const num = parseInt(answer.trim(), 10);
+          if (num >= 1 && num <= webapps.length) {
+            resolved = true;
+            rl.close();
+            resolve(webapps[num - 1]);
+          } else {
+            this.warn(`Please enter a number between 1 and ${webapps.length}`);
+            askQuestion();
+          }
+        });
+      };
+
+      rl.on('close', () => {
+        // Handle Ctrl+C - only reject if we haven't already resolved
+        if (!resolved) {
+          reject(new SfError('Selection cancelled', 'UserCancelledError'));
+        }
+      });
+
+      askQuestion();
+    });
   }
 }
