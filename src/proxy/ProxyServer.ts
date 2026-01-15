@@ -1,5 +1,5 @@
 /*
- * Copyright 2025, Salesforce, Inc.
+ * Copyright 2026, Salesforce, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,14 +21,15 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import httpProxy from 'http-proxy';
 import { Logger, SfError } from '@salesforce/core';
-import type { OrgInfo } from '../auth/org.js';
-import { getOrgInfo, getAuthHeaders } from '../auth/org.js';
+import type { OrgInfo } from '@salesforce/webapp-experimental/app';
+import { getOrgInfo } from '@salesforce/webapp-experimental/app';
+import type { ProxyHandler } from '@salesforce/webapp-experimental/proxy';
+import { createProxyHandler } from '@salesforce/webapp-experimental/proxy';
+import { getAuthHeaders } from '../auth/org.js';
 import type { WebAppManifest } from '../config/manifest.js';
 import type { DevServerError } from '../config/types.js';
 import type { ErrorPageData } from '../templates/ErrorPageRenderer.js';
 import { ErrorPageRenderer } from '../templates/ErrorPageRenderer.js';
-import type { ProxyHandler } from './handler.js';
-import { createProxyHandler } from './handler.js';
 
 /**
  * Configuration for the proxy server
@@ -225,7 +226,11 @@ export class ProxyServer extends EventEmitter {
     if (this.config.orgAlias) {
       try {
         this.orgInfo = await getOrgInfo(this.config.orgAlias);
-        this.logger.debug(`Org info loaded for: ${this.orgInfo.username}`);
+        if (this.orgInfo) {
+          this.logger.debug(`Org info loaded for: ${this.orgInfo.username}`);
+        } else {
+          this.logger.warn(`Failed to get org info for: ${this.config.orgAlias}`);
+        }
       } catch (error) {
         this.logger.warn(`Failed to get org info: ${error instanceof Error ? error.message : String(error)}`);
       }

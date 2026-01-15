@@ -1,5 +1,5 @@
 /*
- * Copyright 2025, Salesforce, Inc.
+ * Copyright 2026, Salesforce, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,50 +14,23 @@
  * limitations under the License.
  */
 
-// This file is adapted from @salesforce/webapps package
-// When the package is published to npm, replace with: import { loadManifest, WebAppManifest } from '@salesforce/webapps';
-
 import { readFile } from 'node:fs/promises';
 import { SfError } from '@salesforce/core';
 
-/**
- * URL rewrite rule - rewrites a URL path without changing the browser URL
- */
-export type RewriteRule = {
-  /** Source route pattern (supports :param and * wildcards) */
-  route: string;
-  /** Target path to rewrite to */
-  target: string;
-};
+// Re-export base types from @salesforce/webapp-experimental package
+export type {
+  WebAppManifest as BaseWebAppManifest,
+  RoutingConfig,
+  RewriteRule,
+  RedirectRule,
+} from '@salesforce/webapp-experimental/app';
 
-/**
- * URL redirect rule - redirects to a different URL with an HTTP status code
- */
-export type RedirectRule = {
-  /** Source route pattern (supports :param and * wildcards) */
-  route: string;
-  /** Target URL to redirect to */
-  target: string;
-  /** HTTP redirect status code */
-  statusCode: 301 | 302 | 307 | 308;
-};
-
-/**
- * Routing configuration for the webapp
- */
-export type RoutingConfig = {
-  /** URL rewrite rules */
-  rewrites?: RewriteRule[];
-  /** URL redirect rules */
-  redirects?: RedirectRule[];
-  /** Trailing slash handling strategy */
-  trailingSlash?: 'always' | 'never' | 'auto';
-  /** Fallback route for unmatched paths */
-  fallback?: string;
-};
+// Import for local use
+import type { WebAppManifest as BaseWebAppManifest } from '@salesforce/webapp-experimental/app';
 
 /**
  * Development configuration (plugin-specific extension)
+ * NOT in @salesforce/webapp-experimental package
  */
 export type DevConfig = {
   /** Command to run the dev server (e.g., "npm run dev") */
@@ -68,21 +41,9 @@ export type DevConfig = {
 
 /**
  * WebApp manifest configuration - defines the structure of webapp.json file
- * Extended from @salesforce/webapps with plugin-specific fields
+ * Extended from @salesforce/webapp-experimental with plugin-specific fields
  */
-export type WebAppManifest = {
-  /** Unique name identifier for the webapp */
-  name: string;
-  /** Display label for the webapp */
-  label: string;
-  /** Optional description of the webapp */
-  description?: string;
-  /** Version string (e.g., "1.0.0") */
-  version: string;
-  /** Output directory for build artifacts */
-  outputDir: string;
-  /** Optional routing configuration (from webapps) */
-  routing?: RoutingConfig;
+export type WebAppManifest = BaseWebAppManifest & {
   /** Development configuration (plugin-specific) */
   dev?: DevConfig;
 };

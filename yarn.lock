@@ -938,6 +938,41 @@
   dependencies:
     chalk "^4.1.0"
 
+"@conduit-client/jwt-manager@3.7.1":
+  version "3.7.1"
+  resolved "https://registry.npmjs.org/@conduit-client/jwt-manager/-/jwt-manager-3.7.1.tgz"
+  integrity sha512-9x+5ck9SfGpdO991KK6PeC41YapWQNAy2Ya89x771W6r4+1dyvrLbhQtWkI5Irl3vm/5B1Ml7aqMmfLUmwK9pw==
+  dependencies:
+    jwt-decode "~3.1.2"
+
+"@conduit-client/salesforce-lightning-service-worker@^3.7.0":
+  version "3.7.1"
+  resolved "https://registry.npmjs.org/@conduit-client/salesforce-lightning-service-worker/-/salesforce-lightning-service-worker-3.7.1.tgz"
+  integrity sha512-XrlbIsqpwG8AMG/jHkOG0j3WlmG+GkLr9oTvaRkBGLqlld9gAE2QtQDdCptcG7SGFUIIDIUlckKhrC1zwKfbZQ==
+  dependencies:
+    "@conduit-client/service-fetch-network" "3.7.1"
+
+"@conduit-client/service-fetch-network@3.7.1":
+  version "3.7.1"
+  resolved "https://registry.npmjs.org/@conduit-client/service-fetch-network/-/service-fetch-network-3.7.1.tgz"
+  integrity sha512-80Bju0iTYeggVWngkuQgXFG49DOAbsGS+Wt2u25nTwDKCQBKOjjEjDXqj7HbEWgnGGayWm27qVmwG7syOUDAMw==
+  dependencies:
+    "@conduit-client/jwt-manager" "3.7.1"
+    "@conduit-client/service-retry" "3.7.1"
+    "@conduit-client/utils" "3.7.1"
+
+"@conduit-client/service-retry@3.7.1":
+  version "3.7.1"
+  resolved "https://registry.npmjs.org/@conduit-client/service-retry/-/service-retry-3.7.1.tgz"
+  integrity sha512-eVffwWEWa2HddbXdqMeFSzUEDoJoQyGD4f0hZdCfEI3+pHEBD1v5Sv6APIXgnYWEvF8dPcioo+v598Vy2gctEw==
+  dependencies:
+    "@conduit-client/utils" "3.7.1"
+
+"@conduit-client/utils@3.7.1":
+  version "3.7.1"
+  resolved "https://registry.npmjs.org/@conduit-client/utils/-/utils-3.7.1.tgz"
+  integrity sha512-LBqGQJpa3lUIAmjbyU1+M4g7uk66VQTg5qvQZt/DYD4PAkWD1mELiPIo2wUyxskaT4hxYTZIRbMnS8zgRcHEvg==
+
 "@cspotcode/source-map-support@^0.8.0":
   version "0.8.1"
   resolved "https://registry.npmjs.org/@cspotcode/source-map-support/-/source-map-support-0.8.1.tgz"
@@ -1686,6 +1721,17 @@
   version "2.0.12"
   resolved "https://registry.npmjs.org/@salesforce/ts-types/-/ts-types-2.0.12.tgz"
   integrity sha512-BIJyduJC18Kc8z+arUm5AZ9VkPRyw1KKAm+Tk+9LT99eOzhNilyfKzhZ4t+tG2lIGgnJpmytZfVDZ0e2kFul8g==
+
+"@salesforce/webapp-experimental@^0.2.0":
+  version "0.2.0"
+  resolved "https://registry.npmjs.org/@salesforce/webapp-experimental/-/webapp-experimental-0.2.0.tgz"
+  integrity sha512-+E7b8u88ABJcgj7YSYiwXaF+LY9lCElibtEQbfuBdDXSUXjaMImwdZjhuyUtndIYWSXM+X38kjnIAFiikjqBIQ==
+  dependencies:
+    "@conduit-client/salesforce-lightning-service-worker" "^3.7.0"
+    "@salesforce/core" "^8.23.4"
+    axios "^1.7.7"
+    micromatch "^4.0.8"
+    path-to-regexp "^8.3.0"
 
 "@shikijs/core@1.29.2":
   version "1.29.2"
@@ -2918,6 +2964,15 @@ available-typed-arrays@^1.0.7:
   integrity sha512-wvUjBtSGN7+7SjNpq/9M2Tg350UZD3q62IFZLbRAR1bSMlCo1ZaeW+BJ+D090e4hIIZLBcTDWe4Mh4jvUDajzQ==
   dependencies:
     possible-typed-array-names "^1.0.0"
+
+axios@^1.7.7:
+  version "1.13.2"
+  resolved "https://registry.npmjs.org/axios/-/axios-1.13.2.tgz"
+  integrity sha512-VPk9ebNqPcy5lRGuSlKx752IlDatOjT9paPlm8A7yOuW2Fbvp4X3JznJtT4f0GzGLLiWE9W8onz51SqLYwzGaA==
+  dependencies:
+    follow-redirects "^1.15.6"
+    form-data "^4.0.4"
+    proxy-from-env "^1.1.0"
 
 balanced-match@^1.0.0:
   version "1.0.2"
@@ -4380,7 +4435,7 @@ flatted@^3.2.9:
   resolved "https://registry.npmjs.org/flatted/-/flatted-3.3.3.tgz"
   integrity sha512-GX+ysw4PBCz0PzosHDepZGANEuFCMLrnRTiEy9McGjmkCQYwRq4A/X786G/fjM/+OjsWSU1ZrY5qyARZmO/uwg==
 
-follow-redirects@^1.0.0:
+follow-redirects@^1.0.0, follow-redirects@^1.15.6:
   version "1.15.11"
   resolved "https://registry.npmjs.org/follow-redirects/-/follow-redirects-1.15.11.tgz"
   integrity sha512-deG2P0JfjrTxl50XGCDyfI97ZGVCxIpfKYmfyrQ54n5FO/0gfIES8C/Psl6kWVDolizcaaxZJnTS0QSMxvnsBQ==
@@ -5667,6 +5722,11 @@ jws@^3.2.2:
     jwa "^1.4.1"
     safe-buffer "^5.0.1"
 
+jwt-decode@~3.1.2:
+  version "3.1.2"
+  resolved "https://registry.npmjs.org/jwt-decode/-/jwt-decode-3.1.2.tgz"
+  integrity sha512-UfpWE/VZn0iP50d8cz9NrZLM9lSWhcJ+0Gt/nm4by88UL+J1SiKN8/5dkjMmbEzwL2CAe+67GsegCbIKtbp75A==
+
 keyv@^4.5.3:
   version "4.5.4"
   resolved "https://registry.npmjs.org/keyv/-/keyv-4.5.4.tgz"
@@ -6846,6 +6906,11 @@ proto-list@~1.2.1:
   version "1.2.4"
   resolved "https://registry.npmjs.org/proto-list/-/proto-list-1.2.4.tgz"
   integrity sha512-vtK/94akxsTMhe0/cbfpR+syPuszcuwhqVjJq26CuNDgFGj682oRBXOP5MJpv2r7JtE8MsiepGIqvvOTBwn2vA==
+
+proxy-from-env@^1.1.0:
+  version "1.1.0"
+  resolved "https://registry.npmjs.org/proxy-from-env/-/proxy-from-env-1.1.0.tgz"
+  integrity sha512-D+zkORCbA9f1tdWRK0RaCR3GPv50cMxcrz4X8k5LTSUD1Dkw47mKJEZQNunItRTkWwgtaUSo1RVFRIG9ZXiFYg==
 
 pump@^3.0.0:
   version "3.0.3"
