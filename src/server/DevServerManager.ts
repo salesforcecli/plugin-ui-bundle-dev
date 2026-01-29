@@ -62,7 +62,6 @@ const URL_PATTERNS = [...VITE_PATTERNS, ...CRA_PATTERNS, ...NEXTJS_PATTERNS, ...
 const DEFAULT_OPTIONS = {
   cwd: process.cwd(),
   startupTimeout: 30_000, // 30 seconds
-  maxRestarts: 3,
 } as const;
 
 /**
@@ -73,7 +72,6 @@ type DevServerConfig = {
   explicitUrl?: string;
   cwd: string;
   startupTimeout: number;
-  maxRestarts: number;
 };
 
 /**
@@ -84,7 +82,6 @@ type DevServerConfig = {
  * - Detects the dev server URL by parsing stdout (supports Vite, CRA, Next.js, etc.)
  * - Monitors process health and emits lifecycle events
  * - Handles process cleanup and graceful shutdown
- * - Supports automatic restart on crash (with retry limits)
  * - Provides debug logging for process output (use SF_LOG_LEVEL=debug)
  *
  * @example
@@ -111,7 +108,6 @@ export class DevServerManager extends EventEmitter {
   private detectedUrl: string | null = null;
   private startupTimer: NodeJS.Timeout | null = null;
   private isReady = false;
-  private restartCount = 0;
   private logger: Logger | null = null;
   private stderrBuffer: string[] = []; // Buffer to store stderr lines for error parsing
   private readonly maxStderrLines = 100; // Keep last 100 lines
@@ -442,8 +438,7 @@ export class DevServerManager extends EventEmitter {
   /**
    * Handles process exit event
    *
-   * Cleans up resources and optionally attempts restart
-   * if the exit was unexpected and restart limit not reached
+   * Cleans up resources and emits appropriate events
    *
    * @param code Exit code from the process
    * @param signal Signal that caused exit (if any)
@@ -464,7 +459,7 @@ export class DevServerManager extends EventEmitter {
     const wasExpectedExit = signal === 'SIGTERM' || signal === 'SIGKILL' || signal === 'SIGINT';
     const wasErrorExit = code !== null && code !== 0 && !wasExpectedExit;
 
-    // Parse stderr if there was an error and we have stderr content
+    // Parse and emit error if dev server crashed
     if (wasErrorExit && this.stderrBuffer.length > 0) {
       const stderrContent = this.stderrBuffer.join('\n');
       const parsedError = DevServerErrorParser.parseError(stderrContent, code, signal);
@@ -474,61 +469,6 @@ export class DevServerManager extends EventEmitter {
 
       // Emit parsed error
       this.emit('error', parsedError);
-
-      // Check if we should retry based on error type
-      const shouldRetry = DevServerErrorParser.shouldRetry(parsedError);
-
-      if (shouldRetry && this.restartCount < this.options.maxRestarts) {
-        this.restartCount += 1;
-        this.logger?.warn(
-          `Dev server crashed, attempting restart (${this.restartCount}/${this.options.maxRestarts})...`
-        );
-        this.isReady = false;
-        this.detectedUrl = null;
-        this.stderrBuffer = []; // Clear buffer for next attempt
-
-        // Restart after a short delay
-        setTimeout(() => {
-          this.start().catch((error: unknown) => {
-            const sfError =
-              error instanceof SfError
-                ? error
-                : new SfError(error instanceof Error ? error.message : String(error), 'DevServerRestartError');
-            this.emit('error', sfError);
-          });
-        }, 2000);
-      }
-
-      // Don't retry if it's a permanent error - already emitted above
-      return;
-    }
-
-    // Normal crash handling (no stderr or expected exit)
-    if (!wasExpectedExit && this.isReady && this.restartCount < this.options.maxRestarts) {
-      this.restartCount += 1;
-      this.logger?.warn(`Dev server crashed, attempting restart (${this.restartCount}/${this.options.maxRestarts})...`);
-      this.isReady = false;
-      this.detectedUrl = null;
-      this.stderrBuffer = []; // Clear buffer
-
-      // Restart after a short delay
-      setTimeout(() => {
-        this.start().catch((error: unknown) => {
-          const sfError =
-            error instanceof SfError
-              ? error
-              : new SfError(error instanceof Error ? error.message : String(error), 'DevServerRestartError');
-          this.emit('error', sfError);
-        });
-      }, 2000);
-    } else if (!wasExpectedExit && this.restartCount >= this.options.maxRestarts) {
-      this.logger?.error('Dev server restart limit reached');
-      const error = new SfError(
-        'Dev server crashed and exceeded maximum restart attempts',
-        'DevServerMaxRestartsExceeded',
-        [`The dev server has crashed ${this.restartCount} times`, 'Check the dev server logs for errors']
-      );
-      this.emit('error', error);
     }
 
     // Reset state

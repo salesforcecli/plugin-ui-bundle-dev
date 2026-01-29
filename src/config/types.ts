@@ -59,8 +59,6 @@ export type DevServerOptions = {
   cwd?: string;
   /** Timeout in milliseconds to wait for dev server to start */
   startupTimeout?: number;
-  /** Maximum number of restart attempts on crash */
-  maxRestarts?: number;
 };
 
 /**
