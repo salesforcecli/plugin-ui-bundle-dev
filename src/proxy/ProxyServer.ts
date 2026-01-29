@@ -25,7 +25,6 @@ import type { OrgInfo } from '@salesforce/webapp-experimental/app';
 import { getOrgInfo } from '@salesforce/webapp-experimental/app';
 import type { ProxyHandler } from '@salesforce/webapp-experimental/proxy';
 import { createProxyHandler } from '@salesforce/webapp-experimental/proxy';
-import { getAuthHeaders } from '../auth/org.js';
 import type { WebAppManifest } from '../config/manifest.js';
 import type { DevServerError } from '../config/types.js';
 import type { ErrorPageData } from '../templates/ErrorPageRenderer.js';
@@ -482,14 +481,13 @@ export class ProxyServer extends EventEmitter {
 
       if (isSalesforceWs && this.orgInfo) {
         this.logger?.debug(`→ Salesforce WebSocket: ${url}`);
-        const authHeaders = getAuthHeaders(this.orgInfo);
         this.wsProxy.ws(
           req,
           socket,
           head,
           {
             target: this.config.salesforceInstanceUrl,
-            headers: authHeaders,
+            headers: { Authorization: `Bearer ${this.orgInfo.accessToken}` },
           },
           (error) => {
             if (error) {
