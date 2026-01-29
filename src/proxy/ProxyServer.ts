@@ -456,42 +456,18 @@ export class ProxyServer extends EventEmitter {
     }
 
     if (this.proxyHandler) {
-      try {
-        if (url.includes('/services')) {
-          this.stats.salesforceRequests++;
-        } else {
-          this.stats.devServerRequests++;
-        }
-
-        await this.proxyHandler(req, res);
-      } catch (error) {
-        this.handleRequestError(error, req, res);
+      if (url.includes('/services')) {
+        this.stats.salesforceRequests++;
+      } else {
+        this.stats.devServerRequests++;
       }
+
+      // Package handles all errors internally and returns proper HTTP responses
+      await this.proxyHandler(req, res);
     } else {
       this.logger?.error('Proxy handler not initialized');
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Proxy not initialized' }));
-    }
-  }
-
-  private handleRequestError(error: unknown, req: IncomingMessage, res: ServerResponse): void {
-    this.stats.errors++;
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const url = req.url ?? '/';
-    this.logger?.error(`Request error for ${url}: ${errorMessage}`);
-
-    if (!res.headersSent) {
-      if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('fetch failed')) {
-        this.serveErrorPage(res);
-      } else {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(
-          JSON.stringify({
-            error: 'Internal Server Error',
-            message: 'Failed to process request',
-          })
-        );
-      }
     }
   }
 
