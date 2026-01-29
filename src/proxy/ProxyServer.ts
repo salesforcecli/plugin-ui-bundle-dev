@@ -61,7 +61,7 @@ export type ProxyStats = {
 export class ProxyServer extends EventEmitter {
   // Instance fields
   private config: ProxyServerConfig;
-  private logger: Logger | null = null;
+  private readonly logger: Logger;
   private readonly wsProxy: httpProxy;
   private readonly errorPageRenderer: ErrorPageRenderer;
   private server: Server | null = null;
@@ -80,6 +80,7 @@ export class ProxyServer extends EventEmitter {
   public constructor(config: ProxyServerConfig) {
     super();
     this.config = config;
+    this.logger = Logger.childFromRoot('ProxyServer');
     this.errorPageRenderer = new ErrorPageRenderer();
     this.workspaceScript = ProxyServer.detectWorkspaceScript();
     this.stats = {
@@ -132,7 +133,7 @@ export class ProxyServer extends EventEmitter {
   // Public instance methods
   public clearActiveDevServerError(): void {
     if (this.activeDevServerError) {
-      this.logger?.debug('Dev server error cleared - dev server recovered');
+      this.logger.debug('Dev server error cleared - dev server recovered');
       this.activeDevServerError = null;
     }
   }
@@ -166,19 +167,19 @@ export class ProxyServer extends EventEmitter {
   public setActiveDevServerError(error: DevServerError): void {
     this.activeDevServerError = error;
     this.devServerStatus = 'error';
-    this.logger?.debug(`Dev server error is now active: ${error.title}`);
+    this.logger.debug(`Dev server error is now active: ${error.title}`);
   }
 
   public setupGracefulShutdown(onShutdown?: () => void | Promise<void>): () => void {
     const handleShutdown = async (signal: string): Promise<void> => {
-      this.logger?.debug(`Received ${signal}, shutting down gracefully...`);
+      this.logger.debug(`Received ${signal}, shutting down gracefully...`);
 
       if (onShutdown) {
         try {
           await onShutdown();
         } catch (err) {
           const errorMessage = err instanceof Error ? err.message : String(err);
-          this.logger?.error(`Shutdown callback error: ${errorMessage}`);
+          this.logger.error(`Shutdown callback error: ${errorMessage}`);
         }
       }
 
@@ -188,7 +189,7 @@ export class ProxyServer extends EventEmitter {
     const sigintHandler = (): void => {
       handleShutdown('SIGINT').catch((err) => {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        this.logger?.error(`SIGINT handler error: ${errorMessage}`);
+        this.logger.error(`SIGINT handler error: ${errorMessage}`);
         process.exit(1);
       });
     };
@@ -196,7 +197,7 @@ export class ProxyServer extends EventEmitter {
     const sigtermHandler = (): void => {
       handleShutdown('SIGTERM').catch((err) => {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        this.logger?.error(`SIGTERM handler error: ${errorMessage}`);
+        this.logger.error(`SIGTERM handler error: ${errorMessage}`);
         process.exit(1);
       });
     };
@@ -211,8 +212,6 @@ export class ProxyServer extends EventEmitter {
   }
 
   public async start(): Promise<void> {
-    this.logger = await Logger.child('ProxyServer');
-
     if (this.isCodeBuilder) {
       this.logger.debug('Code Builder environment detected');
     }
@@ -242,7 +241,7 @@ export class ProxyServer extends EventEmitter {
         this.server = createServer((req, res) => {
           this.handleRequest(req, res).catch((error) => {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            this.logger?.error(`Request handling error: ${errorMessage}`);
+            this.logger.error(`Request handling error: ${errorMessage}`);
             this.stats.errors++;
           });
         });
@@ -252,7 +251,7 @@ export class ProxyServer extends EventEmitter {
             this.handleWebSocketUpgrade(req, socket, head);
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            this.logger?.error(`WebSocket upgrade error: ${errorMessage}`);
+            this.logger.error(`WebSocket upgrade error: ${errorMessage}`);
             this.stats.errors++;
             socket.end();
           }
@@ -268,9 +267,9 @@ export class ProxyServer extends EventEmitter {
         });
 
         this.server.listen(this.config.port, host, () => {
-          this.logger?.debug(`Proxy server listening on http://${host}:${this.config.port}`);
-          this.logger?.debug(`Forwarding to dev server: ${this.config.devServerUrl}`);
-          this.logger?.debug(`Forwarding to Salesforce: ${this.config.salesforceInstanceUrl}`);
+          this.logger.debug(`Proxy server listening on http://${host}:${this.config.port}`);
+          this.logger.debug(`Forwarding to dev server: ${this.config.devServerUrl}`);
+          this.logger.debug(`Forwarding to Salesforce: ${this.config.salesforceInstanceUrl}`);
           this.startHealthCheck();
           resolve();
         });
@@ -327,7 +326,7 @@ export class ProxyServer extends EventEmitter {
 
     return new Promise((resolve, reject) => {
       const forceCloseTimeout = setTimeout(() => {
-        this.logger?.debug('Proxy server stop timeout, forcing shutdown');
+        this.logger.debug('Proxy server stop timeout, forcing shutdown');
         this.server = null;
         resolve();
       }, 2000);
@@ -336,14 +335,14 @@ export class ProxyServer extends EventEmitter {
         clearTimeout(forceCloseTimeout);
         if (error) {
           if (error.message.includes('Server is not running')) {
-            this.logger?.debug('Proxy server already stopped');
+            this.logger.debug('Proxy server already stopped');
             this.server = null;
             resolve();
           } else {
             reject(new SfError(`Failed to stop proxy server: ${error.message}`, 'ProxyStopFailed'));
           }
         } else {
-          this.logger?.debug('Proxy server stopped');
+          this.logger.debug('Proxy server stopped');
           this.server = null;
           resolve();
         }
@@ -355,11 +354,11 @@ export class ProxyServer extends EventEmitter {
 
   public updateDevServerUrl(newDevServerUrl: string): void {
     if (this.config.devServerUrl === newDevServerUrl) {
-      this.logger?.debug(`Dev server URL unchanged: ${newDevServerUrl}`);
+      this.logger.debug(`Dev server URL unchanged: ${newDevServerUrl}`);
       return;
     }
 
-    this.logger?.info(`Updating dev server URL: ${this.config.devServerUrl} → ${newDevServerUrl}`);
+    this.logger.info(`Updating dev server URL: ${this.config.devServerUrl} → ${newDevServerUrl}`);
     this.config.devServerUrl = newDevServerUrl;
 
     this.initializeProxyHandler();
@@ -372,16 +371,14 @@ export class ProxyServer extends EventEmitter {
     }
 
     this.checkDevServerHealth().catch((error) => {
-      this.logger?.error(
-        `Failed to check dev server health: ${error instanceof Error ? error.message : String(error)}`
-      );
+      this.logger.error(`Failed to check dev server health: ${error instanceof Error ? error.message : String(error)}`);
     });
   }
 
   public updateManifest(manifest: WebAppManifest): void {
     this.config.manifest = manifest;
     this.initializeProxyHandler();
-    this.logger?.debug('Proxy handler reinitialized with updated manifest');
+    this.logger.debug('Proxy handler reinitialized with updated manifest');
   }
 
   // Private instance methods
@@ -395,14 +392,14 @@ export class ProxyServer extends EventEmitter {
       if (this.devServerStatus !== 'up') {
         this.devServerStatus = 'up';
         this.emit('dev-server-up', this.config.devServerUrl);
-        this.logger?.debug(`Dev server is UP: ${this.config.devServerUrl}`);
+        this.logger.debug(`Dev server is UP: ${this.config.devServerUrl}`);
         this.clearActiveDevServerError();
       }
     } catch {
       if (this.devServerStatus !== 'down') {
         this.devServerStatus = 'down';
         this.emit('dev-server-down', this.config.devServerUrl);
-        this.logger?.debug(`Dev server is DOWN: ${this.config.devServerUrl}`);
+        this.logger.debug(`Dev server is DOWN: ${this.config.devServerUrl}`);
       }
     }
   }
@@ -413,7 +410,7 @@ export class ProxyServer extends EventEmitter {
     }
 
     if (this.isCodeBuilder) {
-      this.logger?.debug('Code Builder: Binding to 0.0.0.0 (all interfaces)');
+      this.logger.debug('Code Builder: Binding to 0.0.0.0 (all interfaces)');
       return '0.0.0.0';
     }
 
@@ -423,7 +420,7 @@ export class ProxyServer extends EventEmitter {
   private handleProxyError(error: Error, req: IncomingMessage, res: ServerResponse | NodeJS.Socket): void {
     this.stats.errors++;
     const url = req.url ?? '/';
-    this.logger?.error(`Proxy error for ${url}: ${error.message}`);
+    this.logger.error(`Proxy error for ${url}: ${error.message}`);
 
     if ('writeHead' in res && 'headersSent' in res && !res.headersSent) {
       res.writeHead(502, { 'Content-Type': 'application/json' });
@@ -441,10 +438,10 @@ export class ProxyServer extends EventEmitter {
 
     const url = req.url ?? '/';
     const method = req.method ?? 'GET';
-    this.logger?.debug(`[${method}] ${url}`);
+    this.logger.debug(`[${method}] ${url}`);
 
     if (this.activeDevServerError) {
-      this.logger?.debug('Active dev server error - serving error page');
+      this.logger.debug('Active dev server error - serving error page');
       this.serveDevServerErrorPage(this.activeDevServerError, res);
       return;
     }
@@ -464,7 +461,7 @@ export class ProxyServer extends EventEmitter {
       // Package handles all errors internally and returns proper HTTP responses
       await this.proxyHandler(req, res);
     } else {
-      this.logger?.error('Proxy handler not initialized');
+      this.logger.error('Proxy handler not initialized');
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Proxy not initialized' }));
     }
@@ -474,13 +471,13 @@ export class ProxyServer extends EventEmitter {
     this.stats.webSocketUpgrades++;
 
     const url = req.url ?? '/';
-    this.logger?.debug(`[WebSocket] Upgrade request: ${url}`);
+    this.logger.debug(`[WebSocket] Upgrade request: ${url}`);
 
     try {
       const isSalesforceWs = url.includes('/cometd') || url.includes('/bayeux');
 
       if (isSalesforceWs && this.orgInfo) {
-        this.logger?.debug(`→ Salesforce WebSocket: ${url}`);
+        this.logger.debug(`→ Salesforce WebSocket: ${url}`);
         this.wsProxy.ws(
           req,
           socket,
@@ -491,19 +488,19 @@ export class ProxyServer extends EventEmitter {
           },
           (error) => {
             if (error) {
-              this.logger?.error(`WebSocket proxy error: ${error.message}`);
+              this.logger.error(`WebSocket proxy error: ${error.message}`);
               socket.end();
             }
           }
         );
       } else {
-        this.logger?.debug(`→ Dev Server WebSocket: ${url}`);
+        this.logger.debug(`→ Dev Server WebSocket: ${url}`);
         this.wsProxy.ws(req, socket, head, {
           target: this.config.devServerUrl,
         });
       }
     } catch (error) {
-      this.logger?.error(`WebSocket upgrade failed: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(`WebSocket upgrade failed: ${error instanceof Error ? error.message : String(error)}`);
       socket.end();
     }
   }
@@ -531,9 +528,9 @@ export class ProxyServer extends EventEmitter {
       });
 
       res.end(html);
-      this.logger?.debug('Served dev server error page to browser');
+      this.logger.debug('Served dev server error page to browser');
     } catch (err) {
-      this.logger?.error(`Failed to render dev server error page: ${err instanceof Error ? err.message : String(err)}`);
+      this.logger.error(`Failed to render dev server error page: ${err instanceof Error ? err.message : String(err)}`);
       res.writeHead(500, { 'Content-Type': 'text/plain' });
       res.end(`Dev Server Error: ${error.title}\n\n${error.message}\n\nCheck terminal for details.`);
     }
@@ -558,7 +555,7 @@ export class ProxyServer extends EventEmitter {
       res.end(html);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger?.error(`CRITICAL: Failed to render dev server error page: ${errorMessage}`);
+      this.logger.error(`CRITICAL: Failed to render dev server error page: ${errorMessage}`);
 
       res.writeHead(503, { 'Content-Type': 'text/plain' });
       res.end(
@@ -569,12 +566,12 @@ export class ProxyServer extends EventEmitter {
 
   private startHealthCheck(): void {
     this.checkDevServerHealth().catch((error) => {
-      this.logger?.debug(`Initial health check error: ${String(error)}`);
+      this.logger.debug(`Initial health check error: ${String(error)}`);
     });
 
     this.healthCheckInterval = setInterval(() => {
       this.checkDevServerHealth().catch((error) => {
-        this.logger?.debug(`Health check error: ${String(error)}`);
+        this.logger.debug(`Health check error: ${String(error)}`);
       });
     }, 10_000);
   }

@@ -108,7 +108,7 @@ export class DevServerManager extends EventEmitter {
   private detectedUrl: string | null = null;
   private startupTimer: NodeJS.Timeout | null = null;
   private isReady = false;
-  private logger: Logger | null = null;
+  private readonly logger: Logger;
   private stderrBuffer: string[] = []; // Buffer to store stderr lines for error parsing
   private readonly maxStderrLines = 100; // Keep last 100 lines
 
@@ -120,6 +120,7 @@ export class DevServerManager extends EventEmitter {
   public constructor(options: DevServerOptions) {
     super();
     this.options = { ...DEFAULT_OPTIONS, ...options };
+    this.logger = Logger.childFromRoot('DevServerManager');
   }
 
   /**
@@ -196,13 +197,10 @@ export class DevServerManager extends EventEmitter {
    * @throws SfError if process fails to start
    * @throws SfError if URL is not detected within the timeout period
    */
-  public async start(): Promise<void> {
-    // Initialize logger
-    await this.initLogger();
-
+  public start(): void {
     // If explicit URL is provided, skip process spawning
     if (this.options.explicitUrl) {
-      this.logger?.debug(`Using explicit dev server URL: ${this.options.explicitUrl}`);
+      this.logger.debug(`Using explicit dev server URL: ${this.options.explicitUrl}`);
       this.detectedUrl = this.options.explicitUrl;
       this.isReady = true;
       this.emit('ready', this.detectedUrl);
@@ -218,7 +216,7 @@ export class DevServerManager extends EventEmitter {
       );
     }
 
-    this.logger?.debug(`Starting dev server with command: ${this.options.command}`);
+    this.logger.debug(`Starting dev server with command: ${this.options.command}`);
 
     // Parse command into executable and arguments
     const [cmd, ...args] = DevServerManager.parseCommand(this.options.command);
@@ -263,7 +261,7 @@ export class DevServerManager extends EventEmitter {
       return;
     }
 
-    this.logger?.debug('Stopping dev server process...');
+    this.logger.debug('Stopping dev server process...');
 
     // Clear startup timer
     if (this.startupTimer) {
@@ -281,7 +279,7 @@ export class DevServerManager extends EventEmitter {
 
       // Setup exit handler
       const onExit = (): void => {
-        this.logger?.debug('Dev server process stopped');
+        this.logger.debug('Dev server process stopped');
         this.process = null;
         resolve();
       };
@@ -294,7 +292,7 @@ export class DevServerManager extends EventEmitter {
       // Force kill after 3 seconds if still running
       setTimeout(() => {
         if (this.process && !this.process.killed) {
-          this.logger?.warn('Dev server did not exit gracefully, forcing kill...');
+          this.logger.warn('Dev server did not exit gracefully, forcing kill...');
           this.process.kill('SIGKILL');
         }
       }, 3000);
@@ -325,16 +323,6 @@ export class DevServerManager extends EventEmitter {
    */
   public getUrl(): string | null {
     return this.detectedUrl;
-  }
-
-  /**
-   * Initialize the logger (must be called before start)
-   */
-  private async initLogger(): Promise<void> {
-    if (!this.logger) {
-      // Logger respects SF_LOG_LEVEL environment variable
-      this.logger = await Logger.child('DevServerManager');
-    }
   }
 
   /**
@@ -398,7 +386,7 @@ export class DevServerManager extends EventEmitter {
     // Log dev server output (only visible when SF_LOG_LEVEL=debug)
     const lines = output.split('\n').filter((line) => line.trim());
     for (const line of lines) {
-      this.logger?.debug(`[Dev Server ${stream}] ${line}`);
+      this.logger.debug(`[Dev Server ${stream}] ${line}`);
     }
 
     // Try to detect URL if not yet ready
@@ -431,7 +419,7 @@ export class DevServerManager extends EventEmitter {
     // Clear stderr buffer on successful start
     this.stderrBuffer = [];
 
-    this.logger?.debug(`Dev server detected at: ${url}`);
+    this.logger.debug(`Dev server detected at: ${url}`);
     this.emit('ready', url);
   }
 
@@ -444,7 +432,7 @@ export class DevServerManager extends EventEmitter {
    * @param signal Signal that caused exit (if any)
    */
   private handleProcessExit(code: number | null, signal: string | null): void {
-    this.logger?.debug(`Dev server process exited with code ${code ?? 'null'}, signal ${signal ?? 'null'}`);
+    this.logger.debug(`Dev server process exited with code ${code ?? 'null'}, signal ${signal ?? 'null'}`);
 
     // Clear startup timeout
     if (this.startupTimer) {
@@ -464,8 +452,8 @@ export class DevServerManager extends EventEmitter {
       const stderrContent = this.stderrBuffer.join('\n');
       const parsedError = DevServerErrorParser.parseError(stderrContent, code, signal);
 
-      this.logger?.error(`Dev server error: ${parsedError.title}`);
-      this.logger?.debug(`Error type: ${parsedError.type}`);
+      this.logger.error(`Dev server error: ${parsedError.title}`);
+      this.logger.debug(`Error type: ${parsedError.type}`);
 
       // Emit parsed error
       this.emit('error', parsedError);
@@ -483,7 +471,7 @@ export class DevServerManager extends EventEmitter {
    * @param error The error from the process
    */
   private handleProcessError(error: Error): void {
-    this.logger?.error(`Dev server process error: ${error.message}`);
+    this.logger.error(`Dev server process error: ${error.message}`);
 
     const sfError = new SfError(`Dev server process error: ${error.message}`, 'DevServerProcessError', [
       'Check that the command is correct in webapp.json',
@@ -501,7 +489,7 @@ export class DevServerManager extends EventEmitter {
    * Kills the process and emits an error
    */
   private handleStartupTimeout(): void {
-    this.logger?.error('Dev server failed to start within timeout period');
+    this.logger.error('Dev server failed to start within timeout period');
 
     const error = new SfError(
       `Dev server did not start within ${this.options.startupTimeout / 1000} seconds`,

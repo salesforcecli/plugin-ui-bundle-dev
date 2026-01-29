@@ -82,11 +82,11 @@ describe('DevServerManager', () => {
   });
 
   describe('Command Validation', () => {
-    it('should throw error if no command and no explicit URL provided', async () => {
+    it('should throw error if no command and no explicit URL provided', () => {
       manager = new DevServerManager({});
 
       try {
-        await manager?.start();
+        manager?.start();
         expect.fail('Expected start() to throw an error');
       } catch (error) {
         expect(error).to.be.instanceOf(SfError);

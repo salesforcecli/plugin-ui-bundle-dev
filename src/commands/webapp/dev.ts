@@ -210,7 +210,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
           this.logger?.debug('Dev server stopped');
         });
 
-        await this.devServerManager.start();
+        this.devServerManager.start();
 
         // Wait for dev server to be ready
         devServerUrl = await new Promise<string>((resolve, reject) => {
