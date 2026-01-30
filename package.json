@@ -70,7 +70,6 @@
     "clean": "sf-clean",
     "clean-all": "sf-clean all",
     "compile": "wireit",
-    "copy-resources": "wireit",
     "docs": "sf-docs",
     "fix-license": "eslint src test --fix --rule \"header/header: [2]\"",
     "format": "wireit",
@@ -107,15 +106,6 @@
         "*.tsbuildinfo"
       ],
       "clean": "if-file-deleted"
-    },
-    "copy-resources": {
-      "command": "mkdir -p lib/templates && cp src/templates/*.html lib/templates/",
-      "files": [
-        "src/templates/*.html"
-      ],
-      "output": [
-        "lib/templates/*.html"
-      ]
     },
     "format": {
       "command": "prettier --write \"+(src|test|schemas)/**/*.+(ts|js|json)|command-snapshot.json\"",
