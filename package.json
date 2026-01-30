@@ -35,7 +35,10 @@
   "files": [
     "/lib",
     "/messages",
-    "/oclif.manifest.json"
+    "/npm-shrinkwrap.json",
+    "/oclif.lock",
+    "/oclif.manifest.json",
+    "/schemas"
   ],
   "homepage": "https://github.com/salesforcecli/plugin-webapp",
   "keywords": [
