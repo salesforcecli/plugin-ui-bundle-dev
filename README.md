@@ -223,28 +223,4 @@ SEE ALSO
   - Complete Guide: SF_WEBAPP_DEV_GUIDE.md
 ```
 
-### `sf webapp generate`
-
-Generate webapp package files for deployment.
-
-```bash
-USAGE
-  $ sf webapp generate --name <webapp-name> [options]
-
-REQUIRED FLAGS
-  -n, --name=<value>   Name of the webapp (must match webapp.json)
-
-DESCRIPTION
-  Generate webapp package files for deployment to Salesforce.
-
-  This command reads your webapp.json configuration and generates the
-  necessary metadata and package files for deploying your webapp to
-  a Salesforce org.
-
-EXAMPLES
-  Generate webapp package:
-
-    $ sf webapp generate --name myapp
-```
-
 <!-- commandsstop -->

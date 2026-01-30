@@ -78,7 +78,7 @@ describe('ErrorHandler', () => {
       expect(error.name).to.equal(WebAppErrorCode.MANIFEST_NOT_FOUND);
       expect(error.message).to.include('webapp.json');
       expect(error.message).to.include('not found');
-      expect(error.actions?.[0]).to.include('sf webapp generate');
+      expect(error.actions?.[0]).to.include('Create a webapp.json');
     });
 
     it('should create manifest validation error with multiple issues', () => {

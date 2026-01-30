@@ -127,7 +127,7 @@ export class ErrorHandler {
    */
   public static createManifestNotFoundError(): SfError {
     return new SfError('webapp.json not found in the current directory.', WebAppErrorCode.MANIFEST_NOT_FOUND, [
-      "Run 'sf webapp generate' to create a webapp.json file",
+      'Create a webapp.json file in your project root',
       'Make sure you are in the correct project directory',
       'The webapp.json file should be in the project root',
     ]);
