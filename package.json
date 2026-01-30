@@ -7,9 +7,9 @@
   "dependencies": {
     "@inquirer/select": "^5.0.2",
     "@oclif/core": "^4",
-    "@salesforce/core": "^8.23.4",
+    "@salesforce/core": "^8.25.0",
     "@salesforce/kit": "^3.2.4",
-    "@salesforce/sf-plugins-core": "^12",
+    "@salesforce/sf-plugins-core": "^12.2.6",
     "@salesforce/webapp-experimental": "^0.2.0",
     "chokidar": "^3.6.0",
     "http-proxy": "^1.18.1",
@@ -25,7 +25,7 @@
     "@types/http-proxy": "^1.17.14",
     "@types/micromatch": "^4.0.10",
     "eslint-plugin-sf-plugin": "^1.20.33",
-    "oclif": "^4.22.40",
+    "oclif": "^4.22.68",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
   },
@@ -206,5 +206,9 @@
     }
   },
   "exports": "./lib/index.js",
-  "type": "module"
+  "type": "module",
+  "volta": {
+    "node": "20.20.0",
+    "yarn": "1.22.22"
+  }
 }
