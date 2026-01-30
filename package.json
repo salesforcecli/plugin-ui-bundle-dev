@@ -91,7 +91,8 @@
     "build": {
       "dependencies": [
         "compile",
-        "lint"
+        "lint",
+        "copy-resources"
       ]
     },
     "compile": {
