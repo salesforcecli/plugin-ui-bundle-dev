@@ -75,7 +75,7 @@
     "format": "wireit",
     "link-check": "wireit",
     "lint": "wireit",
-    "postbuild": "mkdir -p lib/templates && cp src/templates/*.html lib/templates/",
+    "postbuild": "node -e \"const fs=require('fs'),p=require('path');fs.mkdirSync('lib/templates',{recursive:true});fs.readdirSync('src/templates').filter(f=>f.endsWith('.html')).forEach(f=>fs.copyFileSync(p.join('src/templates',f),p.join('lib/templates',f)))\"",
     "postpack": "sf-clean --ignore-signing-artifacts",
     "prepack": "sf-prepack",
     "prepare": "sf-install",
