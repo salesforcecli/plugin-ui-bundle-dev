@@ -1,22 +1,22 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$ref": "#/definitions/WebappDevResult",
+  "$ref": "#/definitions/WebAppDevResult",
   "definitions": {
-    "WebappDevResult": {
+    "WebAppDevResult": {
       "type": "object",
       "properties": {
-        "name": {
-          "type": "string"
-        },
-        "target": {
-          "type": "string"
-        },
         "url": {
-          "type": "string"
+          "type": "string",
+          "description": "Proxy server URL (where user should open browser)"
+        },
+        "devServerUrl": {
+          "type": "string",
+          "description": "Dev server URL being proxied"
         }
       },
-      "required": ["name", "url"],
-      "additionalProperties": false
+      "required": ["url", "devServerUrl"],
+      "additionalProperties": false,
+      "description": "Command execution result What the sf webapp dev command returns to the user"
     }
   }
 }

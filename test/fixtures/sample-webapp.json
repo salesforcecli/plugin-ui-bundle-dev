@@ -1,0 +1,11 @@
+{
+  "name": "customerPortal",
+  "label": "Customer Portal",
+  "description": "A customer self-service portal built with React",
+  "version": "1.0.0",
+  "outputDir": "dist",
+  "dev": {
+    "command": "npm run dev",
+    "url": "http://localhost:5173"
+  }
+}
