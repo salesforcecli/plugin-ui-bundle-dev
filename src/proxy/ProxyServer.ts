@@ -170,47 +170,6 @@ export class ProxyServer extends EventEmitter {
     this.logger.debug(`Dev server error is now active: ${error.title}`);
   }
 
-  public setupGracefulShutdown(onShutdown?: () => void | Promise<void>): () => void {
-    const handleShutdown = async (signal: string): Promise<void> => {
-      this.logger.debug(`Received ${signal}, shutting down gracefully...`);
-
-      if (onShutdown) {
-        try {
-          await onShutdown();
-        } catch (err) {
-          const errorMessage = err instanceof Error ? err.message : String(err);
-          this.logger.error(`Shutdown callback error: ${errorMessage}`);
-        }
-      }
-
-      await this.stop();
-    };
-
-    const sigintHandler = (): void => {
-      handleShutdown('SIGINT').catch((err) => {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        this.logger.error(`SIGINT handler error: ${errorMessage}`);
-        process.exit(1);
-      });
-    };
-
-    const sigtermHandler = (): void => {
-      handleShutdown('SIGTERM').catch((err) => {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        this.logger.error(`SIGTERM handler error: ${errorMessage}`);
-        process.exit(1);
-      });
-    };
-
-    process.on('SIGINT', sigintHandler);
-    process.on('SIGTERM', sigtermHandler);
-
-    return () => {
-      process.off('SIGINT', sigintHandler);
-      process.off('SIGTERM', sigtermHandler);
-    };
-  }
-
   public async start(): Promise<void> {
     if (this.isCodeBuilder) {
       this.logger.debug('Code Builder environment detected');
