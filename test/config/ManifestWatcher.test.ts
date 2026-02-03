@@ -25,7 +25,7 @@ import type { WebAppManifest, ManifestChangeEvent } from '../../src/config/types
 describe('ManifestWatcher', () => {
   const $$ = new TestContext();
   const testDir = join(process.cwd(), '.test-manifests');
-  const testManifestPath = join(testDir, 'webapp.json');
+  const testManifestPath = join(testDir, 'webapplication.json');
 
   const validManifest: WebAppManifest = {
     name: 'testApp',
@@ -92,7 +92,7 @@ describe('ManifestWatcher', () => {
       } catch (error) {
         expect(error).to.be.instanceOf(SfError);
         expect((error as SfError).name).to.equal('ManifestNotFoundError');
-        expect((error as SfError).message).to.include('webapp.json not found');
+        expect((error as SfError).message).to.include('webapplication.json not found');
         expect((error as SfError).actions).to.exist;
       }
 
@@ -127,7 +127,7 @@ describe('ManifestWatcher', () => {
 
     it('should handle read permission errors', async () => {
       // Create a file path that doesn't exist to simulate read error
-      const invalidPath = join(testDir, 'nonexistent', 'webapp.json');
+      const invalidPath = join(testDir, 'nonexistent', 'webapplication.json');
 
       const watcher = new ManifestWatcher({ manifestPath: invalidPath, watch: false });
 
@@ -459,8 +459,8 @@ describe('ManifestWatcher', () => {
   });
 
   describe('Default Options', () => {
-    it('should use webapp.json in current directory by default', async () => {
-      const defaultPath = join(process.cwd(), 'webapp.json');
+    it('should use webapplication.json in current directory by default', async () => {
+      const defaultPath = join(process.cwd(), 'webapplication.json');
 
       // Create manifest in current directory
       writeFileSync(defaultPath, JSON.stringify(validManifest, null, 2));

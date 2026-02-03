@@ -55,7 +55,7 @@ We always recommend using the latest version of these commands bundled with the 
 - 🔄 **Dev Server Management** - Spawns and monitors dev servers (Vite, CRA, Next.js)
 - 🎨 **Beautiful Error Handling** - HTML error pages with auto-refresh and diagnostics
 - 💚 **Health Monitoring** - Periodic health checks with status updates
-- 🔧 **Hot Config Reload** - Detects `webapp.json` changes automatically
+- 🔧 **Hot Config Reload** - Detects `webapplication.json` changes automatically
 
 ## Quick Start
 
@@ -71,7 +71,7 @@ We always recommend using the latest version of these commands bundled with the 
    sf org login web --alias myorg
    ```
 
-3. **Create webapp.json:**
+3. **Create webapplication.json:**
 
    ```json
    {
@@ -94,6 +94,7 @@ We always recommend using the latest version of these commands bundled with the 
 ## Documentation
 
 📚 **[Complete Guide](SF_WEBAPP_DEV_GUIDE.md)** - Comprehensive documentation covering:
+
 - Overview and architecture
 - Getting started (5-minute quick start)
 - Building the plugin
@@ -171,11 +172,11 @@ USAGE
   $ sf webapp dev --name <webapp-name> --target-org <org-alias> [options]
 
 REQUIRED FLAGS
-  -n, --name=<value>         Name of the webapp (must match webapp.json)
+  -n, --name=<value>         Name of the webapp (must match webapplication.json)
   -o, --target-org=<value>   Salesforce org to authenticate against
 
 OPTIONAL FLAGS
-  -u, --url=<value>          Dev server URL (overrides webapp.json)
+  -u, --url=<value>          Dev server URL (overrides webapplication.json)
   -p, --port=<value>         Proxy server port (default: 4545)
   --open                     Open browser automatically
 
@@ -216,7 +217,7 @@ FEATURES
   - WebSocket support for Hot Module Replacement (HMR)
   - Beautiful HTML error pages with auto-refresh
   - Periodic health monitoring (every 5s)
-  - Configuration file watching (webapp.json)
+  - Configuration file watching (webapplication.json)
   - Graceful shutdown on Ctrl+C
 
 SEE ALSO

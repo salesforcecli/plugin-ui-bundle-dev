@@ -106,7 +106,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
 
     try {
       // Step 1: Discover and select webapp
-      this.logger.debug('Discovering webapp.json manifest(s)...');
+      this.logger.debug('Discovering webapplication.json manifest(s)...');
 
       const { webapp: discoveredWebapp, allWebapps } = await discoverWebapp(flags.name);
 
@@ -180,7 +180,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
         devServerUrl = manifest.dev.url;
         this.logger.debug(`Using dev server URL from manifest: ${devServerUrl}`);
       } else if (manifest.dev?.command) {
-        // Start dev server from the directory containing webapp.json
+        // Start dev server from the directory containing webapplication.json
         this.logger.debug(`Starting dev server with command: ${manifest.dev.command}`);
         this.devServerManager = new DevServerManager({
           command: manifest.dev.command,

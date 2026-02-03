@@ -10,7 +10,7 @@ The `sf webapp dev` command enables local development of modern web applications
 
 ### Key Features
 
-- **Auto-Discovery**: Automatically finds `webapp.json` files in your project
+- **Auto-Discovery**: Automatically finds `webapplication.json` files in your project
 - **Interactive Selection**: Prompts with arrow-key navigation when multiple webapps exist
 - **Authentication Injection**: Automatically adds Salesforce auth headers to API calls
 - **Intelligent Routing**: Routes requests to dev server or Salesforce based on URL patterns
@@ -22,7 +22,7 @@ The `sf webapp dev` command enables local development of modern web applications
 
 ## Quick Start
 
-### 1. Create `webapp.json` in your project
+### 1. Create `webapplication.json` in your project
 
 ```json
 {
@@ -56,18 +56,18 @@ sf webapp dev [OPTIONS]
 
 ### Options
 
-| Option         | Short | Description                             | Default       |
-| -------------- | ----- | --------------------------------------- | ------------- |
-| `--target-org` | `-o`  | Salesforce org alias or username        | Required      |
-| `--name`       | `-n`  | Web application name (from webapp.json) | Auto-discover |
-| `--url`        | `-u`  | Explicit dev server URL                 | Auto-detect   |
-| `--port`       | `-p`  | Proxy server port                       | 4545          |
-| `--open`       | `-b`  | Open browser automatically              | false         |
+| Option         | Short | Description                                     | Default       |
+| -------------- | ----- | ----------------------------------------------- | ------------- |
+| `--target-org` | `-o`  | Salesforce org alias or username                | Required      |
+| `--name`       | `-n`  | Web application name (from webapplication.json) | Auto-discover |
+| `--url`        | `-u`  | Explicit dev server URL                         | Auto-detect   |
+| `--port`       | `-p`  | Proxy server port                               | 4545          |
+| `--open`       | `-b`  | Open browser automatically                      | false         |
 
 ### Examples
 
 ```bash
-# Simplest - auto-discovers webapp.json
+# Simplest - auto-discovers webapplication.json
 sf webapp dev --target-org myOrg
 
 # With browser auto-open
@@ -90,22 +90,22 @@ SF_LOG_LEVEL=debug sf webapp dev --target-org myOrg
 
 ## Webapp Discovery
 
-The command automatically discovers `webapp.json` files in your project, making the `--name` flag optional in most cases.
+The command automatically discovers `webapplication.json` files in your project, making the `--name` flag optional in most cases.
 
 ### How Discovery Works
 
 ```mermaid
 flowchart TD
     Start["sf webapp dev"] --> HasName{"--name provided?"}
-    HasName -->|Yes| SearchByName["Search for webapp.json with matching name field"]
-    HasName -->|No| SearchAll["Search all webapp.json files in project"]
+    HasName -->|Yes| SearchByName["Search for webapplication.json with matching name field"]
+    HasName -->|No| SearchAll["Search all webapplication.json files in project"]
 
     SearchByName --> FoundMatch{"Found?"}
-    FoundMatch -->|Yes| UseManifest["Use matched webapp.json"]
+    FoundMatch -->|Yes| UseManifest["Use matched webapplication.json"]
     FoundMatch -->|No| ErrorNotFound["Error: No webapp found with name X"]
 
     SearchAll --> Count{"How many found?"}
-    Count -->|0| ErrorNone["Error: No webapp.json found"]
+    Count -->|0| ErrorNone["Error: No webapplication.json found"]
     Count -->|1| UseManifest
     Count -->|Multiple| Prompt["Interactive selection prompt"]
     Prompt --> UseManifest
@@ -115,12 +115,12 @@ flowchart TD
 
 ### Discovery Behavior
 
-| Scenario                         | Behavior                                            |
-| -------------------------------- | --------------------------------------------------- |
-| `--name myApp` provided          | Finds webapp.json where `name` field equals "myApp" |
-| No `--name`, single webapp found | Auto-selects the webapp                             |
-| No `--name`, multiple found      | Shows interactive selection with arrow keys         |
-| No `--name`, none found          | Shows error with helpful message                    |
+| Scenario                         | Behavior                                                    |
+| -------------------------------- | ----------------------------------------------------------- |
+| `--name myApp` provided          | Finds webapplication.json where `name` field equals "myApp" |
+| No `--name`, single webapp found | Auto-selects the webapp                                     |
+| No `--name`, multiple found      | Shows interactive selection with arrow keys                 |
+| No `--name`, none found          | Shows error with helpful message                            |
 
 ### Search Scope
 
@@ -135,14 +135,14 @@ The command searches the current directory and all subdirectories, excluding:
 
 ### Interactive Selection
 
-When multiple `webapp.json` files are found, you'll see an interactive prompt:
+When multiple `webapplication.json` files are found, you'll see an interactive prompt:
 
 ```
-Found 3 webapp.json files in project
+Found 3 webapplication.json files in project
 ? Select the webapp to run: (Use arrow keys)
-❯ myApp - My Application (webapp.json)
-  adminPortal - Admin Portal (apps/admin/webapp.json)
-  dashboard - Dashboard App (packages/dashboard/webapp.json)
+❯ myApp - My Application (webapplication.json)
+  adminPortal - Admin Portal (apps/admin/webapplication.json)
+  dashboard - Dashboard App (packages/dashboard/webapplication.json)
 ```
 
 Use arrow keys to navigate and Enter to select.
@@ -194,7 +194,7 @@ Browser → Proxy → [Auth Headers Injected] → Salesforce → Response
 
 ## Configuration
 
-### webapp.json Schema
+### webapplication.json Schema
 
 #### Required Fields
 
@@ -278,10 +278,10 @@ Use this when you want to start the dev server yourself.
 
 ### Manifest Hot Reload
 
-Edit `webapp.json` while running - changes apply automatically:
+Edit `webapplication.json` while running - changes apply automatically:
 
 ```bash
-# Console output when you change webapp.json:
+# Console output when you change webapplication.json:
 Manifest changed detected
 ✓ Manifest reloaded successfully
 Dev server URL updated to: http://localhost:5174
@@ -311,9 +311,9 @@ Automatically detects Salesforce Code Builder environment and binds to `0.0.0.0`
 
 ## Troubleshooting
 
-### "No webapp.json found"
+### "No webapplication.json found"
 
-Ensure you have a `webapp.json` file with required fields:
+Ensure you have a `webapplication.json` file with required fields:
 
 ```json
 {
@@ -326,19 +326,19 @@ Ensure you have a `webapp.json` file with required fields:
 
 ### "No webapp found with name X"
 
-The `--name` flag matches the `name` field inside `webapp.json`, not the file path:
+The `--name` flag matches the `name` field inside `webapplication.json`, not the file path:
 
 ```bash
-# This looks for webapp.json where name="myApp"
+# This looks for webapplication.json where name="myApp"
 sf webapp dev --name myApp --target-org myOrg
 ```
 
-Check your `webapp.json` content to verify the name.
+Check your `webapplication.json` content to verify the name.
 
 ### "No Dev Server Detected"
 
 1. Ensure dev server is running: `npm run dev`
-2. Verify URL in `webapp.json` is correct
+2. Verify URL in `webapplication.json` is correct
 3. Try explicit URL: `sf webapp dev --url http://localhost:5173 --target-org myOrg`
 
 ### "Port 4545 already in use"
@@ -374,7 +374,7 @@ SF_LOG_LEVEL=debug sf webapp dev --target-org myOrg
 
 The command integrates with the Salesforce VSCode UI Preview extension (`salesforcedx-vscode-ui-preview`):
 
-1. Extension detects `webapp.json` in workspace
+1. Extension detects `webapplication.json` in workspace
 2. User clicks "Preview" button on the file
 3. Extension executes: `sf webapp dev --target-org <org> --open`
 4. If multiple webapps exist, uses `--name` to specify which one
@@ -464,16 +464,16 @@ plugin-webapp/
 
 ### Key Components
 
-| Component              | Purpose                                     |
-| ---------------------- | ------------------------------------------- |
-| `dev.ts`               | Command orchestration and lifecycle         |
-| `webappDiscovery.ts`   | Recursive webapp.json discovery             |
-| `org.ts`               | Salesforce authentication token management  |
-| `ProxyServer.ts`       | HTTP proxy with WebSocket support           |
-| `handler.ts`           | Request routing to dev server or Salesforce |
-| `DevServerManager.ts`  | Dev server process spawning and monitoring  |
-| `ManifestWatcher.ts`   | webapp.json file watching for hot reload    |
-| `ErrorPageRenderer.ts` | Browser error page generation               |
+| Component              | Purpose                                          |
+| ---------------------- | ------------------------------------------------ |
+| `dev.ts`               | Command orchestration and lifecycle              |
+| `webappDiscovery.ts`   | Recursive webapplication.json discovery          |
+| `org.ts`               | Salesforce authentication token management       |
+| `ProxyServer.ts`       | HTTP proxy with WebSocket support                |
+| `handler.ts`           | Request routing to dev server or Salesforce      |
+| `DevServerManager.ts`  | Dev server process spawning and monitoring       |
+| `ManifestWatcher.ts`   | webapplication.json file watching for hot reload |
+| `ErrorPageRenderer.ts` | Browser error page generation                    |
 
 ---
 
