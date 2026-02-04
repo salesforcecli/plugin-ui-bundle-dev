@@ -474,7 +474,7 @@ export class DevServerManager extends EventEmitter {
     this.logger.error(`Dev server process error: ${error.message}`);
 
     const sfError = new SfError(`Dev server process error: ${error.message}`, 'DevServerProcessError', [
-      'Check that the command is correct in webapp.json',
+      'Check that the command is correct in webapplication.json',
       'Verify all dependencies are installed',
       'Try running the command manually to see the error',
     ]);

@@ -121,20 +121,20 @@ export class ErrorHandler {
   }
 
   /**
-   * Create an error for missing webapp.json manifest
+   * Create an error for missing webapplication.json manifest
    *
    * @returns SfError with user-friendly message and suggestions
    */
   public static createManifestNotFoundError(): SfError {
-    return new SfError('webapp.json not found in the current directory.', WebAppErrorCode.MANIFEST_NOT_FOUND, [
-      'Create a webapp.json file in your project root',
+    return new SfError('webapplication.json not found in the current directory.', WebAppErrorCode.MANIFEST_NOT_FOUND, [
+      'Create a webapplication.json file in your project root',
       'Make sure you are in the correct project directory',
-      'The webapp.json file should be in the project root',
+      'The webapplication.json file should be in the project root',
     ]);
   }
 
   /**
-   * Create an error for invalid webapp.json manifest
+   * Create an error for invalid webapplication.json manifest
    *
    * @param validationErrors - Array of validation error messages
    * @returns SfError with user-friendly message and suggestions
@@ -143,20 +143,20 @@ export class ErrorHandler {
     const errorList = validationErrors.map((err) => `  • ${err}`).join('\n');
 
     return new SfError(`Web application manifest validation failed:\n${errorList}`, WebAppErrorCode.MANIFEST_INVALID, [
-      'Check the webapp.json file for syntax errors',
+      'Check the webapplication.json file for syntax errors',
       'Ensure all required fields are present: name, label, version, outputDir',
       'Refer to the schema documentation for valid field formats',
     ]);
   }
 
   /**
-   * Create an error for JSON parse errors in webapp.json
+   * Create an error for JSON parse errors in webapplication.json
    *
    * @param parseError - The original parse error message
    * @returns SfError with user-friendly message and suggestions
    */
   public static createManifestParseError(parseError: string): SfError {
-    return new SfError(`Failed to parse webapp.json: ${parseError}`, WebAppErrorCode.MANIFEST_PARSE_ERROR, [
+    return new SfError(`Failed to parse webapplication.json: ${parseError}`, WebAppErrorCode.MANIFEST_PARSE_ERROR, [
       'Check for JSON syntax errors (missing commas, brackets, quotes)',
       'Validate your JSON with a JSON validator tool',
       'Make sure the file is saved with UTF-8 encoding',
@@ -176,7 +176,7 @@ export class ErrorHandler {
       : `Dev server failed to start with command: ${command}`;
 
     return new SfError(message, WebAppErrorCode.DEV_SERVER_START_FAILED, [
-      'Check the dev.command in your webapp.json is correct',
+      'Check the dev.command in your webapplication.json is correct',
       'Make sure all dependencies are installed (run: npm install or yarn install)',
       'Verify the command works when run manually in the terminal',
       'Check the dev server logs for more details',
@@ -195,7 +195,7 @@ export class ErrorHandler {
       WebAppErrorCode.DEV_SERVER_TIMEOUT,
       [
         'The dev server may be taking longer than expected to start',
-        'Check if the dev server command is correct in webapp.json',
+        'Check if the dev server command is correct in webapplication.json',
         'Try running the dev server command manually to see if it starts',
         'Increase the startup timeout if your dev server is slow to start',
       ]
@@ -226,7 +226,7 @@ export class ErrorHandler {
    */
   public static createDevServerCommandRequiredError(): SfError {
     return new SfError('Dev server command or URL is required.', WebAppErrorCode.DEV_SERVER_COMMAND_REQUIRED, [
-      'Add a "dev.command" field to your webapp.json (e.g., "npm run dev")',
+      'Add a "dev.command" field to your webapplication.json (e.g., "npm run dev")',
       'Or provide a --url flag to specify the dev server URL',
       'Example: sf webapp dev --url http://localhost:5173',
     ]);

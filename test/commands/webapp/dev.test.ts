@@ -97,7 +97,7 @@ describe('webapp:dev command integration', () => {
       const error = ErrorHandler.createManifestNotFoundError();
       expect(error).to.be.instanceOf(SfError);
       expect(error.name).to.equal('ManifestNotFoundError');
-      expect(error.message).to.include('webapp.json not found');
+      expect(error.message).to.include('webapplication.json not found');
     });
 
     it('should create proper dev server command required error', () => {

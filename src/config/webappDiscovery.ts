@@ -23,16 +23,16 @@ import type { WebAppManifest } from './manifest.js';
  * Discovered webapp manifest with its file path
  */
 export type DiscoveredWebapp = {
-  /** Absolute path to the webapp.json file */
+  /** Absolute path to the webapplication.json file */
   path: string;
-  /** Relative path from cwd to the webapp.json file */
+  /** Relative path from cwd to the webapplication.json file */
   relativePath: string;
   /** Parsed manifest content */
   manifest: WebAppManifest;
 };
 
 /**
- * Directories to exclude when searching for webapp.json files
+ * Directories to exclude when searching for webapplication.json files
  */
 const EXCLUDED_DIRECTORIES = new Set([
   'node_modules',
@@ -50,7 +50,7 @@ const EXCLUDED_DIRECTORIES = new Set([
 ]);
 
 /**
- * Maximum depth to search for webapp.json files
+ * Maximum depth to search for webapplication.json files
  */
 const MAX_SEARCH_DEPTH = 10;
 
@@ -62,7 +62,7 @@ function shouldExcludeDirectory(dirName: string): boolean {
 }
 
 /**
- * Try to parse a webapp.json file and validate basic structure
+ * Try to parse a webapplication.json file and validate basic structure
  */
 async function tryParseWebappManifest(filePath: string): Promise<WebAppManifest | null> {
   try {
@@ -81,7 +81,7 @@ async function tryParseWebappManifest(filePath: string): Promise<WebAppManifest 
 }
 
 /**
- * Recursively search for webapp.json files in a directory
+ * Recursively search for webapplication.json files in a directory
  *
  * @param dir - Directory to search in
  * @param cwd - Original working directory for relative path calculation
@@ -97,17 +97,17 @@ async function searchDirectory(dir: string, cwd: string, depth: number = 0): Pro
     const entries = await readdir(dir, { withFileTypes: true });
 
     // Separate files and directories for parallel processing
-    const webappJsonFiles = entries.filter((e) => e.isFile() && e.name === 'webapp.json');
+    const webappJsonFiles = entries.filter((e) => e.isFile() && e.name === 'webapplication.json');
     const subdirectories = entries.filter((e) => e.isDirectory() && !shouldExcludeDirectory(e.name));
 
-    // Process webapp.json files in parallel
+    // Process webapplication.json files in parallel
     const manifestPromises = webappJsonFiles.map(async (entry) => {
       const fullPath = join(dir, entry.name);
       const manifest = await tryParseWebappManifest(fullPath);
       if (manifest) {
         return {
           path: fullPath,
-          relativePath: relative(cwd, fullPath) || 'webapp.json',
+          relativePath: relative(cwd, fullPath) || 'webapplication.json',
           manifest,
         };
       }
@@ -137,7 +137,7 @@ async function searchDirectory(dir: string, cwd: string, depth: number = 0): Pro
 }
 
 /**
- * Find all webapp.json files in a directory and its subdirectories
+ * Find all webapplication.json files in a directory and its subdirectories
  *
  * @param cwd - Directory to search from (defaults to process.cwd())
  * @returns Array of discovered webapps sorted by path
@@ -178,8 +178,8 @@ export async function discoverWebapp(
   // No webapps found
   if (allWebapps.length === 0) {
     throw new SfError(
-      'No webapp.json found in the current directory or subdirectories.\n' +
-        'Create a webapp.json file in your project root to get started.',
+      'No webapplication.json found in the current directory or subdirectories.\n' +
+        'Create a webapplication.json file in your project root to get started.',
       'WebappNotFoundError'
     );
   }

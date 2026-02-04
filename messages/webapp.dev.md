@@ -14,7 +14,7 @@ Identifies the Web Application (optional)
 
 # flags.name.description
 
-The unique name of the web application as defined in webapp.json. If not provided, the command will automatically discover webapp.json files in the current directory and subdirectories. If only one webapp.json is found, it will be used automatically. If multiple are found, you will be prompted to select one.
+The unique name of the web application as defined in webapplication.json. If not provided, the command will automatically discover webapplication.json files in the current directory and subdirectories. If only one webapplication.json is found, it will be used automatically. If multiple are found, you will be prompted to select one.
 
 # flags.url.summary
 
@@ -22,7 +22,7 @@ Dev server origin to forward UI/HMR/static requests
 
 # flags.url.description
 
-The URL where your dev server is running (e.g., http://localhost:5173). Required if webapp.json does not contain a dev.command or dev.url configuration. All non-Salesforce API requests will be forwarded to this URL.
+The URL where your dev server is running (e.g., http://localhost:5173). Required if webapplication.json does not contain a dev.command or dev.url configuration. All non-Salesforce API requests will be forwarded to this URL.
 
 # flags.port.summary
 
@@ -42,7 +42,7 @@ Automatically opens the proxy server URL in your default web browser when the se
 
 # examples
 
-- Start the development server (auto-discovers webapp.json):
+- Start the development server (auto-discovers webapplication.json):
 
   <%= config.bin %> <%= command.id %> --target-org myorg
 
@@ -133,7 +133,7 @@ Dev server failed to start: %s
 
 # info.multiple-webapps-found
 
-Found %s webapp.json files in project
+Found %s webapplication.json files in project
 
 # info.using-webapp
 

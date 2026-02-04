@@ -38,8 +38,8 @@ export type ManifestChangeEvent = {
  */
 export type ManifestWatcherOptions = {
   /**
-   * Path to the webapp.json manifest file
-   * Defaults to webapp.json in the current working directory
+   * Path to the webapplication.json manifest file
+   * Defaults to webapplication.json in the current working directory
    */
   manifestPath?: string;
 
@@ -66,10 +66,10 @@ export type ManifestWatcherEvents = {
 };
 
 /**
- * ManifestWatcher loads and monitors the webapp.json manifest file
+ * ManifestWatcher loads and monitors the webapplication.json manifest file
  *
  * Features:
- * - Loads webapp.json from project root
+ * - Loads webapplication.json from project root
  * - Basic validation of required fields
  * - Watches for file changes and emits events
  * - Provides helpful error messages
@@ -87,7 +87,7 @@ export class ManifestWatcher extends EventEmitter {
     super();
 
     this.options = {
-      manifestPath: options.manifestPath ?? join(process.cwd(), 'webapp.json'),
+      manifestPath: options.manifestPath ?? join(process.cwd(), 'webapplication.json'),
       watch: options.watch ?? true,
       debounceMs: options.debounceMs ?? 300,
     };
@@ -122,10 +122,10 @@ export class ManifestWatcher extends EventEmitter {
 
     if (errors.length > 0) {
       throw new SfError(
-        `webapp.json missing required field${errors.length > 1 ? 's' : ''}: ${errors.join(', ')}`,
+        `webapplication.json missing required field${errors.length > 1 ? 's' : ''}: ${errors.join(', ')}`,
         'ManifestValidationError',
         [
-          'Ensure all required fields are present in webapp.json:',
+          'Ensure all required fields are present in webapplication.json:',
           '  - name: Unique identifier (e.g., "customerPortal")',
           '  - label: Display name (e.g., "Customer Portal")',
           '  - version: Semantic version (e.g., "1.0.0")',
@@ -217,7 +217,9 @@ export class ManifestWatcher extends EventEmitter {
         });
         this.emit(
           'error',
-          new SfError('webapp.json was deleted', 'ManifestRemovedError', ['Recreate the webapp.json file to continue'])
+          new SfError('webapplication.json was deleted', 'ManifestRemovedError', [
+            'Recreate the webapplication.json file to continue',
+          ])
         );
       } else {
         try {
@@ -248,10 +250,10 @@ export class ManifestWatcher extends EventEmitter {
   private loadManifest(): void {
     // Check if file exists
     if (!existsSync(this.options.manifestPath)) {
-      throw new SfError(`webapp.json not found at ${this.options.manifestPath}`, 'ManifestNotFoundError', [
+      throw new SfError(`webapplication.json not found at ${this.options.manifestPath}`, 'ManifestNotFoundError', [
         'Make sure you are in the correct directory',
-        'Create a webapp.json file in your project root',
-        'Check that the file is named exactly "webapp.json"',
+        'Create a webapplication.json file in your project root',
+        'Check that the file is named exactly "webapplication.json"',
       ]);
     }
 
@@ -261,7 +263,7 @@ export class ManifestWatcher extends EventEmitter {
       rawContent = readFileSync(this.options.manifestPath, 'utf-8');
     } catch (error) {
       throw new SfError(
-        `Failed to read webapp.json: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to read webapplication.json: ${error instanceof Error ? error.message : String(error)}`,
         'ManifestReadError',
         ['Check file permissions', 'Ensure the file is not locked by another process']
       );
@@ -272,7 +274,7 @@ export class ManifestWatcher extends EventEmitter {
     try {
       parsed = JSON.parse(rawContent) as WebAppManifest;
     } catch (error) {
-      throw new SfError(`Invalid JSON in webapp.json: ${(error as Error).message}`, 'ManifestParseError', [
+      throw new SfError(`Invalid JSON in webapplication.json: ${(error as Error).message}`, 'ManifestParseError', [
         'Check for missing commas or brackets',
         'Validate JSON syntax using a JSON validator',
         'Common issues: trailing commas, unquoted keys, single quotes instead of double quotes',
@@ -315,7 +317,7 @@ export class ManifestWatcher extends EventEmitter {
       this.emit(
         'error',
         new SfError(`File watcher error: ${error.message}`, 'ManifestWatcherError', [
-          'The webapp.json file watcher encountered an error',
+          'The webapplication.json file watcher encountered an error',
           'You may need to restart the command',
         ])
       );

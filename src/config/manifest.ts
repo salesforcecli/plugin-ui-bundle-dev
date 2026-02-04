@@ -40,7 +40,7 @@ export type DevConfig = {
 };
 
 /**
- * WebApp manifest configuration - defines the structure of webapp.json file
+ * WebApp manifest configuration - defines the structure of webapplication.json file
  * Extended from @salesforce/webapp-experimental with plugin-specific fields
  */
 export type WebAppManifest = BaseWebAppManifest & {
@@ -76,16 +76,16 @@ function validateManifest(manifest: WebAppManifest): void {
 
   if (errors.length > 0) {
     throw new SfError(
-      `webapp.json missing required field${errors.length > 1 ? 's' : ''}: ${errors.join(', ')}`,
+      `webapplication.json missing required field${errors.length > 1 ? 's' : ''}: ${errors.join(', ')}`,
       'ManifestValidationError'
     );
   }
 }
 
 /**
- * Load and parse webapp.json manifest
+ * Load and parse webapplication.json manifest
  *
- * @param manifestPath - Path to the webapp.json file
+ * @param manifestPath - Path to the webapplication.json file
  * @returns Promise resolving to the parsed manifest
  * @throws SfError if manifest file not found or validation fails
  */
@@ -103,15 +103,15 @@ export async function loadManifest(manifestPath: string): Promise<WebAppManifest
     }
     if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
       throw new SfError(
-        `webapp.json not found at: ${manifestPath}. Create a webapp.json file in your project root.`,
+        `webapplication.json not found at: ${manifestPath}. Create a webapplication.json file in your project root.`,
         'ManifestNotFoundError'
       );
     }
     if (error instanceof SyntaxError) {
-      throw new SfError(`webapp.json contains invalid JSON: ${error.message}`, 'ManifestParseError');
+      throw new SfError(`webapplication.json contains invalid JSON: ${error.message}`, 'ManifestParseError');
     }
     throw new SfError(
-      `Failed to load webapp.json: ${error instanceof Error ? error.message : String(error)}`,
+      `Failed to load webapplication.json: ${error instanceof Error ? error.message : String(error)}`,
       'ManifestLoadError'
     );
   }

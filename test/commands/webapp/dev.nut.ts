@@ -37,16 +37,16 @@ describe('webapp dev NUTs', () => {
 
   after(async () => {
     await session?.clean();
-    // Clean up any test webapp.json files
-    const webappJsonPath = join(session?.dir ?? process.cwd(), 'webapp.json');
+    // Clean up any test webapplication.json files
+    const webappJsonPath = join(session?.dir ?? process.cwd(), 'webapplication.json');
     if (existsSync(webappJsonPath)) {
       unlinkSync(webappJsonPath);
     }
   });
 
   it('should fail without target-org flag', () => {
-    // Create webapp.json for this test
-    const webappJsonPath = join(session.dir, 'webapp.json');
+    // Create webapplication.json for this test
+    const webappJsonPath = join(session.dir, 'webapplication.json');
     writeFileSync(webappJsonPath, JSON.stringify(testWebappJson, null, 2));
 
     const result = execCmd('webapp dev --name testWebApp --json', {
@@ -66,8 +66,8 @@ describe('webapp dev NUTs', () => {
   // These scenarios are covered by unit tests instead.
   //
   // Scenarios covered in unit tests:
-  // - Missing webapp.json manifest (ManifestWatcher.test.ts)
-  // - Invalid webapp.json schema (ManifestWatcher.test.ts)
+  // - Missing webapplication.json manifest (ManifestWatcher.test.ts)
+  // - Invalid webapplication.json schema (ManifestWatcher.test.ts)
   // - Malformed JSON syntax (ManifestWatcher.test.ts)
   // - Missing dev server config (DevServerManager.test.ts)
   //
