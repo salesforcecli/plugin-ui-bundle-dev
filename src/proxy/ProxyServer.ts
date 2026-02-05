@@ -33,25 +33,13 @@ import { ErrorPageRenderer } from '../templates/ErrorPageRenderer.js';
 /**
  * Configuration for the proxy server
  */
-export type ProxyServerConfig = {
+type ProxyServerConfig = {
   port: number;
   devServerUrl: string;
   salesforceInstanceUrl: string;
   manifest?: WebAppManifest;
   orgAlias?: string;
   host?: string;
-};
-
-/**
- * Proxy server statistics
- */
-export type ProxyStats = {
-  requestCount: number;
-  salesforceRequests: number;
-  devServerRequests: number;
-  webSocketUpgrades: number;
-  errors: number;
-  startTime: Date;
 };
 
 /**
@@ -65,13 +53,11 @@ export class ProxyServer extends EventEmitter {
   private readonly wsProxy: httpProxy;
   private readonly errorPageRenderer: ErrorPageRenderer;
   private server: Server | null = null;
-  private readonly stats: ProxyStats;
   private isCodeBuilder = false;
   private healthCheckInterval: NodeJS.Timeout | null = null;
   private devServerStatus: 'unknown' | 'up' | 'down' | 'error' = 'unknown';
   private readonly workspaceScript: string;
   private activeDevServerError: DevServerError | null = null;
-  private errorClearTimeout: NodeJS.Timeout | null = null;
   private readonly activeConnections: Set<import('net').Socket> = new Set();
   private proxyHandler: ProxyHandler | null = null;
   private orgInfo: OrgInfo | undefined;
@@ -83,14 +69,6 @@ export class ProxyServer extends EventEmitter {
     this.logger = Logger.childFromRoot('ProxyServer');
     this.errorPageRenderer = new ErrorPageRenderer();
     this.workspaceScript = ProxyServer.detectWorkspaceScript();
-    this.stats = {
-      requestCount: 0,
-      salesforceRequests: 0,
-      devServerRequests: 0,
-      webSocketUpgrades: 0,
-      errors: 0,
-      startTime: new Date(),
-    };
 
     this.isCodeBuilder = ProxyServer.detectCodeBuilder();
 
@@ -138,30 +116,10 @@ export class ProxyServer extends EventEmitter {
     }
   }
 
-  public getDevServerStatus(): string {
-    return this.devServerStatus;
-  }
-
   public getProxyUrl(): string {
     const host = this.getBindHost();
     const displayHost = host === '0.0.0.0' || host === '127.0.0.1' ? 'localhost' : host;
     return `http://${displayHost}:${this.config.port}`;
-  }
-
-  public getStats(): ProxyStats {
-    return { ...this.stats };
-  }
-
-  public hasActiveDevServerError(): boolean {
-    return this.activeDevServerError !== null;
-  }
-
-  public isCodeBuilderEnvironment(): boolean {
-    return this.isCodeBuilder;
-  }
-
-  public isRunning(): boolean {
-    return this.server !== null && this.server.listening;
   }
 
   public setActiveDevServerError(error: DevServerError): void {
@@ -201,7 +159,6 @@ export class ProxyServer extends EventEmitter {
           this.handleRequest(req, res).catch((error) => {
             const errorMessage = error instanceof Error ? error.message : String(error);
             this.logger.error(`Request handling error: ${errorMessage}`);
-            this.stats.errors++;
           });
         });
 
@@ -211,7 +168,6 @@ export class ProxyServer extends EventEmitter {
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             this.logger.error(`WebSocket upgrade error: ${errorMessage}`);
-            this.stats.errors++;
             socket.end();
           }
         });
@@ -271,11 +227,6 @@ export class ProxyServer extends EventEmitter {
     if (this.healthCheckInterval) {
       clearInterval(this.healthCheckInterval);
       this.healthCheckInterval = null;
-    }
-
-    if (this.errorClearTimeout) {
-      clearTimeout(this.errorClearTimeout);
-      this.errorClearTimeout = null;
     }
 
     for (const socket of this.activeConnections) {
@@ -377,7 +328,6 @@ export class ProxyServer extends EventEmitter {
   }
 
   private handleProxyError(error: Error, req: IncomingMessage, res: ServerResponse | NodeJS.Socket): void {
-    this.stats.errors++;
     const url = req.url ?? '/';
     this.logger.error(`Proxy error for ${url}: ${error.message}`);
 
@@ -393,8 +343,6 @@ export class ProxyServer extends EventEmitter {
   }
 
   private async handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    this.stats.requestCount++;
-
     const url = req.url ?? '/';
     const method = req.method ?? 'GET';
     this.logger.debug(`[${method}] ${url}`);
@@ -411,12 +359,6 @@ export class ProxyServer extends EventEmitter {
     }
 
     if (this.proxyHandler) {
-      if (url.includes('/services')) {
-        this.stats.salesforceRequests++;
-      } else {
-        this.stats.devServerRequests++;
-      }
-
       // Package handles all errors internally and returns proper HTTP responses
       await this.proxyHandler(req, res);
     } else {
@@ -427,8 +369,6 @@ export class ProxyServer extends EventEmitter {
   }
 
   private handleWebSocketUpgrade(req: IncomingMessage, socket: NodeJS.Socket, head: Buffer): void {
-    this.stats.webSocketUpgrades++;
-
     const url = req.url ?? '/';
     this.logger.debug(`[WebSocket] Upgrade request: ${url}`);
 

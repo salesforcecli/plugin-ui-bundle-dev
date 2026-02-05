@@ -17,7 +17,6 @@
 import { expect } from 'chai';
 import { SfError } from '@salesforce/core';
 import { DevServerManager } from '../../src/server/DevServerManager.js';
-import type { DevServerStatus } from '../../src/config/types.js';
 
 describe('DevServerManager', () => {
   let manager: DevServerManager | null = null;
@@ -46,11 +45,6 @@ describe('DevServerManager', () => {
       manager.on('ready', (url: string) => {
         try {
           expect(url).to.equal('http://localhost:5173');
-          expect(manager?.getUrl()).to.equal('http://localhost:5173');
-          const status: DevServerStatus | undefined = manager?.getStatus();
-          expect(status?.running).to.be.true;
-          expect(status?.url).to.equal('http://localhost:5173');
-          expect(status?.pid).to.be.undefined; // No process spawned
           done();
         } catch (error) {
           done(error);
@@ -60,17 +54,14 @@ describe('DevServerManager', () => {
       void manager.start();
     });
 
-    it('should return ready status immediately with explicit URL', (done) => {
+    it('should emit ready event immediately with explicit URL', (done) => {
       manager = new DevServerManager({
         explicitUrl: 'http://localhost:3000',
       });
 
-      manager.on('ready', () => {
+      manager.on('ready', (url: string) => {
         try {
-          const status: DevServerStatus | undefined = manager?.getStatus();
-          expect(status?.running).to.be.true;
-          expect(status?.url).to.equal('http://localhost:3000');
-          expect(status?.pid).to.be.undefined; // No process spawned
+          expect(url).to.equal('http://localhost:3000');
           done();
         } catch (error) {
           done(error);
@@ -235,7 +226,7 @@ describe('DevServerManager', () => {
 
   describe.skip('Process Management', () => {
     // Skipped: These tests spawn real processes which can cause timing issues in CI/CD
-    it('should get status with URL and pid when running', function (done) {
+    it('should emit ready event with URL when process outputs URL', function (done) {
       this.timeout(3000);
 
       manager = new DevServerManager({
@@ -246,13 +237,10 @@ describe('DevServerManager', () => {
 
       const timeout = setTimeout(() => done(new Error('Test timeout')), 2000);
 
-      manager.on('ready', () => {
+      manager.on('ready', (url: string) => {
         clearTimeout(timeout);
         try {
-          const status: DevServerStatus | undefined = manager?.getStatus();
-          expect(status?.running).to.be.true;
-          expect(status?.url).to.equal('http://localhost:5555');
-          expect(status?.pid).to.be.a('number');
+          expect(url).to.equal('http://localhost:5555');
           done();
         } catch (error) {
           done(error);
@@ -273,9 +261,6 @@ describe('DevServerManager', () => {
       manager.on('ready', (url: string) => {
         try {
           expect(url).to.equal('http://localhost:9999');
-          // Process should not be spawned
-          const status: DevServerStatus | undefined = manager?.getStatus();
-          expect(status?.pid).to.be.undefined;
           done();
         } catch (error) {
           done(error);
@@ -353,11 +338,8 @@ describe('DevServerManager', () => {
         setTimeout(resolve, 100);
       });
 
-      // Stop the manager
+      // Stop the manager - should not throw
       await manager.stop();
-
-      const status: DevServerStatus = manager.getStatus();
-      expect(status.running).to.be.false;
     });
 
     it('should emit exit event when process stops', async function () {

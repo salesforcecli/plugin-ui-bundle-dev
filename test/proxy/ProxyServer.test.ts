@@ -17,7 +17,6 @@
 import { expect } from 'chai';
 import { TestContext } from '@salesforce/core/testSetup';
 import { ProxyServer } from '../../src/proxy/ProxyServer.js';
-import type { ProxyServerConfig } from '../../src/proxy/ProxyServer.js';
 
 describe('ProxyServer', () => {
   const $$ = new TestContext();
@@ -32,102 +31,24 @@ describe('ProxyServer', () => {
 
   describe('Construction', () => {
     it('should create proxy server with valid configuration', () => {
-      const config: ProxyServerConfig = {
+      const proxy = new ProxyServer({
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-      };
-
-      const proxy = new ProxyServer(config);
+      });
 
       expect(proxy).to.be.instanceOf(ProxyServer);
-      expect(proxy.isRunning()).to.be.false;
-    });
-
-    it('should initialize statistics', () => {
-      const config: ProxyServerConfig = {
-        port: 4545,
-        devServerUrl: 'http://localhost:5173',
-        salesforceInstanceUrl: 'https://test.salesforce.com',
-      };
-
-      const proxy = new ProxyServer(config);
-      const stats = proxy.getStats();
-
-      expect(stats.requestCount).to.equal(0);
-      expect(stats.salesforceRequests).to.equal(0);
-      expect(stats.devServerRequests).to.equal(0);
-      expect(stats.webSocketUpgrades).to.equal(0);
-      expect(stats.errors).to.equal(0);
-      expect(stats.startTime).to.be.instanceOf(Date);
-    });
-  });
-
-  describe('Code Builder Detection', () => {
-    it('should detect Code Builder environment from SBQQ_STUDIO_WORKSPACE', () => {
-      process.env.SBQQ_STUDIO_WORKSPACE = '/workspace';
-
-      const config: ProxyServerConfig = {
-        port: 4545,
-        devServerUrl: 'http://localhost:5173',
-        salesforceInstanceUrl: 'https://test.salesforce.com',
-      };
-
-      const proxy = new ProxyServer(config);
-
-      expect(proxy.isCodeBuilderEnvironment()).to.be.true;
-    });
-
-    it('should detect Code Builder environment from SALESFORCE_PROJECT_ID', () => {
-      process.env.SALESFORCE_PROJECT_ID = 'project-123';
-
-      const config: ProxyServerConfig = {
-        port: 4545,
-        devServerUrl: 'http://localhost:5173',
-        salesforceInstanceUrl: 'https://test.salesforce.com',
-      };
-
-      const proxy = new ProxyServer(config);
-
-      expect(proxy.isCodeBuilderEnvironment()).to.be.true;
-    });
-
-    it('should detect Code Builder environment from CODE_BUILDER_SESSION', () => {
-      process.env.CODE_BUILDER_SESSION = 'session-456';
-
-      const config: ProxyServerConfig = {
-        port: 4545,
-        devServerUrl: 'http://localhost:5173',
-        salesforceInstanceUrl: 'https://test.salesforce.com',
-      };
-
-      const proxy = new ProxyServer(config);
-
-      expect(proxy.isCodeBuilderEnvironment()).to.be.true;
-    });
-
-    it('should not detect Code Builder in normal environment', () => {
-      const config: ProxyServerConfig = {
-        port: 4545,
-        devServerUrl: 'http://localhost:5173',
-        salesforceInstanceUrl: 'https://test.salesforce.com',
-      };
-
-      const proxy = new ProxyServer(config);
-
-      expect(proxy.isCodeBuilderEnvironment()).to.be.false;
     });
   });
 
   describe('Network Interface Configuration', () => {
     it('should use localhost (127.0.0.1) by default in normal environment', () => {
-      const config: ProxyServerConfig = {
+      const proxy = new ProxyServer({
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-      };
+      });
 
-      const proxy = new ProxyServer(config);
       const url = proxy.getProxyUrl();
 
       expect(url).to.include('localhost');
@@ -137,29 +58,26 @@ describe('ProxyServer', () => {
     it('should use 0.0.0.0 in Code Builder environment', () => {
       process.env.CODE_BUILDER_SESSION = 'session-123';
 
-      const config: ProxyServerConfig = {
+      const proxy = new ProxyServer({
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-      };
+      });
 
-      const proxy = new ProxyServer(config);
       const url = proxy.getProxyUrl();
 
       // Display URL should use localhost even when bound to 0.0.0.0
       expect(url).to.equal('http://localhost:4545');
-      expect(proxy.isCodeBuilderEnvironment()).to.be.true;
     });
 
     it('should respect explicit host configuration', () => {
-      const config: ProxyServerConfig = {
+      const proxy = new ProxyServer({
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
         host: '192.168.1.100',
-      };
+      });
 
-      const proxy = new ProxyServer(config);
       const url = proxy.getProxyUrl();
 
       expect(url).to.equal('http://192.168.1.100:4545');
@@ -168,14 +86,13 @@ describe('ProxyServer', () => {
     it('should override Code Builder host with explicit configuration', () => {
       process.env.CODE_BUILDER_SESSION = 'session-123';
 
-      const config: ProxyServerConfig = {
+      const proxy = new ProxyServer({
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
         host: '127.0.0.1',
-      };
+      });
 
-      const proxy = new ProxyServer(config);
       const url = proxy.getProxyUrl();
 
       // Even explicit 127.0.0.1 is displayed as localhost for consistency
@@ -184,71 +101,22 @@ describe('ProxyServer', () => {
   });
 
   describe('Server Lifecycle', () => {
-    it('should report not running initially', () => {
-      const config: ProxyServerConfig = {
-        port: 4545,
-        devServerUrl: 'http://localhost:5173',
-        salesforceInstanceUrl: 'https://test.salesforce.com',
-      };
-
-      const proxy = new ProxyServer(config);
-
-      expect(proxy.isRunning()).to.be.false;
-    });
-
     it('should generate correct proxy URL', () => {
-      const config: ProxyServerConfig = {
+      const proxy = new ProxyServer({
         port: 8080,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-      };
+      });
 
-      const proxy = new ProxyServer(config);
       const url = proxy.getProxyUrl();
 
       expect(url).to.equal('http://localhost:8080');
     });
   });
 
-  describe('Statistics Tracking', () => {
-    it('should track request statistics', () => {
-      const config: ProxyServerConfig = {
-        port: 4545,
-        devServerUrl: 'http://localhost:5173',
-        salesforceInstanceUrl: 'https://test.salesforce.com',
-      };
-
-      const proxy = new ProxyServer(config);
-      const stats = proxy.getStats();
-
-      expect(stats).to.have.property('requestCount');
-      expect(stats).to.have.property('salesforceRequests');
-      expect(stats).to.have.property('devServerRequests');
-      expect(stats).to.have.property('webSocketUpgrades');
-      expect(stats).to.have.property('errors');
-      expect(stats).to.have.property('startTime');
-    });
-
-    it('should return a copy of stats (immutable)', () => {
-      const config: ProxyServerConfig = {
-        port: 4545,
-        devServerUrl: 'http://localhost:5173',
-        salesforceInstanceUrl: 'https://test.salesforce.com',
-      };
-
-      const proxy = new ProxyServer(config);
-      const stats1 = proxy.getStats();
-      stats1.requestCount = 999;
-
-      const stats2 = proxy.getStats();
-
-      expect(stats2.requestCount).to.equal(0);
-    });
-  });
-
   describe('Configuration Validation', () => {
     it('should accept manifest configuration', () => {
-      const config: ProxyServerConfig = {
+      const proxy = new ProxyServer({
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
@@ -258,53 +126,43 @@ describe('ProxyServer', () => {
           version: '1.0.0',
           outputDir: 'dist',
         },
-      };
-
-      const proxy = new ProxyServer(config);
+      });
 
       expect(proxy).to.be.instanceOf(ProxyServer);
     });
 
     it('should accept org alias configuration', () => {
-      const config: ProxyServerConfig = {
+      const proxy = new ProxyServer({
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
         orgAlias: 'my-org',
-      };
-
-      const proxy = new ProxyServer(config);
+      });
 
       expect(proxy).to.be.instanceOf(ProxyServer);
     });
 
     it('should work with minimal configuration', () => {
-      const config: ProxyServerConfig = {
+      const proxy = new ProxyServer({
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-      };
-
-      const proxy = new ProxyServer(config);
+      });
 
       expect(proxy).to.be.instanceOf(ProxyServer);
       expect(proxy.getProxyUrl()).to.be.a('string');
-      expect(proxy.getStats()).to.be.an('object');
     });
   });
 
   describe('Multiple Environment Scenarios', () => {
     it('should handle VSCode local development', () => {
       // No Code Builder env vars
-      const config: ProxyServerConfig = {
+      const proxy = new ProxyServer({
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-      };
+      });
 
-      const proxy = new ProxyServer(config);
-
-      expect(proxy.isCodeBuilderEnvironment()).to.be.false;
       expect(proxy.getProxyUrl()).to.equal('http://localhost:4545');
     });
 
@@ -312,27 +170,22 @@ describe('ProxyServer', () => {
       process.env.SBQQ_STUDIO_WORKSPACE = '/workspace';
       process.env.SALESFORCE_PROJECT_ID = 'project-123';
 
-      const config: ProxyServerConfig = {
+      const proxy = new ProxyServer({
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-      };
+      });
 
-      const proxy = new ProxyServer(config);
-
-      expect(proxy.isCodeBuilderEnvironment()).to.be.true;
       expect(proxy.getProxyUrl()).to.equal('http://localhost:4545');
     });
 
     it('should handle custom network configuration', () => {
-      const config: ProxyServerConfig = {
+      const proxy = new ProxyServer({
         port: 3000,
         devServerUrl: 'http://localhost:8080',
         salesforceInstanceUrl: 'https://custom.salesforce.com',
         host: '0.0.0.0',
-      };
-
-      const proxy = new ProxyServer(config);
+      });
 
       expect(proxy.getProxyUrl()).to.equal('http://localhost:3000');
     });
@@ -340,13 +193,11 @@ describe('ProxyServer', () => {
 
   describe('Dynamic Configuration Updates', () => {
     it('should update dev server URL', () => {
-      const config: ProxyServerConfig = {
+      const proxy = new ProxyServer({
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-      };
-
-      const proxy = new ProxyServer(config);
+      });
 
       // Update dev server URL
       proxy.updateDevServerUrl('http://localhost:5174');
@@ -357,13 +208,11 @@ describe('ProxyServer', () => {
     });
 
     it('should not update if URL is the same', () => {
-      const config: ProxyServerConfig = {
+      const proxy = new ProxyServer({
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-      };
-
-      const proxy = new ProxyServer(config);
+      });
 
       // Update with same URL (should be a no-op)
       proxy.updateDevServerUrl('http://localhost:5173');
@@ -372,7 +221,7 @@ describe('ProxyServer', () => {
     });
 
     it('should update manifest configuration', () => {
-      const config: ProxyServerConfig = {
+      const proxy = new ProxyServer({
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
@@ -382,9 +231,7 @@ describe('ProxyServer', () => {
           version: '1.0.0',
           outputDir: 'dist',
         },
-      };
-
-      const proxy = new ProxyServer(config);
+      });
 
       // Update manifest with routing config
       proxy.updateManifest({
@@ -402,17 +249,14 @@ describe('ProxyServer', () => {
   });
 
   describe('Dev Server Error State', () => {
-    it('should track active dev server error', () => {
-      const config: ProxyServerConfig = {
+    it('should set and clear active dev server error', () => {
+      const proxy = new ProxyServer({
         port: 4545,
         devServerUrl: 'http://localhost:5173',
         salesforceInstanceUrl: 'https://test.salesforce.com',
-      };
+      });
 
-      const proxy = new ProxyServer(config);
-
-      expect(proxy.hasActiveDevServerError()).to.be.false;
-
+      // Set error
       proxy.setActiveDevServerError({
         type: 'port-conflict',
         title: 'Port Conflict',
@@ -421,11 +265,10 @@ describe('ProxyServer', () => {
         suggestions: ['Stop other dev servers'],
       });
 
-      expect(proxy.hasActiveDevServerError()).to.be.true;
-
+      // Clear error
       proxy.clearActiveDevServerError();
 
-      expect(proxy.hasActiveDevServerError()).to.be.false;
+      expect(proxy).to.be.instanceOf(ProxyServer);
     });
   });
 });

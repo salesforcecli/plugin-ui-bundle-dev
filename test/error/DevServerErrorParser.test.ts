@@ -98,6 +98,38 @@ Error: ENOENT: no such file or directory, open 'package.json'
       expect(result.suggestions).to.have.length.greaterThan(0);
     });
 
+    it('should parse command not found errors', () => {
+      const stderr = `
+> my-app@1.0.0 dev
+> vite --mode development
+
+sh: vite: command not found
+      `;
+
+      const result = DevServerErrorParser.parseError(stderr, 127, null);
+
+      expect(result.type).to.equal('missing-module');
+      expect(result.title).to.equal('Dependencies Not Installed');
+      expect(result.message).to.include('vite');
+      expect(result.message).to.include('not found');
+      expect(result.suggestions).to.have.length.greaterThan(0);
+      expect(result.suggestions.some((s) => s.includes('npm install'))).to.be.true;
+    });
+
+    it('should handle various command not found formats', () => {
+      const stderrFormats = [
+        'sh: vite: command not found',
+        'bash: npm: command not found',
+        '/bin/sh: node: command not found',
+      ];
+
+      for (const stderr of stderrFormats) {
+        const result = DevServerErrorParser.parseError(stderr, 127, null);
+        expect(result.type).to.equal('missing-module');
+        expect(result.title).to.equal('Dependencies Not Installed');
+      }
+    });
+
     it('should handle unknown errors with fallback', () => {
       const stderr = `
 Some random error that doesn't match any pattern
@@ -172,50 +204,6 @@ npm ERR! code 1
         expect(result.type).to.equal('missing-module');
         expect(result.title).to.equal('Missing Dependencies');
       }
-    });
-  });
-
-  describe('shouldRetry', () => {
-    it('should not retry permanent errors', () => {
-      const permanentErrors = [
-        { type: 'syntax-error' as const, title: '', message: '', stderrLines: [], suggestions: [] },
-        { type: 'missing-module' as const, title: '', message: '', stderrLines: [], suggestions: [] },
-        { type: 'file-not-found' as const, title: '', message: '', stderrLines: [], suggestions: [] },
-        { type: 'permission-error' as const, title: '', message: '', stderrLines: [], suggestions: [] },
-      ];
-
-      for (const error of permanentErrors) {
-        expect(DevServerErrorParser.shouldRetry(error)).to.be.false;
-      }
-    });
-
-    it('should retry transient errors', () => {
-      const transientErrors = [
-        { type: 'port-conflict' as const, title: '', message: '', stderrLines: [], suggestions: [] },
-        { type: 'unknown' as const, title: '', message: '', stderrLines: [], suggestions: [] },
-      ];
-
-      for (const error of transientErrors) {
-        expect(DevServerErrorParser.shouldRetry(error)).to.be.true;
-      }
-    });
-  });
-
-  describe('getSummary', () => {
-    it('should generate concise summary', () => {
-      const error = {
-        type: 'port-conflict' as const,
-        title: 'Port Already in Use',
-        message: 'Port 5173 is already in use',
-        stderrLines: [],
-        suggestions: [],
-      };
-
-      const summary = DevServerErrorParser.getSummary(error);
-
-      expect(summary).to.equal('Port Already in Use: Port 5173 is already in use');
-      expect(summary).to.not.include('suggestions');
-      expect(summary).to.not.include('stderr');
     });
   });
 });
