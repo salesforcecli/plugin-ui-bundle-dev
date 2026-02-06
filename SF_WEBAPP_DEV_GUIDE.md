@@ -10,7 +10,9 @@ The `sf webapp dev` command enables local development of modern web applications
 
 ### Key Features
 
-- **Auto-Discovery**: Automatically finds `webapplication.json` files in your project
+- **Auto-Discovery**: Automatically finds webapps in `webapplications/` folder
+- **Optional Manifest**: `webapplication.json` is optional - uses sensible defaults
+- **Auto-Selection**: Automatically selects webapp when running from inside its folder
 - **Interactive Selection**: Prompts with arrow-key navigation when multiple webapps exist
 - **Authentication Injection**: Automatically adds Salesforce auth headers to API calls
 - **Intelligent Routing**: Routes requests to dev server or Salesforce based on URL patterns
@@ -22,18 +24,15 @@ The `sf webapp dev` command enables local development of modern web applications
 
 ## Quick Start
 
-### 1. Create `webapplication.json` in your project
+### 1. Create your webapp in the `webapplications/` folder
 
-```json
-{
-  "name": "myApp",
-  "label": "My Application",
-  "version": "1.0.0",
-  "outputDir": "dist",
-  "dev": {
-    "command": "npm run dev"
-  }
-}
+```
+my-project/
+└── webapplications/
+    └── my-app/           # Your webapp folder
+        ├── package.json
+        ├── src/
+        └── webapplication.json  # Optional!
 ```
 
 ### 2. Run the command
@@ -45,6 +44,12 @@ sf webapp dev --target-org myOrg --open
 ### 3. Start developing
 
 Browser opens to `http://localhost:4545` with your app running and Salesforce authentication ready.
+
+> **Note**: `webapplication.json` is optional! If not present, the command uses:
+>
+> - **Name**: Folder name (e.g., "my-app")
+> - **Dev command**: `npm run dev`
+> - **Manifest watching**: Disabled
 
 ---
 
@@ -90,62 +95,96 @@ SF_LOG_LEVEL=debug sf webapp dev --target-org myOrg
 
 ## Webapp Discovery
 
-The command automatically discovers `webapplication.json` files in your project, making the `--name` flag optional in most cases.
+The command automatically discovers webapps in the `webapplications/` folder. Each subfolder is treated as a webapp, with `webapplication.json` being optional.
 
 ### How Discovery Works
 
 ```mermaid
 flowchart TD
-    Start["sf webapp dev"] --> HasName{"--name provided?"}
-    HasName -->|Yes| SearchByName["Search for webapplication.json with matching name field"]
-    HasName -->|No| SearchAll["Search all webapplication.json files in project"]
+    Start["sf webapp dev"] --> FindFolder["Find webapplications/ folder"]
+    FindFolder --> Found{"Found?"}
+    Found -->|No| ErrorNone["Error: No webapplications folder found"]
+    Found -->|Yes| HasName{"--name provided?"}
 
-    SearchByName --> FoundMatch{"Found?"}
-    FoundMatch -->|Yes| UseManifest["Use matched webapplication.json"]
-    FoundMatch -->|No| ErrorNotFound["Error: No webapp found with name X"]
+    HasName -->|Yes| SearchByName["Find webapp by name"]
+    HasName -->|No| InsideWebapp{"Running from inside a webapp?"}
 
-    SearchAll --> Count{"How many found?"}
-    Count -->|0| ErrorNone["Error: No webapplication.json found"]
-    Count -->|1| UseManifest
+    InsideWebapp -->|Yes| AutoSelect["Auto-select current webapp"]
+    InsideWebapp -->|No| Count{"How many webapps?"}
+
+    Count -->|1| AutoSelectSingle["Auto-select single webapp"]
     Count -->|Multiple| Prompt["Interactive selection prompt"]
-    Prompt --> UseManifest
+
+    SearchByName --> UseWebapp["Use webapp"]
+    AutoSelect --> UseWebapp
+    AutoSelectSingle --> UseWebapp
+    Prompt --> UseWebapp
+
+    UseWebapp --> HasManifest{"Has webapplication.json?"}
+    HasManifest -->|Yes| UseManifest["Use manifest config"]
+    HasManifest -->|No| UseDefaults["Use defaults (npm run dev)"]
 
     UseManifest --> StartDev["Start dev server and proxy"]
+    UseDefaults --> StartDev
 ```
 
 ### Discovery Behavior
 
-| Scenario                         | Behavior                                                    |
-| -------------------------------- | ----------------------------------------------------------- |
-| `--name myApp` provided          | Finds webapplication.json where `name` field equals "myApp" |
-| No `--name`, single webapp found | Auto-selects the webapp                                     |
-| No `--name`, multiple found      | Shows interactive selection with arrow keys                 |
-| No `--name`, none found          | Shows error with helpful message                            |
+| Scenario                          | Behavior                                       |
+| --------------------------------- | ---------------------------------------------- |
+| `--name myApp` provided           | Finds webapp by name (manifest name or folder) |
+| Running from inside webapp folder | Auto-selects that webapp                       |
+| Single webapp found               | Auto-selects it                                |
+| Multiple webapps found            | Shows interactive selection with arrow keys    |
+| No webapplications folder         | Shows error with helpful message               |
+
+### Folder Structure
+
+```
+my-project/
+└── webapplications/        # Required folder (case-insensitive)
+    ├── app-one/            # Webapp 1 (with manifest)
+    │   ├── webapplication.json
+    │   ├── package.json
+    │   └── src/
+    ├── app-two/            # Webapp 2 (no manifest - uses defaults)
+    │   ├── package.json
+    │   └── src/
+    └── app-three/          # Webapp 3 (partial manifest)
+        ├── webapplication.json  # Only has dev.command
+        └── src/
+```
 
 ### Search Scope
 
-The command searches the current directory and all subdirectories, excluding:
+The command searches for the `webapplications/` folder:
 
-- `node_modules`
-- `.git`
-- `dist`, `build`, `out`
-- `coverage`
+1. **Upward**: First checks if you're inside a webapplications folder
+2. **Downward**: Then searches child directories recursively
+
+Excluded directories:
+
+- `node_modules`, `.git`, `dist`, `build`, `out`, `coverage`
 - `.next`, `.nuxt`, `.output`
 - Hidden directories (starting with `.`)
 
 ### Interactive Selection
 
-When multiple `webapplication.json` files are found, you'll see an interactive prompt:
+When multiple webapps are found, you'll see an interactive prompt:
 
 ```
-Found 3 webapplication.json files in project
+Found 3 webapps in project
 ? Select the webapp to run: (Use arrow keys)
-❯ myApp - My Application (webapplication.json)
-  adminPortal - Admin Portal (apps/admin/webapplication.json)
-  dashboard - Dashboard App (packages/dashboard/webapplication.json)
+❯ MyApp - My Application (webapplications/app-one)
+  app-two (webapplications/app-two) [no manifest]
+  CustomName (webapplications/app-three)
 ```
 
-Use arrow keys to navigate and Enter to select.
+Format:
+
+- **With manifest + label**: `Name - Label (path)`
+- **With manifest, no label**: `Name (path)`
+- **No manifest**: `name (path) [no manifest]`
 
 ---
 
@@ -196,39 +235,52 @@ Browser → Proxy → [Auth Headers Injected] → Salesforce → Response
 
 ### webapplication.json Schema
 
-#### Required Fields
+The `webapplication.json` file is **optional**. All fields are also optional - missing fields use defaults.
+
+#### All Fields (All Optional)
 
 ```json
 {
   "name": "myApp",
   "label": "My Application",
   "version": "1.0.0",
-  "outputDir": "dist"
-}
-```
-
-| Field       | Type   | Description                               |
-| ----------- | ------ | ----------------------------------------- |
-| `name`      | string | Unique identifier (used with --name flag) |
-| `label`     | string | Human-readable display name               |
-| `version`   | string | Semantic version (e.g., "1.0.0")          |
-| `outputDir` | string | Build output directory                    |
-
-#### Dev Configuration
-
-**Option A: Auto-spawn dev server**
-
-```json
-{
+  "outputDir": "dist",
   "dev": {
     "command": "npm run dev"
   }
 }
 ```
 
-The command will spawn your dev server and automatically detect its URL.
+| Field       | Type   | Description                               | Default            |
+| ----------- | ------ | ----------------------------------------- | ------------------ |
+| `name`      | string | Unique identifier (used with --name flag) | Folder name        |
+| `label`     | string | Human-readable display name               | None               |
+| `version`   | string | Semantic version (e.g., "1.0.0")          | None               |
+| `outputDir` | string | Build output directory                    | None (deploy only) |
 
-**Option B: Explicit URL (dev server already running)**
+#### Dev Configuration
+
+**Option A: No manifest (uses defaults)**
+
+If no `webapplication.json` exists:
+
+- Dev command: `npm run dev`
+- Name: folder name
+- Manifest watching: disabled
+
+**Option B: Minimal manifest**
+
+```json
+{
+  "dev": {
+    "command": "npm start"
+  }
+}
+```
+
+Only specify what you need to override.
+
+**Option C: Explicit URL (dev server already running)**
 
 ```json
 {
@@ -253,7 +305,37 @@ Use this when you want to start the dev server yourself.
 }
 ```
 
-### Complete Example
+### Example: Minimal (No Manifest)
+
+```
+webapplications/
+└── my-dashboard/
+    ├── package.json     # Has "scripts": { "dev": "vite" }
+    └── src/
+```
+
+Run: `sf webapp dev --target-org myOrg`
+
+Console output:
+
+```
+Warning: No webapplication.json found for webapp "my-dashboard"
+    Location: my-dashboard
+    Using defaults:
+    → Name: "my-dashboard" (derived from folder)
+    → Command: "npm run dev"
+    → Manifest watching: disabled
+    💡 To customize, create a webapplication.json file in your webapp directory.
+
+✅ Using webapp: my-dashboard (webapplications/my-dashboard)
+
+✅ Ready for development!
+    → Proxy:      http://localhost:4545 (open this in your browser)
+    → Dev server: http://localhost:5173
+Press Ctrl+C to stop
+```
+
+### Example: Full Configuration
 
 ```json
 {
@@ -287,6 +369,8 @@ Manifest changed detected
 Dev server URL updated to: http://localhost:5174
 ```
 
+> **Note**: Manifest watching is only enabled when `webapplication.json` exists. Webapps without manifests don't have this feature.
+
 ### Health Monitoring
 
 The proxy continuously monitors dev server availability:
@@ -311,29 +395,39 @@ Automatically detects Salesforce Code Builder environment and binds to `0.0.0.0`
 
 ## Troubleshooting
 
-### "No webapplication.json found"
+### "No webapplications folder found"
 
-Ensure you have a `webapplication.json` file with required fields:
+Create a `webapplications/` folder with at least one webapp subfolder:
 
-```json
-{
-  "name": "myApp",
-  "label": "My Application",
-  "version": "1.0.0",
-  "outputDir": "dist"
-}
 ```
+my-project/
+└── webapplications/
+    └── my-app/
+        └── package.json
+```
+
+Note: `webapplication.json` is optional!
 
 ### "No webapp found with name X"
 
-The `--name` flag matches the `name` field inside `webapplication.json`, not the file path:
+The `--name` flag matches either:
+
+1. The `name` field in `webapplication.json`
+2. The folder name (if no manifest or no name in manifest)
 
 ```bash
-# This looks for webapplication.json where name="myApp"
+# This looks for webapp named "myApp"
 sf webapp dev --name myApp --target-org myOrg
 ```
 
-Check your `webapplication.json` content to verify the name.
+### "Dependencies Not Installed" / "command not found"
+
+Install dependencies in your webapp folder:
+
+```bash
+cd webapplications/my-app
+npm install
+```
 
 ### "No Dev Server Detected"
 
@@ -362,10 +456,35 @@ sf org login web --alias myOrg
 
 ### Debug Mode
 
-Enable detailed logging:
+Enable detailed logging by setting `SF_LOG_LEVEL=debug`. Debug logs are written to the SF CLI log file (not stdout).
+
+**Step 1: Start log tail in Terminal 1**
+
+```bash
+# Tail today's log file, filtering for webapp messages
+tail -f ~/.sf/sf-$(date +%Y-%m-%d).log | grep --line-buffered WebappDev
+
+# Or for cleaner output (requires jq):
+tail -f ~/.sf/sf-$(date +%Y-%m-%d).log | grep --line-buffered WebappDev | jq -r '.msg'
+```
+
+**Step 2: Run command in Terminal 2**
 
 ```bash
 SF_LOG_LEVEL=debug sf webapp dev --target-org myOrg
+```
+
+**Example debug output:**
+
+```
+Discovering webapplication.json manifest(s)...
+Using webapp: myApp at webapplications/my-app
+Manifest loaded: myApp
+Starting dev server with command: npm run dev
+Dev server ready at: http://localhost:5173/
+Using authentication for org: user@example.com
+Starting proxy server on port 4545...
+Proxy server running on http://localhost:4545
 ```
 
 ---

@@ -17,7 +17,7 @@
 import { EventEmitter } from 'node:events';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { Logger, SfError } from '@salesforce/core';
-import type { DevServerOptions, DevServerStatus } from '../config/types.js';
+import type { DevServerOptions } from '../config/types.js';
 import { DevServerErrorParser } from '../error/DevServerErrorParser.js';
 
 /**
@@ -300,32 +300,6 @@ export class DevServerManager extends EventEmitter {
   }
 
   /**
-   * Gets the current status of the dev server
-   *
-   * @returns DevServerStatus object with current state
-   */
-  public getStatus(): DevServerStatus {
-    // For explicit URL mode (no process), consider running if ready
-    // For spawned process mode, check process state
-    const running = this.isReady && (this.process === null || !this.process.killed);
-
-    return {
-      running,
-      url: this.detectedUrl ?? undefined,
-      pid: this.process?.pid,
-    };
-  }
-
-  /**
-   * Gets the detected or explicit URL of the dev server
-   *
-   * @returns The dev server URL, or null if not yet detected
-   */
-  public getUrl(): string | null {
-    return this.detectedUrl;
-  }
-
-  /**
    * Sets up event handlers for the spawned process
    *
    * Handles stdout/stderr for URL detection and logging,
@@ -455,8 +429,11 @@ export class DevServerManager extends EventEmitter {
       this.logger.error(`Dev server error: ${parsedError.title}`);
       this.logger.debug(`Error type: ${parsedError.type}`);
 
-      // Emit parsed error
-      this.emit('error', parsedError);
+      // Convert to SfError for proper error handling
+      // Use just the message (not title) since title will be shown separately
+      const sfError = new SfError(parsedError.message, 'DevServerError', parsedError.suggestions);
+
+      this.emit('error', sfError);
     }
 
     // Reset state

@@ -15,24 +15,40 @@
  */
 
 import { readdir, readFile } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { basename, dirname, join, relative } from 'node:path';
 import { SfError } from '@salesforce/core';
 import type { WebAppManifest } from './manifest.js';
 
 /**
- * Discovered webapp manifest with its file path
+ * Default command to run when no webapplication.json manifest is found
+ */
+export const DEFAULT_DEV_COMMAND = 'npm run dev';
+
+/**
+ * Pattern to match the webapplications folder (case-insensitive)
+ */
+const WEBAPPLICATIONS_FOLDER_PATTERN = /^webapplications$/i;
+
+/**
+ * Discovered webapp with its directory path and optional manifest
  */
 export type DiscoveredWebapp = {
-  /** Absolute path to the webapplication.json file */
+  /** Absolute path to the webapp directory */
   path: string;
-  /** Relative path from cwd to the webapplication.json file */
+  /** Relative path from cwd to the webapp directory */
   relativePath: string;
-  /** Parsed manifest content */
-  manifest: WebAppManifest;
+  /** Parsed manifest content (null if no webapplication.json found) */
+  manifest: WebAppManifest | null;
+  /** Webapp name (from manifest.name or folder name) */
+  name: string;
+  /** Whether this webapp has a webapplication.json manifest file */
+  hasManifest: boolean;
+  /** Path to the manifest file (null if no manifest) */
+  manifestPath: string | null;
 };
 
 /**
- * Directories to exclude when searching for webapplication.json files
+ * Directories to exclude when searching for webapplications folder
  */
 const EXCLUDED_DIRECTORIES = new Set([
   'node_modules',
@@ -50,7 +66,7 @@ const EXCLUDED_DIRECTORIES = new Set([
 ]);
 
 /**
- * Maximum depth to search for webapplication.json files
+ * Maximum depth to search for webapplications folder
  */
 const MAX_SEARCH_DEPTH = 10;
 
@@ -62,159 +78,337 @@ function shouldExcludeDirectory(dirName: string): boolean {
 }
 
 /**
- * Try to parse a webapplication.json file and validate basic structure
+ * Check if a folder name matches "webapplications" (case-insensitive)
+ */
+function isWebapplicationsFolder(folderName: string): boolean {
+  return WEBAPPLICATIONS_FOLDER_PATTERN.test(folderName);
+}
+
+/**
+ * Try to parse a webapplication.json file.
+ * Accepts any valid JSON object - missing fields will use defaults.
  */
 async function tryParseWebappManifest(filePath: string): Promise<WebAppManifest | null> {
   try {
     const content = await readFile(filePath, 'utf-8');
     const manifest = JSON.parse(content) as WebAppManifest;
 
-    // Basic validation - must have at least a name field
-    if (manifest && typeof manifest.name === 'string' && manifest.name.trim()) {
+    // Accept any valid JSON object (missing fields will use defaults)
+    if (manifest && typeof manifest === 'object') {
       return manifest;
     }
     return null;
   } catch {
-    // Invalid JSON or read error - skip this file
+    // Invalid JSON or read error - no manifest
     return null;
   }
 }
 
 /**
- * Recursively search for webapplication.json files in a directory
+ * Recursively search for the webapplications folder (case-insensitive)
  *
  * @param dir - Directory to search in
- * @param cwd - Original working directory for relative path calculation
  * @param depth - Current search depth
- * @returns Array of discovered webapps
+ * @returns Path to webapplications folder or null if not found
  */
-async function searchDirectory(dir: string, cwd: string, depth: number = 0): Promise<DiscoveredWebapp[]> {
+async function findWebapplicationsFolderRecursive(dir: string, depth: number = 0): Promise<string | null> {
   if (depth > MAX_SEARCH_DEPTH) {
-    return [];
+    return null;
   }
 
   try {
     const entries = await readdir(dir, { withFileTypes: true });
 
-    // Separate files and directories for parallel processing
-    const webappJsonFiles = entries.filter((e) => e.isFile() && e.name === 'webapplication.json');
-    const subdirectories = entries.filter((e) => e.isDirectory() && !shouldExcludeDirectory(e.name));
-
-    // Process webapplication.json files in parallel
-    const manifestPromises = webappJsonFiles.map(async (entry) => {
-      const fullPath = join(dir, entry.name);
-      const manifest = await tryParseWebappManifest(fullPath);
-      if (manifest) {
-        return {
-          path: fullPath,
-          relativePath: relative(cwd, fullPath) || 'webapplication.json',
-          manifest,
-        };
-      }
-      return null;
-    });
-
-    // Process subdirectories in parallel
-    const subdirPromises = subdirectories.map((entry) => searchDirectory(join(dir, entry.name), cwd, depth + 1));
-
-    // Wait for all parallel operations
-    const [manifestResults, subdirResults] = await Promise.all([
-      Promise.all(manifestPromises),
-      Promise.all(subdirPromises),
-    ]);
-
-    // Combine results, filtering out nulls from manifest parsing
-    const results: DiscoveredWebapp[] = manifestResults.filter((result): result is DiscoveredWebapp => result !== null);
-    for (const subResults of subdirResults) {
-      results.push(...subResults);
+    // Check if any directory at this level is "webapplications" (case-insensitive)
+    const webappsFolder = entries.find((e) => e.isDirectory() && isWebapplicationsFolder(e.name));
+    if (webappsFolder) {
+      return join(dir, webappsFolder.name);
     }
 
-    return results;
+    // Recursively search subdirectories in parallel
+    const subdirectories = entries.filter((e) => e.isDirectory() && !shouldExcludeDirectory(e.name));
+
+    const results = await Promise.all(
+      subdirectories.map((subdir) => findWebapplicationsFolderRecursive(join(dir, subdir.name), depth + 1))
+    );
+
+    // Return the first non-null result
+    return results.find((result) => result !== null) ?? null;
   } catch {
     // Permission denied or other read error - skip this directory
+    return null;
+  }
+}
+
+/**
+ * Check if we're inside a webapplications folder by traversing upward through parent directories.
+ *
+ * This handles cases where the user runs the command from inside a webapp folder:
+ *
+ * Example 1: Running from /project/webapplications/my-app/src/
+ * Traverses: src -> my-app -> webapplications (found!)
+ * Returns: { webappsFolder: "/project/webapplications", currentWebappName: "my-app" }
+ *
+ * Example 2: Running from /project/webapplications/my-app/
+ * Checks parent: webapplications (found!)
+ * Returns: { webappsFolder: "/project/webapplications", currentWebappName: "my-app" }
+ *
+ * Example 3: Running from /project/webapplications/
+ * Current dir is webapplications (found!)
+ * Returns: { webappsFolder: "/project/webapplications", currentWebappName: null }
+ *
+ * Example 4: Running from /project/src/
+ * Traverses: src -> project -> / (not found)
+ * Returns: null (will fall back to downward search)
+ *
+ * @param dir - Directory to start from
+ * @returns Object with webapplications folder path and current webapp name, or null if not found
+ */
+function findWebapplicationsFolderUpward(
+  dir: string
+): { webappsFolder: string; currentWebappName: string | null } | null {
+  let currentDir = dir;
+  let childDir: string | null = null; // Tracks the previous dir as we move up
+  const maxUpwardDepth = 10;
+  let depth = 0;
+
+  // Walk up the directory tree looking for "webapplications" folder
+  while (depth < maxUpwardDepth) {
+    const dirName = basename(currentDir);
+    const parentDir = dirname(currentDir);
+
+    // Case: Current directory IS the webapplications folder
+    // e.g., cwd = /project/webapplications
+    if (isWebapplicationsFolder(dirName)) {
+      return {
+        webappsFolder: currentDir,
+        currentWebappName: childDir ? basename(childDir) : null,
+      };
+    }
+
+    // Case: Parent directory is the webapplications folder
+    // e.g., cwd = /project/webapplications/my-app (parent is webapplications)
+    if (isWebapplicationsFolder(basename(parentDir))) {
+      return {
+        webappsFolder: parentDir,
+        currentWebappName: dirName, // Current dir is the webapp folder name
+      };
+    }
+
+    // Reached filesystem root - stop searching
+    if (parentDir === currentDir) {
+      break;
+    }
+
+    // Move up one level
+    childDir = currentDir;
+    currentDir = parentDir;
+    depth++;
+  }
+
+  // Not inside a webapplications folder
+  return null;
+}
+
+/**
+ * Discover all webapps inside the webapplications folder
+ * Each subdirectory is treated as a webapp. If a webapplication.json exists, use it.
+ * Otherwise, use the folder name as the webapp name with defaults.
+ *
+ * @param webappsFolderPath - Absolute path to the webapplications folder
+ * @param cwd - Original working directory for relative path calculation
+ * @returns Array of discovered webapps
+ */
+async function discoverWebappsInFolder(webappsFolderPath: string, cwd: string): Promise<DiscoveredWebapp[]> {
+  try {
+    const entries = await readdir(webappsFolderPath, { withFileTypes: true });
+
+    // Get all subdirectories (each is a potential webapp)
+    const webappDirs = entries.filter((e) => e.isDirectory() && !shouldExcludeDirectory(e.name));
+
+    // Process each webapp directory in parallel
+    const webappPromises = webappDirs.map(async (entry): Promise<DiscoveredWebapp> => {
+      const webappPath = join(webappsFolderPath, entry.name);
+      const manifestFilePath = join(webappPath, 'webapplication.json');
+
+      // Try to load manifest
+      const manifest = await tryParseWebappManifest(manifestFilePath);
+
+      if (manifest) {
+        // Webapp has manifest file - use manifest data with folder name as fallback
+        // Name: use manifest.name if present, otherwise folder name
+        const webappName =
+          manifest.name && typeof manifest.name === 'string' && manifest.name.trim() ? manifest.name : entry.name;
+
+        return {
+          path: webappPath,
+          relativePath: relative(cwd, webappPath) || entry.name,
+          manifest,
+          name: webappName,
+          hasManifest: true,
+          manifestPath: manifestFilePath,
+        };
+      } else {
+        // No manifest file - use folder name and defaults
+        return {
+          path: webappPath,
+          relativePath: relative(cwd, webappPath) || entry.name,
+          manifest: null,
+          name: entry.name,
+          hasManifest: false,
+          manifestPath: null,
+        };
+      }
+    });
+
+    return await Promise.all(webappPromises);
+  } catch {
+    // Permission denied or other read error
     return [];
   }
 }
 
 /**
- * Find all webapplication.json files in a directory and its subdirectories
+ * Result of finding all webapps, includes hint for auto-selection
+ */
+type FindAllWebappsResult = {
+  /** All discovered webapps */
+  webapps: DiscoveredWebapp[];
+  /** Name of webapp user is currently inside (for auto-selection), null if not inside any */
+  currentWebappName: string | null;
+  /** Whether the webapplications folder was found (even if empty) */
+  webappsFolderFound: boolean;
+};
+
+/**
+ * Find all webapps in the webapplications folder.
+ * Also returns a hint if the user is currently inside a specific webapp folder.
  *
  * @param cwd - Directory to search from (defaults to process.cwd())
- * @returns Array of discovered webapps sorted by path
+ * @returns Object with discovered webapps and currentWebappName hint for auto-selection
  */
-export async function findWebappManifests(cwd: string = process.cwd()): Promise<DiscoveredWebapp[]> {
-  const results = await searchDirectory(cwd, cwd);
+async function findAllWebapps(cwd: string = process.cwd()): Promise<FindAllWebappsResult> {
+  // Step 1: Check upward first - this gives us currentWebappName if inside a webapp
+  const upwardResult = findWebapplicationsFolderUpward(cwd);
 
-  // Sort by relative path for consistent ordering
-  return results.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
+  let webappsFolder: string | null = null;
+  let currentWebappName: string | null = null;
+
+  if (upwardResult) {
+    webappsFolder = upwardResult.webappsFolder;
+    currentWebappName = upwardResult.currentWebappName;
+  } else {
+    // Step 2: Search downward if not found upward
+    webappsFolder = await findWebapplicationsFolderRecursive(cwd);
+  }
+
+  if (!webappsFolder) {
+    return { webapps: [], currentWebappName: null, webappsFolderFound: false };
+  }
+
+  // Discover all webapps in the folder
+  const webapps = await discoverWebappsInFolder(webappsFolder, cwd);
+
+  // Sort by name for consistent ordering
+  return {
+    webapps: webapps.sort((a, b) => a.name.localeCompare(b.name)),
+    currentWebappName,
+    webappsFolderFound: true,
+  };
 }
 
 /**
- * Find a specific webapp by its manifest name field
- *
- * @param name - The webapp name to search for (matches manifest.name field)
- * @param cwd - Directory to search from (defaults to process.cwd())
- * @returns The discovered webapp or null if not found
+ * Result of webapp discovery
  */
-export async function findWebappByName(name: string, cwd: string = process.cwd()): Promise<DiscoveredWebapp | null> {
-  const allWebapps = await findWebappManifests(cwd);
-  return allWebapps.find((webapp) => webapp.manifest.name === name) ?? null;
-}
+type DiscoverWebappResult = {
+  /** The selected/discovered webapp (null if user needs to select) */
+  webapp: DiscoveredWebapp | null;
+  /** All discovered webapps */
+  allWebapps: DiscoveredWebapp[];
+  /** Whether the webapp was auto-selected because user is inside its folder */
+  autoSelected: boolean;
+};
 
 /**
- * Get a single webapp manifest, handling the various discovery scenarios
+ * Get a single webapp, handling the various discovery scenarios.
+ *
+ * Selection priority:
+ * 1. If --name flag provided, find that specific webapp
+ * 2. If user is inside a webapp folder, auto-select that webapp
+ * 3. If only one webapp exists, auto-select it
+ * 4. If multiple webapps, return null (user must select)
  *
  * @param name - Optional webapp name to search for
  * @param cwd - Directory to search from
- * @returns Object containing the discovered webapp and all found webapps (for selection UI)
+ * @returns Object containing the discovered webapp, all webapps, and autoSelected flag
  * @throws SfError if no webapps found or named webapp not found
  */
 export async function discoverWebapp(
   name: string | undefined,
   cwd: string = process.cwd()
-): Promise<{ webapp: DiscoveredWebapp | null; allWebapps: DiscoveredWebapp[] }> {
-  const allWebapps = await findWebappManifests(cwd);
+): Promise<DiscoverWebappResult> {
+  const { webapps: allWebapps, currentWebappName, webappsFolderFound } = await findAllWebapps(cwd);
 
   // No webapps found
   if (allWebapps.length === 0) {
-    throw new SfError(
-      'No webapplication.json found in the current directory or subdirectories.\n' +
-        'Create a webapplication.json file in your project root to get started.',
-      'WebappNotFoundError'
-    );
+    if (webappsFolderFound) {
+      // Folder exists but is empty
+      throw new SfError(
+        'Found "webapplications" folder but no webapps inside it.\n' +
+          'Create webapp subdirectories inside the "webapplications" folder to get started.\n\n' +
+          'Expected structure:\n' +
+          '  webapplications/\n' +
+          '    ├── my-app-1/\n' +
+          '    │   └── webapplication.json (optional)\n' +
+          '    └── my-app-2/',
+        'WebappNotFoundError'
+      );
+    } else {
+      // Folder doesn't exist
+      throw new SfError(
+        'No webapplications folder found in the current directory or subdirectories.\n' +
+          'Create a "webapplications" folder with webapp subdirectories to get started.\n\n' +
+          'Expected structure:\n' +
+          '  webapplications/\n' +
+          '    ├── my-app-1/\n' +
+          '    │   └── webapplication.json (optional)\n' +
+          '    └── my-app-2/',
+        'WebappNotFoundError'
+      );
+    }
   }
 
-  // If name is provided, find the specific webapp
+  // Priority 1: If name is provided via --name flag, find that specific webapp
   if (name) {
-    const webapp = allWebapps.find((w) => w.manifest.name === name);
+    const webapp = allWebapps.find((w) => w.name === name);
     if (!webapp) {
-      const availableNames = allWebapps.map((w) => `  - ${w.manifest.name} (${w.relativePath})`).join('\n');
+      const WARNING = '\u26A0\uFE0F'; // ⚠️
+
+      const availableNames = allWebapps
+        .map((w) => `  - ${w.name} - (Path:${w.relativePath})${w.hasManifest ? '' : ` - ${WARNING} No Manifest`}`)
+        .join('\n');
       throw new SfError(
         `No webapp found with name "${name}".\n\nAvailable webapps:\n${availableNames}`,
         'WebappNameNotFoundError'
       );
     }
-    return { webapp, allWebapps };
+    return { webapp, allWebapps, autoSelected: false };
   }
 
-  // No name provided - check if there's only one webapp
+  // Priority 2: If user is inside a webapp folder, auto-select that webapp
+  // Match by webapp.name OR by folder name (extracted from path)
+  if (currentWebappName) {
+    const webapp = allWebapps.find((w) => w.name === currentWebappName || basename(w.path) === currentWebappName);
+    if (webapp) {
+      return { webapp, allWebapps, autoSelected: true };
+    }
+  }
+
+  // Priority 3: If only one webapp exists, auto-select it
   if (allWebapps.length === 1) {
-    return { webapp: allWebapps[0], allWebapps };
+    return { webapp: allWebapps[0], allWebapps, autoSelected: false };
   }
 
   // Multiple webapps found - return null to indicate selection is needed
-  return { webapp: null, allWebapps };
-}
-
-/**
- * Format webapp choices for display in selection prompt
- *
- * @param webapps - Array of discovered webapps
- * @returns Formatted choices with name and path info
- */
-export function formatWebappChoices(webapps: DiscoveredWebapp[]): Array<{ name: string; value: DiscoveredWebapp }> {
-  return webapps.map((webapp) => ({
-    name: `${webapp.manifest.name} - ${webapp.manifest.label} (${webapp.relativePath})`,
-    value: webapp,
-  }));
+  return { webapp: null, allWebapps, autoSelected: false };
 }

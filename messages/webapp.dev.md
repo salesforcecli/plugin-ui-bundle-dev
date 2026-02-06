@@ -84,7 +84,9 @@ Proxy URL: %s (open this in your browser)
 
 # info.ready-for-development
 
-✓ Ready for development!
+✅ Ready for development!
+→ Proxy: %s (open this in your browser)
+→ Dev server: %s
 
 # info.press-ctrl-c
 
@@ -129,16 +131,54 @@ Failed to watch manifest: %s
 
 # error.dev-server-failed
 
-Dev server failed to start: %s
+%s
 
 # info.multiple-webapps-found
 
-Found %s webapplication.json files in project
+Found %s webapps in project
+
+# info.webapp-auto-selected
+
+Auto-selected webapp "%s" (running from inside its folder)
 
 # info.using-webapp
 
-Using webapp: %s (%s)
+✅ Using webapp: %s (%s)
 
 # prompt.select-webapp
 
 Select the webapp to run:
+
+# warning.no-manifest
+
+No webapplication.json found for webapp "%s"
+Location: %s
+
+Using defaults:
+→ Name: "%s" (derived from folder)
+→ Command: "%s"
+→ Manifest watching: disabled
+
+💡 To customize, create a webapplication.json file in your webapp directory.
+
+# warning.empty-manifest
+
+webapplication.json found for webapp "%s" but has no dev configuration
+Location: %s
+
+Using defaults:
+→ Name: "%s" (derived from folder)
+→ Command: "%s"
+→ Manifest watching: enabled
+
+💡 To customize, add dev configuration to your webapplication.json file.
+Example:
+{
+"dev": {
+"command": "npm run dev"
+}
+}
+
+# info.using-defaults
+
+Using default dev command: %s

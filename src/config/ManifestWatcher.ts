@@ -36,7 +36,7 @@ export type ManifestChangeEvent = {
 /**
  * Configuration options for ManifestWatcher
  */
-export type ManifestWatcherOptions = {
+type ManifestWatcherOptions = {
   /**
    * Path to the webapplication.json manifest file
    * Defaults to webapplication.json in the current working directory
@@ -59,7 +59,7 @@ export type ManifestWatcherOptions = {
 /**
  * Events emitted by ManifestWatcher
  */
-export type ManifestWatcherEvents = {
+type ManifestWatcherEvents = {
   change: (event: ManifestChangeEvent) => void;
   error: (error: SfError) => void;
   ready: (manifest: WebAppManifest) => void;
@@ -70,10 +70,10 @@ export type ManifestWatcherEvents = {
  *
  * Features:
  * - Loads webapplication.json from project root
- * - Basic validation of required fields
  * - Watches for file changes and emits events
  * - Provides helpful error messages
  * - Supports hot-reload without restarting the proxy
+ * - No strict validation - all fields are optional for dev mode
  */
 export class ManifestWatcher extends EventEmitter {
   // 1. Instance fields
@@ -93,49 +93,7 @@ export class ManifestWatcher extends EventEmitter {
     };
   }
 
-  // 3. Static methods (must come before instance methods)
-  /**
-   * Validates required fields in the manifest
-   * Basic validation - detailed schema validation may be added later
-   *
-   * @param manifest - The parsed manifest data
-   * @throws SfError if required fields are missing
-   */
-  private static validateManifest(manifest: WebAppManifest): void {
-    const errors: string[] = [];
-
-    if (!manifest.name) {
-      errors.push('name');
-    }
-
-    if (!manifest.label) {
-      errors.push('label');
-    }
-
-    if (!manifest.version) {
-      errors.push('version');
-    }
-
-    if (!manifest.outputDir) {
-      errors.push('outputDir');
-    }
-
-    if (errors.length > 0) {
-      throw new SfError(
-        `webapplication.json missing required field${errors.length > 1 ? 's' : ''}: ${errors.join(', ')}`,
-        'ManifestValidationError',
-        [
-          'Ensure all required fields are present in webapplication.json:',
-          '  - name: Unique identifier (e.g., "customerPortal")',
-          '  - label: Display name (e.g., "Customer Portal")',
-          '  - version: Semantic version (e.g., "1.0.0")',
-          '  - outputDir: Build output directory (e.g., "dist")',
-        ]
-      );
-    }
-  }
-
-  // 4. Public instance methods
+  // 3. Public instance methods
   /**
    * Initializes the ManifestWatcher
    * Loads the manifest file and optionally starts watching for changes
@@ -281,10 +239,7 @@ export class ManifestWatcher extends EventEmitter {
       ]);
     }
 
-    // Basic validation of required fields
-    ManifestWatcher.validateManifest(parsed);
-
-    // Store the validated manifest
+    // Store the manifest (no strict validation - fields are optional for dev mode)
     this.manifest = parsed;
   }
 

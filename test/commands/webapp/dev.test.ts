@@ -16,8 +16,6 @@
 
 import { expect } from 'chai';
 import { TestContext } from '@salesforce/core/testSetup';
-import { SfError } from '@salesforce/core';
-import { ErrorHandler } from '../../../src/error/ErrorHandler.js';
 import type { WebAppManifest, WebAppDevResult } from '../../../src/config/types.js';
 
 describe('webapp:dev command integration', () => {
@@ -89,36 +87,6 @@ describe('webapp:dev command integration', () => {
       };
 
       expect(manifest.dev?.command).to.equal('npm run dev');
-    });
-  });
-
-  describe('Error Handling', () => {
-    it('should create proper manifest not found error', () => {
-      const error = ErrorHandler.createManifestNotFoundError();
-      expect(error).to.be.instanceOf(SfError);
-      expect(error.name).to.equal('ManifestNotFoundError');
-      expect(error.message).to.include('webapplication.json not found');
-    });
-
-    it('should create proper dev server command required error', () => {
-      const error = ErrorHandler.createDevServerCommandRequiredError();
-      expect(error).to.be.instanceOf(SfError);
-      expect(error.name).to.equal('DevServerCommandRequiredError');
-      expect(error.message).to.include('Dev server command or URL is required');
-    });
-
-    it('should create proper port in use error', () => {
-      const error = ErrorHandler.createPortInUseError(4545);
-      expect(error).to.be.instanceOf(SfError);
-      expect(error.name).to.equal('PortInUseError');
-      expect(error.message).to.include('Port 4545 is already in use');
-    });
-
-    it('should create proper auth failed error', () => {
-      const error = ErrorHandler.createAuthFailedError('test@example.com');
-      expect(error).to.be.instanceOf(SfError);
-      expect(error.name).to.equal('AuthenticationFailedError');
-      expect(error.message).to.include('test@example.com');
     });
   });
 

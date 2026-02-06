@@ -130,6 +130,19 @@ const ERROR_PATTERNS: ErrorPattern[] = [
     },
   },
 
+  // Command not found - dependencies not installed
+  {
+    pattern: /command not found|not recognized as.*command/i,
+    type: 'missing-module',
+    title: 'Dependencies Not Installed',
+    getMessage: (stderr): string => {
+      const cmdMatch = stderr.match(/(?:sh:|bash:)\s*(\S+):\s*command not found/i);
+      const command = cmdMatch?.[1] ?? 'required command';
+      return `Command '${command}' not found. Project dependencies may not be installed.`;
+    },
+    getSuggestions: (): string[] => ['Run: npm install', 'Or: yarn install', 'Then try running the dev command again'],
+  },
+
   // Generic fallback - matches everything
   {
     pattern: /.*/,
@@ -178,35 +191,6 @@ export class DevServerErrorParser {
 
     // Fallback (should never reach here due to catch-all pattern)
     return this.createGenericError(stderr, exitCode, signal);
-  }
-
-  /**
-   * Check if an error should trigger automatic restart
-   * Some errors are transient, others are permanent
-   *
-   * @param error - Parsed dev server error
-   * @returns True if error might be resolved by restart
-   */
-  public static shouldRetry(error: DevServerError): boolean {
-    // Don't retry these permanent error types
-    const permanentErrors: Array<DevServerError['type']> = [
-      'syntax-error',
-      'missing-module',
-      'file-not-found',
-      'permission-error',
-    ];
-
-    return !permanentErrors.includes(error.type);
-  }
-
-  /**
-   * Get a concise summary line for logging
-   *
-   * @param error - Parsed dev server error
-   * @returns One-line summary string
-   */
-  public static getSummary(error: DevServerError): string {
-    return `${error.title}: ${error.message}`;
   }
 
   /**
