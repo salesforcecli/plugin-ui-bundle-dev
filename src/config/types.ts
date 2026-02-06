@@ -32,21 +32,6 @@ export type WebAppDevResult = {
 };
 
 /**
- * Dev server process status
- * Information about the running dev server process
- */
-export type DevServerStatus = {
-  /** Whether the dev server is running */
-  running: boolean;
-  /** Detected or configured URL of the dev server */
-  url?: string;
-  /** Process ID if running */
-  pid?: number;
-  /** Error message if failed to start */
-  error?: string;
-};
-
-/**
  * Dev server configuration options
  * Options for starting and managing the dev server process
  */
@@ -59,23 +44,6 @@ export type DevServerOptions = {
   cwd?: string;
   /** Timeout in milliseconds to wait for dev server to start */
   startupTimeout?: number;
-};
-
-/**
- * Dev server event types
- * Events emitted by DevServerManager for lifecycle tracking
- */
-export type DevServerEvents = {
-  /** Emitted when dev server is ready and URL is detected */
-  ready: (url: string) => void;
-  /** Emitted when dev server process exits */
-  exit: (code: number | null, signal: string | null) => void;
-  /** Emitted when dev server encounters an error */
-  error: (error: Error | DevServerError) => void;
-  /** Emitted when dev server outputs to stdout (when SF_LOG_LEVEL=debug) */
-  stdout: (data: string) => void;
-  /** Emitted when dev server outputs to stderr */
-  stderr: (data: string) => void;
 };
 
 /**

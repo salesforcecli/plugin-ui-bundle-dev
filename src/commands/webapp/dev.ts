@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { dirname } from 'node:path';
 import open from 'open';
 import select from '@inquirer/select';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
@@ -24,8 +23,7 @@ import type { WebAppManifest } from '../../config/manifest.js';
 import { ManifestWatcher } from '../../config/ManifestWatcher.js';
 import { DevServerManager } from '../../server/DevServerManager.js';
 import { ProxyServer } from '../../proxy/ProxyServer.js';
-import { ErrorHandler } from '../../error/ErrorHandler.js';
-import { discoverWebapp, type DiscoveredWebapp } from '../../config/webappDiscovery.js';
+import { discoverWebapp, DEFAULT_DEV_COMMAND, type DiscoveredWebapp } from '../../config/webappDiscovery.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@salesforce/plugin-webapp', 'webapp.dev');
@@ -80,10 +78,23 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
    * Uses interactive arrow-key selection (standard SF CLI pattern)
    */
   private static async promptWebappSelection(webapps: DiscoveredWebapp[]): Promise<DiscoveredWebapp> {
-    const choices = webapps.map((webapp) => ({
-      name: `${webapp.manifest.name} - ${webapp.manifest.label} (${webapp.relativePath})`,
-      value: webapp,
-    }));
+    const WARNING = '\u26A0\uFE0F'; // ⚠️
+
+    const choices = webapps.map((webapp) => {
+      if (webapp.hasManifest) {
+        // Has manifest - show name only
+        return {
+          name: webapp.name,
+          value: webapp,
+        };
+      } else {
+        // No manifest - show warning symbol
+        return {
+          name: `${webapp.name} - ${WARNING} No Manifest`,
+          value: webapp,
+        };
+      }
+    });
 
     return select({
       message: messages.getMessage('prompt.select-webapp'),
@@ -108,7 +119,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
       // Step 1: Discover and select webapp
       this.logger.debug('Discovering webapplication.json manifest(s)...');
 
-      const { webapp: discoveredWebapp, allWebapps } = await discoverWebapp(flags.name);
+      const { webapp: discoveredWebapp, allWebapps, autoSelected } = await discoverWebapp(flags.name);
 
       // Handle multiple webapps case - prompt user to select
       let selectedWebapp: DiscoveredWebapp;
@@ -118,73 +129,114 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
         selectedWebapp = await WebappDev.promptWebappSelection(allWebapps);
       } else {
         selectedWebapp = discoveredWebapp;
-      }
 
-      const manifestPath = selectedWebapp.path;
-      const manifestDir = dirname(manifestPath);
-
-      this.logger.debug(`Using webapp: ${selectedWebapp.manifest.name} at ${selectedWebapp.relativePath}`);
-
-      // Step 2: Load and watch manifest
-      this.manifestWatcher = new ManifestWatcher({ manifestPath, watch: true });
-
-      this.manifestWatcher.initialize();
-      manifest = this.manifestWatcher.getManifest();
-
-      if (!manifest) {
-        throw ErrorHandler.createManifestNotFoundError();
-      }
-
-      this.log(messages.getMessage('info.using-webapp', [manifest.name, selectedWebapp.relativePath]));
-      this.logger.debug(`Manifest loaded: ${manifest.name}`);
-
-      // Setup manifest change handler
-      this.manifestWatcher.on('change', (event) => {
-        this.log(messages.getMessage('info.manifest-changed', [event.type]));
-        if (event.type === 'changed' && event.manifest) {
-          this.log(messages.getMessage('info.manifest-reloaded'));
-
-          // Check for dev.url changes (can be updated dynamically)
-          const oldDevUrl = manifest?.dev?.url;
-          const newDevUrl = event.manifest.dev?.url;
-
-          if (newDevUrl && oldDevUrl !== newDevUrl) {
-            this.log(messages.getMessage('info.dev-url-changed', [newDevUrl]));
-            this.proxyServer?.updateDevServerUrl(newDevUrl);
-          }
-
-          // Check for dev.command changes (cannot be changed while running)
-          if (event.manifest.dev?.command && event.manifest.dev.command !== manifest?.dev?.command) {
-            this.warn(messages.getMessage('warning.dev-command-changed', [event.manifest.dev.command]));
-          }
-
-          // Update proxy server with new manifest (for routing changes)
-          this.proxyServer?.updateManifest(event.manifest);
-
-          // Update manifest reference to reflect all changes
-          manifest = event.manifest;
+        // Show info message if webapp was auto-selected because user is inside its folder
+        if (autoSelected) {
+          this.log(messages.getMessage('info.webapp-auto-selected', [selectedWebapp.name]));
         }
-      });
+      }
 
-      this.manifestWatcher.on('error', (error: SfError) => {
-        this.warn(messages.getMessage('error.manifest-watch-failed', [error.message]));
-      });
+      // The webapp directory path (where the webapp lives)
+      const webappDir = selectedWebapp.path;
 
-      // Step 2: Determine dev server URL
+      this.logger.debug(`Using webapp: ${selectedWebapp.name} at ${selectedWebapp.relativePath}`);
 
-      // Priority: --url flag > manifest dev.url > spawn dev.command
+      // Step 2: Handle manifest-based vs no-manifest webapps
+      if (selectedWebapp.hasManifest && selectedWebapp.manifestPath) {
+        // Webapp has manifest - load and watch it
+        this.manifestWatcher = new ManifestWatcher({
+          manifestPath: selectedWebapp.manifestPath,
+          watch: true,
+        });
+
+        this.manifestWatcher.initialize();
+        manifest = this.manifestWatcher.getManifest();
+
+        // Check if manifest is effectively empty (no dev configuration)
+        // Note: manifest is guaranteed non-null here since initialize() throws on failure
+        const hasDevConfig = manifest?.dev?.url != null || manifest?.dev?.command != null;
+        if (!hasDevConfig) {
+          // Manifest exists but has no dev configuration - show empty manifest warning
+          this.warn(
+            messages.getMessage('warning.empty-manifest', [
+              selectedWebapp.name,
+              selectedWebapp.relativePath,
+              selectedWebapp.name,
+              DEFAULT_DEV_COMMAND,
+            ])
+          );
+        }
+
+        // Use selectedWebapp.name (already calculated with folder name fallback during discovery)
+        this.log(messages.getMessage('info.using-webapp', [selectedWebapp.name, selectedWebapp.relativePath]));
+        this.logger.debug(`Manifest loaded: ${selectedWebapp.name}`);
+
+        // Setup manifest change handler
+        this.manifestWatcher.on('change', (event) => {
+          this.log(messages.getMessage('info.manifest-changed', [event.type]));
+          if (event.type === 'changed' && event.manifest) {
+            this.log(messages.getMessage('info.manifest-reloaded'));
+
+            // Check for dev.url changes (can be updated dynamically)
+            const oldDevUrl = manifest?.dev?.url;
+            const newDevUrl = event.manifest.dev?.url;
+
+            if (newDevUrl && oldDevUrl !== newDevUrl) {
+              this.log(messages.getMessage('info.dev-url-changed', [newDevUrl]));
+              this.proxyServer?.updateDevServerUrl(newDevUrl);
+            }
+
+            // Check for dev.command changes (cannot be changed while running)
+            if (event.manifest.dev?.command && event.manifest.dev.command !== manifest?.dev?.command) {
+              this.warn(messages.getMessage('warning.dev-command-changed', [event.manifest.dev.command]));
+            }
+
+            // Update proxy server with new manifest (for routing changes)
+            this.proxyServer?.updateManifest(event.manifest);
+
+            // Update manifest reference to reflect all changes
+            manifest = event.manifest;
+          }
+        });
+
+        this.manifestWatcher.on('error', (error: SfError) => {
+          this.warn(messages.getMessage('error.manifest-watch-failed', [error.message]));
+        });
+      } else {
+        // No manifest - show warning and use defaults
+        this.warn(
+          messages.getMessage('warning.no-manifest', [
+            selectedWebapp.name,
+            selectedWebapp.relativePath,
+            selectedWebapp.name,
+            DEFAULT_DEV_COMMAND,
+          ])
+        );
+        this.log(messages.getMessage('info.using-webapp', [selectedWebapp.name, selectedWebapp.relativePath]));
+      }
+
+      // Step 3: Determine dev server URL
+
+      // Priority: --url flag > manifest dev.url > manifest dev.command > default command (for no-manifest)
       if (flags.url) {
         devServerUrl = flags.url;
         this.logger.debug(`Using explicit dev server URL: ${devServerUrl}`);
-      } else if (manifest.dev?.url) {
+      } else if (manifest?.dev?.url) {
         devServerUrl = manifest.dev.url;
         this.logger.debug(`Using dev server URL from manifest: ${devServerUrl}`);
-      } else if (manifest.dev?.command) {
-        // Start dev server from the directory containing webapplication.json
-        this.logger.debug(`Starting dev server with command: ${manifest.dev.command}`);
+      } else {
+        // Determine command: from manifest or default
+        const devCommand = manifest?.dev?.command ?? DEFAULT_DEV_COMMAND;
+
+        if (!selectedWebapp.hasManifest) {
+          this.logger.debug(messages.getMessage('info.using-defaults', [devCommand]));
+        }
+
+        // Start dev server from the webapp directory
+        this.logger.debug(`Starting dev server with command: ${devCommand}`);
         this.devServerManager = new DevServerManager({
-          command: manifest.dev.command,
-          cwd: manifestDir,
+          command: devCommand,
+          cwd: webappDir,
         });
 
         // Setup dev server event handlers
@@ -195,15 +247,12 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
         });
 
         this.devServerManager.on('error', (error: SfError | DevServerError) => {
-          // Check if this is a parsed dev server error (has DevServerError-specific fields)
+          // Set error for proxy to display in browser (if proxy is running)
+          // Don't log here - the error will be thrown and displayed by the main catch block
           if ('stderrLines' in error && Array.isArray(error.stderrLines) && 'title' in error && 'type' in error) {
-            // This is a DevServerError with parsed stderr
-            this.warn(messages.getMessage('error.dev-server-failed', [error.title]));
             this.proxyServer?.setActiveDevServerError(error);
-          } else {
-            // Generic SfError
-            this.warn(messages.getMessage('error.dev-server-failed', [error.message]));
           }
+          this.logger?.debug(`Dev server error: ${error.message}`);
         });
 
         this.devServerManager.on('exit', () => {
@@ -215,7 +264,13 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
         // Wait for dev server to be ready
         devServerUrl = await new Promise<string>((resolve, reject) => {
           const timeout = setTimeout(() => {
-            reject(ErrorHandler.createDevServerTimeoutError(30));
+            reject(
+              new SfError('Dev server did not start within 30 seconds.', 'DevServerTimeoutError', [
+                'The dev server may be taking longer than expected to start',
+                'Check if the dev server command is correct in webapplication.json',
+                'Try running the dev server command manually to see if it starts',
+              ])
+            );
           }, 30_000);
 
           this.devServerManager?.on('ready', (url: string) => {
@@ -228,8 +283,6 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
             reject(error);
           });
         });
-      } else {
-        throw ErrorHandler.createDevServerCommandRequiredError();
       }
 
       // Step 3: Get org info for authentication
@@ -244,7 +297,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
         devServerUrl,
         salesforceInstanceUrl,
         port: flags.port,
-        manifest,
+        manifest: manifest ?? undefined,
         orgAlias: orgUsername,
       });
 
@@ -254,7 +307,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
 
       // Listen for dev server status changes (minimal output)
       this.proxyServer.on('dev-server-up', (url: string) => {
-        this.log(messages.getMessage('info.dev-server-detected', [url]));
+        this.logger?.debug(messages.getMessage('info.dev-server-detected', [url]));
       });
 
       this.proxyServer.on('dev-server-down', (url: string) => {
@@ -275,9 +328,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
 
       // Display usage instructions
       this.log('');
-      this.log(messages.getMessage('info.ready-for-development'));
-      this.log(messages.getMessage('info.proxy-url', [proxyUrl]));
-      this.log(messages.getMessage('info.dev-server-url', [devServerUrl ?? 'N/A']));
+      this.log(messages.getMessage('info.ready-for-development', [proxyUrl, devServerUrl ?? 'N/A']));
       this.log(messages.getMessage('info.press-ctrl-c'));
       this.log('');
 
@@ -322,7 +373,13 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
         throw error;
       }
 
-      throw ErrorHandler.wrapError(error, 'Failed to start webapp dev command');
+      // Wrap unknown errors
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new SfError(`Failed to start webapp dev command: ${errorMessage}`, 'UnexpectedError', [
+        'This is an unexpected error',
+        'Please try again',
+        'If the problem persists, check the command logs with SF_LOG_LEVEL=debug',
+      ]);
     }
   }
 
@@ -347,7 +404,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
       });
 
       if (response.ok) {
-        this.log(messages.getMessage('info.dev-server-healthy', [devServerUrl]));
+        this.logger?.debug(messages.getMessage('info.dev-server-healthy', [devServerUrl]));
       } else {
         this.warn(messages.getMessage('warning.dev-server-not-responding', [devServerUrl, String(response.status)]));
       }

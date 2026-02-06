@@ -143,104 +143,82 @@ describe('ManifestWatcher', () => {
     });
   });
 
-  describe('Basic Validation', () => {
-    it('should reject manifest with missing required field: name', async () => {
-      const invalid = { ...validManifest };
-      delete (invalid as Partial<WebAppManifest>).name;
+  describe('Partial Manifest Support', () => {
+    it('should accept manifest with only dev.command (no name, label, version, outputDir)', async () => {
+      const partialManifest = {
+        dev: {
+          command: 'npm run dev',
+        },
+      };
 
-      writeFileSync(testManifestPath, JSON.stringify(invalid, null, 2));
+      writeFileSync(testManifestPath, JSON.stringify(partialManifest, null, 2));
 
       const watcher = new ManifestWatcher({ manifestPath: testManifestPath, watch: false });
+      watcher.initialize();
 
-      try {
-        watcher.initialize();
-        expect.fail('Should have thrown an error');
-      } catch (error) {
-        expect(error).to.be.instanceOf(SfError);
-        expect((error as SfError).name).to.equal('ManifestValidationError');
-        expect((error as SfError).message).to.include('name');
-      }
+      const manifest = watcher.getManifest();
+      expect(manifest).to.exist;
+      expect(manifest?.dev?.command).to.equal('npm run dev');
+      expect(manifest?.name).to.be.undefined;
+      expect(manifest?.label).to.be.undefined;
 
       await watcher.stop();
     });
 
-    it('should reject manifest with missing required field: label', async () => {
-      const invalid = { ...validManifest };
-      delete (invalid as Partial<WebAppManifest>).label;
+    it('should accept manifest with only dev.url', async () => {
+      const partialManifest = {
+        dev: {
+          url: 'http://localhost:5173',
+        },
+      };
 
-      writeFileSync(testManifestPath, JSON.stringify(invalid, null, 2));
+      writeFileSync(testManifestPath, JSON.stringify(partialManifest, null, 2));
 
       const watcher = new ManifestWatcher({ manifestPath: testManifestPath, watch: false });
+      watcher.initialize();
 
-      try {
-        watcher.initialize();
-        expect.fail('Should have thrown an error');
-      } catch (error) {
-        expect(error).to.be.instanceOf(SfError);
-        expect((error as SfError).name).to.equal('ManifestValidationError');
-        expect((error as SfError).message).to.include('label');
-      }
+      const manifest = watcher.getManifest();
+      expect(manifest).to.exist;
+      expect(manifest?.dev?.url).to.equal('http://localhost:5173');
 
       await watcher.stop();
     });
 
-    it('should reject manifest with missing required field: version', async () => {
-      const invalid = { ...validManifest };
-      delete (invalid as Partial<WebAppManifest>).version;
+    it('should accept empty manifest object', async () => {
+      const emptyManifest = {};
 
-      writeFileSync(testManifestPath, JSON.stringify(invalid, null, 2));
+      writeFileSync(testManifestPath, JSON.stringify(emptyManifest, null, 2));
 
       const watcher = new ManifestWatcher({ manifestPath: testManifestPath, watch: false });
+      watcher.initialize();
 
-      try {
-        watcher.initialize();
-        expect.fail('Should have thrown an error');
-      } catch (error) {
-        expect(error).to.be.instanceOf(SfError);
-        expect((error as SfError).name).to.equal('ManifestValidationError');
-        expect((error as SfError).message).to.include('version');
-      }
+      const manifest = watcher.getManifest();
+      expect(manifest).to.exist;
+      expect(manifest?.name).to.be.undefined;
+      expect(manifest?.dev).to.be.undefined;
 
       await watcher.stop();
     });
 
-    it('should reject manifest with missing required field: outputDir', async () => {
-      const invalid = { ...validManifest };
-      delete (invalid as Partial<WebAppManifest>).outputDir;
+    it('should accept manifest with name but missing other fields', async () => {
+      const partialManifest = {
+        name: 'myApp',
+        dev: {
+          command: 'npm run dev',
+        },
+      };
 
-      writeFileSync(testManifestPath, JSON.stringify(invalid, null, 2));
-
-      const watcher = new ManifestWatcher({ manifestPath: testManifestPath, watch: false });
-
-      try {
-        watcher.initialize();
-        expect.fail('Should have thrown an error');
-      } catch (error) {
-        expect(error).to.be.instanceOf(SfError);
-        expect((error as SfError).name).to.equal('ManifestValidationError');
-        expect((error as SfError).message).to.include('outputDir');
-      }
-
-      await watcher.stop();
-    });
-
-    it('should reject manifest with multiple missing required fields', async () => {
-      const invalid = { version: '1.0.0' };
-
-      writeFileSync(testManifestPath, JSON.stringify(invalid, null, 2));
+      writeFileSync(testManifestPath, JSON.stringify(partialManifest, null, 2));
 
       const watcher = new ManifestWatcher({ manifestPath: testManifestPath, watch: false });
+      watcher.initialize();
 
-      try {
-        watcher.initialize();
-        expect.fail('Should have thrown an error');
-      } catch (error) {
-        expect(error).to.be.instanceOf(SfError);
-        expect((error as SfError).name).to.equal('ManifestValidationError');
-        expect((error as SfError).message).to.include('name');
-        expect((error as SfError).message).to.include('label');
-        expect((error as SfError).message).to.include('outputDir');
-      }
+      const manifest = watcher.getManifest();
+      expect(manifest).to.exist;
+      expect(manifest?.name).to.equal('myApp');
+      expect(manifest?.label).to.be.undefined;
+      expect(manifest?.version).to.be.undefined;
+      expect(manifest?.outputDir).to.be.undefined;
 
       await watcher.stop();
     });
