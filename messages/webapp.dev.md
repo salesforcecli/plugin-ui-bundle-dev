@@ -85,12 +85,12 @@ Proxy URL: %s (open this in your browser)
 # info.ready-for-development
 
 ✅ Ready for development!
-→ Proxy: %s (open this in your browser)
-→ Dev server: %s
+  → Proxy: %s (open this in your browser)
+  → Dev server: %s
 
 # info.press-ctrl-c
 
-Press Ctrl+C to stop the server
+Press Ctrl+C to stop
 
 # info.dev-server-healthy
 
@@ -145,40 +145,35 @@ Auto-selected webapp "%s" (running from inside its folder)
 
 ✅ Using webapp: %s (%s)
 
+# info.starting-webapp
+
+✅ Starting %s
+
 # prompt.select-webapp
 
 Select the webapp to run:
 
 # warning.no-manifest
 
-No webapplication.json found for webapp "%s"
-Location: %s
+No webapplication.json found - using defaults (command: %s)
 
-Using defaults:
-→ Name: "%s" (derived from folder)
-→ Command: "%s"
-→ Manifest watching: disabled
-
-💡 To customize, create a webapplication.json file in your webapp directory.
+Tip: See "sf webapp dev --help" for configuration options.
 
 # warning.empty-manifest
 
-webapplication.json found for webapp "%s" but has no dev configuration
-Location: %s
+No dev configuration in webapplication.json - using defaults (command: %s)
 
-Using defaults:
-→ Name: "%s" (derived from folder)
-→ Command: "%s"
-→ Manifest watching: enabled
-
-💡 To customize, add dev configuration to your webapplication.json file.
-Example:
-{
-"dev": {
-"command": "npm run dev"
-}
-}
+Tip: See "sf webapp dev --help" for configuration options.
 
 # info.using-defaults
 
 Using default dev command: %s
+
+# info.url-already-available
+
+✅ URL %s is already available, skipping dev server startup (proxy-only mode)
+
+# warning.url-mismatch
+
+⚠️ The --url flag (%s) does not match the actual dev server URL (%s).
+The proxy will use the actual dev server URL.

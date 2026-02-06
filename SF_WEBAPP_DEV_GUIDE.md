@@ -24,15 +24,17 @@ The `sf webapp dev` command enables local development of modern web applications
 
 ## Quick Start
 
-### 1. Create your webapp in the `webapplications/` folder
+### 1. Create your webapp in the SFDX project structure
 
 ```
-my-project/
-└── webapplications/
-    └── my-app/           # Your webapp folder
+my-sfdx-project/
+├── sfdx-project.json
+└── force-app/main/default/webapplications/
+    └── my-app/                              # Your webapp folder
+        ├── my-app.webapplication-meta.xml   # Required: identifies as webapp
         ├── package.json
         ├── src/
-        └── webapplication.json  # Optional!
+        └── webapplication.json              # Optional: dev configuration
 ```
 
 ### 2. Run the command
@@ -45,11 +47,13 @@ sf webapp dev --target-org myOrg --open
 
 Browser opens to `http://localhost:4545` with your app running and Salesforce authentication ready.
 
-> **Note**: `webapplication.json` is optional! If not present, the command uses:
+> **Note**:
 >
-> - **Name**: Folder name (e.g., "my-app")
-> - **Dev command**: `npm run dev`
-> - **Manifest watching**: Disabled
+> - `{name}.webapplication-meta.xml` is **required** to identify a valid webapp
+> - `webapplication.json` is optional for dev configuration. If not present, defaults to:
+>   - **Name**: From meta.xml filename or folder name
+>   - **Dev command**: `npm run dev`
+>   - **Manifest watching**: Disabled
 
 ---
 
@@ -95,78 +99,76 @@ SF_LOG_LEVEL=debug sf webapp dev --target-org myOrg
 
 ## Webapp Discovery
 
-The command automatically discovers webapps in the `webapplications/` folder. Each subfolder is treated as a webapp, with `webapplication.json` being optional.
+The command discovers webapps using a simplified, deterministic algorithm. Webapps are identified by the presence of a `{name}.webapplication-meta.xml` file (SFDX metadata format). The optional `webapplication.json` file provides dev configuration.
 
 ### How Discovery Works
 
 ```mermaid
 flowchart TD
-    Start["sf webapp dev"] --> FindFolder["Find webapplications/ folder"]
-    FindFolder --> Found{"Found?"}
-    Found -->|No| ErrorNone["Error: No webapplications folder found"]
-    Found -->|Yes| HasName{"--name provided?"}
+    Start["sf webapp dev"] --> CheckInside{"Inside webapplications/<br/>webapp folder?"}
+
+    CheckInside -->|Yes| HasNameInside{"--name provided?"}
+    HasNameInside -->|Yes, different| ErrorConflict["Error: --name conflicts<br/>with current directory"]
+    HasNameInside -->|No or same| AutoSelect["Auto-select current webapp"]
+
+    CheckInside -->|No| CheckSFDX{"In SFDX project?<br/>(sfdx-project.json)"}
+
+    CheckSFDX -->|Yes| CheckPath["Check force-app/main/<br/>default/webapplications/"]
+    CheckPath --> HasName{"--name provided?"}
+
+    CheckSFDX -->|No| CheckMetaXml{"Current dir has<br/>.webapplication-meta.xml?"}
+    CheckMetaXml -->|Yes| UseStandalone["Use current dir as webapp"]
+    CheckMetaXml -->|No| ErrorNone["Error: No webapp found"]
 
     HasName -->|Yes| SearchByName["Find webapp by name"]
-    HasName -->|No| InsideWebapp{"Running from inside a webapp?"}
-
-    InsideWebapp -->|Yes| AutoSelect["Auto-select current webapp"]
-    InsideWebapp -->|No| Count{"How many webapps?"}
-
-    Count -->|1| AutoSelectSingle["Auto-select single webapp"]
-    Count -->|Multiple| Prompt["Interactive selection prompt"]
+    HasName -->|No| Prompt["Interactive selection prompt<br/>(always, even if 1 webapp)"]
 
     SearchByName --> UseWebapp["Use webapp"]
     AutoSelect --> UseWebapp
-    AutoSelectSingle --> UseWebapp
+    UseStandalone --> UseWebapp
     Prompt --> UseWebapp
 
-    UseWebapp --> HasManifest{"Has webapplication.json?"}
-    HasManifest -->|Yes| UseManifest["Use manifest config"]
-    HasManifest -->|No| UseDefaults["Use defaults (npm run dev)"]
-
-    UseManifest --> StartDev["Start dev server and proxy"]
-    UseDefaults --> StartDev
+    UseWebapp --> StartDev["Start dev server and proxy"]
 ```
 
 ### Discovery Behavior
 
-| Scenario                          | Behavior                                       |
-| --------------------------------- | ---------------------------------------------- |
-| `--name myApp` provided           | Finds webapp by name (manifest name or folder) |
-| Running from inside webapp folder | Auto-selects that webapp                       |
-| Single webapp found               | Auto-selects it                                |
-| Multiple webapps found            | Shows interactive selection with arrow keys    |
-| No webapplications folder         | Shows error with helpful message               |
+| Scenario                            | Behavior                                                  |
+| ----------------------------------- | --------------------------------------------------------- |
+| `--name myApp` provided             | Finds webapp by name, starts dev server                   |
+| Running from inside webapp folder   | Auto-selects that webapp                                  |
+| `--name` conflicts with current dir | Error: must match current webapp or run from project root |
+| At SFDX project root                | **Always prompts** for webapp selection                   |
+| Outside SFDX project with meta.xml  | Uses current directory as standalone webapp               |
+| No webapp found                     | Shows error with helpful message                          |
 
-### Folder Structure
+### Folder Structure (SFDX Project)
 
 ```
-my-project/
-└── webapplications/        # Required folder (case-insensitive)
-    ├── app-one/            # Webapp 1 (with manifest)
-    │   ├── webapplication.json
-    │   ├── package.json
-    │   └── src/
-    ├── app-two/            # Webapp 2 (no manifest - uses defaults)
-    │   ├── package.json
-    │   └── src/
-    └── app-three/          # Webapp 3 (partial manifest)
-        ├── webapplication.json  # Only has dev.command
-        └── src/
+my-sfdx-project/
+├── sfdx-project.json                      # SFDX project marker
+└── force-app/main/default/
+    └── webapplications/                   # Standard SFDX location
+        ├── app-one/                       # Webapp 1 (with dev config)
+        │   ├── app-one.webapplication-meta.xml  # Required: identifies as webapp
+        │   ├── webapplication.json              # Optional: dev configuration
+        │   ├── package.json
+        │   └── src/
+        └── app-two/                       # Webapp 2 (no dev config)
+            ├── app-two.webapplication-meta.xml  # Required
+            ├── package.json
+            └── src/
 ```
 
-### Search Scope
+### Discovery Strategy
 
-The command searches for the `webapplications/` folder:
+The command uses a simplified, deterministic approach:
 
-1. **Upward**: First checks if you're inside a webapplications folder
-2. **Downward**: Then searches child directories recursively
+1. **Inside webapp folder**: If running from `webapplications/<webapp>/` or deeper, auto-selects that webapp
+2. **SFDX project root**: Uses fixed path `force-app/main/default/webapplications/`
+3. **Standalone**: If current directory has a `.webapplication-meta.xml` file, uses it directly
 
-Excluded directories:
-
-- `node_modules`, `.git`, `dist`, `build`, `out`, `coverage`
-- `.next`, `.nuxt`, `.output`
-- Hidden directories (starting with `.`)
+**Important**: Only directories containing a `{name}.webapplication-meta.xml` file are recognized as valid webapps.
 
 ### Interactive Selection
 
@@ -393,20 +395,101 @@ Automatically detects Salesforce Code Builder environment and binds to `0.0.0.0`
 
 ---
 
+## The `--url` Flag
+
+The `--url` flag provides control over which dev server URL the proxy uses. It has smart behavior depending on whether the URL is already available.
+
+### Behavior
+
+| Scenario                 | What Happens                                                      |
+| ------------------------ | ----------------------------------------------------------------- |
+| `--url` is reachable     | **Proxy-only mode**: Skips starting dev server, only starts proxy |
+| `--url` is NOT reachable | Starts dev server, warns if actual URL differs from `--url`       |
+| No `--url` provided      | Starts dev server automatically, detects URL                      |
+
+### Use Case 1: Connect to Existing Dev Server (Proxy-Only Mode)
+
+If you prefer to manage your dev server separately:
+
+```bash
+# Terminal 1: Start your dev server manually
+cd my-webapp
+npm run dev
+# Output: Local: http://localhost:5173/
+
+# Terminal 2: Connect proxy to your running server
+sf webapp dev --url http://localhost:5173 --target-org myOrg
+```
+
+**Output:**
+
+```
+✅ URL http://localhost:5173 is already available, skipping dev server startup (proxy-only mode)
+✅ Ready for development!
+   → Proxy: http://localhost:4545
+   → Dev server: http://localhost:5173
+```
+
+### Use Case 2: URL Mismatch Warning
+
+If you specify a `--url` that doesn't match where the dev server actually starts:
+
+```bash
+# No dev server running, specify wrong port
+sf webapp dev --url http://localhost:9999 --target-org myOrg
+```
+
+**Output:**
+
+```
+Warning: ⚠️ The --url flag (http://localhost:9999) does not match the actual dev server URL (http://localhost:5173/).
+The proxy will use the actual dev server URL.
+```
+
+The command continues working with the actual dev server URL.
+
+### Important Notes
+
+- The `--url` flag checks **only** the URL you specify, not other ports
+- If you have a dev server on port 5173 but specify `--url http://localhost:9999`:
+  - Command checks 9999 → not available
+  - Starts a NEW dev server → may get port 5174 (if 5173 is taken)
+  - Warns about mismatch (9999 ≠ 5174)
+- To use an existing dev server, specify its **exact** URL with `--url`
+
+---
+
 ## Troubleshooting
 
-### "No webapplications folder found"
+### "No webapp found" or "No valid webapps"
 
-Create a `webapplications/` folder with at least one webapp subfolder:
+Ensure your webapp has the required `.webapplication-meta.xml` file:
 
 ```
-my-project/
-└── webapplications/
-    └── my-app/
-        └── package.json
+force-app/main/default/webapplications/
+└── my-app/
+    ├── my-app.webapplication-meta.xml   # Required!
+    ├── package.json
+    └── webapplication.json              # Optional (for dev config)
 ```
 
-Note: `webapplication.json` is optional!
+The `.webapplication-meta.xml` file identifies a valid SFDX webapp. Without it, the directory is ignored.
+
+### "You are inside webapp X but specified --name Y"
+
+This error occurs when you're inside one webapp folder but try to run a different webapp:
+
+```bash
+# You're in FirstWebApp folder but trying to run SecondWebApp
+cd webapplications/FirstWebApp
+sf webapp dev --name SecondWebApp --target-org myOrg  # Error!
+```
+
+**Solutions:**
+
+- Remove `--name` to use the current webapp
+- Navigate to the project root and use `--name`
+- Navigate to the correct webapp folder
 
 ### "No webapp found with name X"
 
@@ -586,7 +669,7 @@ plugin-webapp/
 | Component              | Purpose                                          |
 | ---------------------- | ------------------------------------------------ |
 | `dev.ts`               | Command orchestration and lifecycle              |
-| `webappDiscovery.ts`   | Recursive webapplication.json discovery          |
+| `webappDiscovery.ts`   | SFDX project detection and webapp discovery      |
 | `org.ts`               | Salesforce authentication token management       |
 | `ProxyServer.ts`       | HTTP proxy with WebSocket support                |
 | `handler.ts`           | Request routing to dev server or Salesforce      |

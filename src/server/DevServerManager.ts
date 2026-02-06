@@ -346,9 +346,11 @@ export class DevServerManager extends EventEmitter {
     // Emit output event for consumers
     this.emit(stream, output);
 
+    // Split lines once and reuse for all operations
+    const lines = output.split('\n').filter((line) => line.trim());
+
     // Capture stderr lines for error parsing
     if (stream === 'stderr') {
-      const lines = output.split('\n').filter((line) => line.trim());
       this.stderrBuffer.push(...lines);
 
       // Keep only the last N lines to prevent memory issues
@@ -358,7 +360,6 @@ export class DevServerManager extends EventEmitter {
     }
 
     // Log dev server output (only visible when SF_LOG_LEVEL=debug)
-    const lines = output.split('\n').filter((line) => line.trim());
     for (const line of lines) {
       this.logger.debug(`[Dev Server ${stream}] ${line}`);
     }
