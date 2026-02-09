@@ -14,10 +14,31 @@
  * limitations under the License.
  */
 
-import { readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+// Use namespace import to avoid TS2305 when getErrorPageTemplate is not yet
+// available in the published version.  The function is added by the W-21111977
+// migration in @salesforce/webapp-experimental.  Once a version that includes
+// it is published, the runtime check below will pick it up automatically.
+import * as proxyExports from '@salesforce/webapp-experimental/proxy';
 import type { DevServerError } from '../config/types.js';
+
+/**
+ * Load the error page template from @salesforce/webapp-experimental/proxy.
+ * Returns null when the installed version does not yet export the function.
+ */
+function loadProxyTemplate(): string | null {
+  try {
+    const mod = proxyExports as unknown as Record<string, unknown>;
+    const fn = mod['getErrorPageTemplate'];
+    if (typeof fn === 'function') {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const result = fn();
+      if (typeof result === 'string') return result;
+    }
+  } catch {
+    // Function not available in the installed version
+  }
+  return null;
+}
 
 export type ErrorPageData = {
   status: string;
@@ -37,18 +58,7 @@ export class ErrorPageRenderer {
   private template: string;
 
   public constructor() {
-    // Load the HTML template
-    const currentDir = dirname(fileURLToPath(import.meta.url));
-    const templatePath = join(currentDir, 'error-page.html');
-
-    try {
-      this.template = readFileSync(templatePath, 'utf-8');
-    } catch (error) {
-      // Log warning but don't crash - use minimal fallback template
-      // eslint-disable-next-line no-console
-      console.error(`[ErrorPageRenderer] Failed to load template from ${templatePath}:`, error);
-      this.template = ErrorPageRenderer.getMinimalFallbackTemplate();
-    }
+    this.template = loadProxyTemplate() ?? ErrorPageRenderer.getMinimalFallbackTemplate();
   }
 
   /**
@@ -79,10 +89,12 @@ export class ErrorPageRenderer {
     <div class="info">
       {{MESSAGE_CONTENT}}
       <p><strong>Dev Server:</strong> <code>{{DEV_SERVER_URL}}</code></p>
-      <p><strong>Proxy:</strong> <code>{{PROXY_URL}}</code></p>
+      <p><strong>Proxy:</strong> <code>{{PROXY_URL}}</code> (port {{PROXY_PORT}})</p>
+      <p><strong>Org:</strong> <code>{{ORG_TARGET}}</code></p>
+      <p><strong>Script:</strong> <code>{{WORKSPACE_SCRIPT}}</code></p>
       <p><strong>Last Check:</strong> {{LAST_CHECK_TIME}}</p>
     </div>
-    <p style="color:#888;font-size:14px;">{{AUTO_REFRESH_TEXT}}</p>
+    <p style="color:#888;font-size:14px;" class="{{AUTO_REFRESH_CLASS}}">{{AUTO_REFRESH_TEXT}}</p>
   </div>
 </body>
 </html>`;

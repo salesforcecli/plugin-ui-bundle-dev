@@ -429,11 +429,10 @@ export class DevServerManager extends EventEmitter {
       this.logger.error(`Dev server error: ${parsedError.title}`);
       this.logger.debug(`Error type: ${parsedError.type}`);
 
-      // Convert to SfError for proper error handling
-      // Use just the message (not title) since title will be shown separately
-      const sfError = new SfError(parsedError.message, 'DevServerError', parsedError.suggestions);
-
-      this.emit('error', sfError);
+      // Emit the parsed DevServerError directly so the receiver (dev.ts)
+      // can access stderrLines, title, and type for the error page.
+      // Previously this was wrapped in SfError which lost those properties.
+      this.emit('error', parsedError);
     }
 
     // Reset state

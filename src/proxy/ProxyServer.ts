@@ -176,6 +176,11 @@ export class ProxyServer extends EventEmitter {
 
         this.server.on('connection', (socket) => {
           this.activeConnections.add(socket);
+          socket.on('error', (err) => {
+            // Handle ECONNRESET and other socket errors gracefully
+            // These can happen when the dev server crashes or a client disconnects abruptly
+            this.logger.debug(`Socket error (${err.message}), cleaning up connection`);
+          });
           socket.once('close', () => {
             this.activeConnections.delete(socket);
           });
