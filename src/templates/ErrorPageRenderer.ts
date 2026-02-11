@@ -14,31 +14,8 @@
  * limitations under the License.
  */
 
-// Use namespace import to avoid TS2305 when getErrorPageTemplate is not yet
-// available in the published version.  The function is added by the W-21111977
-// migration in @salesforce/webapp-experimental.  Once a version that includes
-// it is published, the runtime check below will pick it up automatically.
-import * as proxyExports from '@salesforce/webapp-experimental/proxy';
+import { getErrorPageTemplate } from '@salesforce/webapp-experimental/proxy';
 import type { DevServerError } from '../config/types.js';
-
-/**
- * Load the error page template from @salesforce/webapp-experimental/proxy.
- * Returns null when the installed version does not yet export the function.
- */
-function loadProxyTemplate(): string | null {
-  try {
-    const mod = proxyExports as unknown as Record<string, unknown>;
-    const fn = mod['getErrorPageTemplate'];
-    if (typeof fn === 'function') {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const result = fn();
-      if (typeof result === 'string') return result;
-    }
-  } catch {
-    // Function not available in the installed version
-  }
-  return null;
-}
 
 export type ErrorPageData = {
   status: string;
@@ -58,46 +35,7 @@ export class ErrorPageRenderer {
   private template: string;
 
   public constructor() {
-    this.template = loadProxyTemplate() ?? ErrorPageRenderer.getMinimalFallbackTemplate();
-  }
-
-  /**
-   * Minimal fallback template used when the main template file cannot be loaded.
-   * This ensures the proxy can still display error pages even if the template is missing.
-   */
-  private static getMinimalFallbackTemplate(): string {
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>{{PAGE_TITLE}}</title>
-  {{META_REFRESH}}
-  <style>
-    body { font-family: system-ui, sans-serif; background: #1a1a2e; color: #eee; padding: 40px; }
-    .container { max-width: 800px; margin: 0 auto; }
-    h1 { color: #ff6b6b; }
-    .status { color: #ffd93d; margin-bottom: 20px; }
-    .info { background: #16213e; padding: 20px; border-radius: 8px; margin: 20px 0; }
-    .info p { margin: 8px 0; }
-    code { background: #0f3460; padding: 2px 6px; border-radius: 4px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>{{ERROR_TITLE}}</h1>
-    <p class="status">{{ERROR_STATUS}}</p>
-    <div class="info">
-      {{MESSAGE_CONTENT}}
-      <p><strong>Dev Server:</strong> <code>{{DEV_SERVER_URL}}</code></p>
-      <p><strong>Proxy:</strong> <code>{{PROXY_URL}}</code> (port {{PROXY_PORT}})</p>
-      <p><strong>Org:</strong> <code>{{ORG_TARGET}}</code></p>
-      <p><strong>Script:</strong> <code>{{WORKSPACE_SCRIPT}}</code></p>
-      <p><strong>Last Check:</strong> {{LAST_CHECK_TIME}}</p>
-    </div>
-    <p style="color:#888;font-size:14px;" class="{{AUTO_REFRESH_CLASS}}">{{AUTO_REFRESH_TEXT}}</p>
-  </div>
-</body>
-</html>`;
+    this.template = getErrorPageTemplate();
   }
 
   /**

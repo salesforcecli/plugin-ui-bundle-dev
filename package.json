@@ -10,7 +10,7 @@
     "@salesforce/core": "^8.25.0",
     "@salesforce/kit": "^3.2.4",
     "@salesforce/sf-plugins-core": "^12.2.6",
-    "@salesforce/webapp-experimental": "^0.2.0",
+    "@salesforce/webapp-experimental": "^1.23.0",
     "chokidar": "^3.6.0",
     "http-proxy": "^1.18.1",
     "micromatch": "^4.0.8",
