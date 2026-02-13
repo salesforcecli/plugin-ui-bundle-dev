@@ -90,7 +90,7 @@ Proxy URL: %s (open this in your browser)
 
 # info.press-ctrl-c
 
-Press Ctrl+C to stop
+Press Ctrl+C to stop the proxy server
 
 # info.dev-server-healthy
 

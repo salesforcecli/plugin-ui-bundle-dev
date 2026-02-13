@@ -21,6 +21,8 @@ describe('TypeScript Types', () => {
   it('should allow valid WebAppManifest', () => {
     const manifest: WebAppManifest = {
       name: 'testApp',
+      label: 'Test App',
+      version: '1.0.0',
       outputDir: 'dist',
     };
 
@@ -31,6 +33,8 @@ describe('TypeScript Types', () => {
   it('should allow WebAppManifest with dev config', () => {
     const manifest: WebAppManifest = {
       name: 'testApp',
+      label: 'Test App',
+      version: '1.0.0',
       outputDir: 'dist',
       dev: {
         command: 'npm run dev',
@@ -52,6 +56,8 @@ describe('TypeScript Types', () => {
 
     const manifest: WebAppManifest = {
       name: 'testApp',
+      label: 'Test App',
+      version: '1.0.0',
       outputDir: 'dist',
       routing,
     };

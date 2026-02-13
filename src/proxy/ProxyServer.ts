@@ -412,6 +412,8 @@ export class ProxyServer extends EventEmitter {
   private initializeProxyHandler(): void {
     const manifest: WebAppManifest = this.config.manifest ?? {
       name: 'webapp',
+      label: 'Web App',
+      version: '1.0.0',
       outputDir: 'dist',
     };
 

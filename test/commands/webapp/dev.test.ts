@@ -29,6 +29,8 @@ describe('webapp:dev command integration', () => {
     it('should have correct WebAppManifest structure', () => {
       const manifest: WebAppManifest = {
         name: 'testWebApp',
+        label: 'Test Web App',
+        version: '1.0.0',
         outputDir: 'dist',
         dev: {
           url: 'http://localhost:5173',
@@ -62,6 +64,8 @@ describe('webapp:dev command integration', () => {
     it('should use manifest dev.url when no explicit URL', () => {
       const manifest: WebAppManifest = {
         name: 'testWebApp',
+        label: 'Test Web App',
+        version: '1.0.0',
         outputDir: 'dist',
         dev: {
           url: 'http://localhost:5173',
@@ -74,6 +78,8 @@ describe('webapp:dev command integration', () => {
     it('should use dev.command when no URL provided', () => {
       const manifest: WebAppManifest = {
         name: 'testWebApp',
+        label: 'Test Web App',
+        version: '1.0.0',
         outputDir: 'dist',
         dev: {
           command: 'npm run dev',
@@ -88,6 +94,8 @@ describe('webapp:dev command integration', () => {
     it('should validate manifest with dev.url', () => {
       const manifest: WebAppManifest = {
         name: 'testWebApp',
+        label: 'Test Web App',
+        version: '1.0.0',
         outputDir: 'dist',
         dev: {
           url: 'http://localhost:5173',
@@ -102,6 +110,8 @@ describe('webapp:dev command integration', () => {
     it('should validate manifest with dev.command', () => {
       const manifest: WebAppManifest = {
         name: 'testWebApp',
+        label: 'Test Web App',
+        version: '1.0.0',
         outputDir: 'dist',
         dev: {
           command: 'npm run dev',

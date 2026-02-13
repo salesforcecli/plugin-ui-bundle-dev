@@ -122,6 +122,8 @@ describe('ProxyServer', () => {
         salesforceInstanceUrl: 'https://test.salesforce.com',
         manifest: {
           name: 'test-app',
+          label: 'Test App',
+          version: '1.0.0',
           outputDir: 'dist',
         },
       });
@@ -225,6 +227,8 @@ describe('ProxyServer', () => {
         salesforceInstanceUrl: 'https://test.salesforce.com',
         manifest: {
           name: 'test-app',
+          label: 'Test App',
+          version: '1.0.0',
           outputDir: 'dist',
         },
       });
@@ -232,6 +236,8 @@ describe('ProxyServer', () => {
       // Update manifest with routing config
       proxy.updateManifest({
         name: 'test-app',
+        label: 'Test App',
+        version: '1.0.0',
         outputDir: 'dist',
         routing: {
           trailingSlash: 'always',

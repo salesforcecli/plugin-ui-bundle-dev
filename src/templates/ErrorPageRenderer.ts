@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { getErrorPageTemplate } from '@salesforce/webapp-experimental/proxy';
 import type { DevServerError } from '../config/types.js';
+import { ERROR_PAGE_TEMPLATE } from './error-page-template.js';
 
 export type ErrorPageData = {
   status: string;
@@ -35,7 +35,7 @@ export class ErrorPageRenderer {
   private template: string;
 
   public constructor() {
-    this.template = getErrorPageTemplate();
+    this.template = ERROR_PAGE_TEMPLATE;
   }
 
   /**
