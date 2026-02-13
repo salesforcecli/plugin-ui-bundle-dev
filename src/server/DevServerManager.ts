@@ -210,7 +210,7 @@ export class DevServerManager extends EventEmitter {
     // Validate that command is provided
     if (!this.options.command) {
       throw new SfError(
-        'Dev server command is required when explicit URL is not provided',
+        '❌ Dev server command is required when explicit URL is not provided',
         'DevServerCommandRequired',
         ['Provide a "command" in DevServerOptions', 'Or provide an "explicitUrl" to skip spawning']
       );
@@ -232,7 +232,7 @@ export class DevServerManager extends EventEmitter {
     } catch (error) {
       const sfError =
         error instanceof Error ? error : new Error(error instanceof Object ? JSON.stringify(error) : String(error));
-      throw new SfError(`Failed to spawn dev server process: ${sfError.message}`, 'DevServerSpawnError', [
+      throw new SfError(`❌ Failed to spawn dev server process: ${sfError.message}`, 'DevServerSpawnError', [
         `Verify the command is correct: ${this.options.command}`,
         'Check that the executable exists in your PATH',
         'Ensure you have the necessary dependencies installed',
@@ -430,10 +430,12 @@ export class DevServerManager extends EventEmitter {
       this.logger.error(`Dev server error: ${parsedError.title}`);
       this.logger.debug(`Error type: ${parsedError.type}`);
 
-      // Emit the parsed DevServerError directly so the receiver (dev.ts)
-      // can access stderrLines, title, and type for the error page.
-      // Previously this was wrapped in SfError which lost those properties.
-      this.emit('error', parsedError);
+      // Convert to SfError for proper error handling
+      // Use just the message (not title) since title will be shown separately
+      // Prefix with ❌ for visual consistency with success messages (✅)
+      const sfError = new SfError(`❌ ${parsedError.message}`, 'DevServerError', parsedError.suggestions);
+
+      this.emit('error', sfError);
     }
 
     // Reset state
@@ -450,7 +452,7 @@ export class DevServerManager extends EventEmitter {
   private handleProcessError(error: Error): void {
     this.logger.error(`Dev server process error: ${error.message}`);
 
-    const sfError = new SfError(`Dev server process error: ${error.message}`, 'DevServerProcessError', [
+    const sfError = new SfError(`❌ Dev server process error: ${error.message}`, 'DevServerProcessError', [
       'Check that the command is correct in webapplication.json',
       'Verify all dependencies are installed',
       'Try running the command manually to see the error',
@@ -469,7 +471,7 @@ export class DevServerManager extends EventEmitter {
     this.logger.error('Dev server failed to start within timeout period');
 
     const error = new SfError(
-      `Dev server did not start within ${this.options.startupTimeout / 1000} seconds`,
+      `❌ Dev server did not start within ${this.options.startupTimeout / 1000} seconds`,
       'DevServerStartupTimeout',
       [
         'The dev server may be taking longer than expected to start',

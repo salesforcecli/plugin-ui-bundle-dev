@@ -118,6 +118,30 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
     }
   }
 
+  /**
+   * Check if Vite's WebAppProxyHandler is active at the dev server URL.
+   * The Vite plugin responds to a health check query parameter with a custom header
+   * when the proxy middleware is active.
+   *
+   * @param devServerUrl - The dev server URL to check
+   * @returns true if Vite's proxy is handling requests, false otherwise
+   */
+  private static async checkViteProxyActive(devServerUrl: string): Promise<boolean> {
+    try {
+      // The Vite plugin uses a query parameter for health checks, not a path
+      const healthUrl = new URL(devServerUrl);
+      healthUrl.searchParams.set('sfProxyHealthCheck', 'true');
+      const response = await fetch(healthUrl.toString(), {
+        method: 'GET',
+        signal: AbortSignal.timeout(3000), // 3 second timeout
+      });
+      return response.headers.get('X-Salesforce-WebApp-Proxy') === 'true';
+    } catch {
+      // Health check failed - Vite proxy not active
+      return false;
+    }
+  }
+
   // eslint-disable-next-line complexity
   public async run(): Promise<WebAppDevResult> {
     const { flags } = await this.parse(WebappDev);
@@ -290,7 +314,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
           const actualDevServerUrl = await new Promise<string>((resolve, reject) => {
             const timeout = setTimeout(() => {
               reject(
-                new SfError('Dev server did not start within 30 seconds.', 'DevServerTimeoutError', [
+                new SfError('❌ Dev server did not start within 30 seconds.', 'DevServerTimeoutError', [
                   'The dev server may be taking longer than expected to start',
                   'Check if the dev server command is correct in webapplication.json',
                   'Try running the dev server command manually to see if it starts',
@@ -327,51 +351,78 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
       // Ensure devServerUrl is set (should always be set by step 3)
       if (!devServerUrl) {
         throw new SfError(
-          'Unable to determine dev server URL. Please specify --url or configure dev.url in webapplication.json.',
+          '❌ Unable to determine dev server URL. Please specify --url or configure dev.url in webapplication.json.',
           'DevServerUrlError'
         );
       }
 
-      // Step 5: Start proxy server
-      this.logger.debug(`Starting proxy server on port ${flags.port}...`);
-      const salesforceInstanceUrl = orgConnection.instanceUrl;
-      this.proxyServer = new ProxyServer({
-        devServerUrl,
-        salesforceInstanceUrl,
-        port: flags.port,
-        manifest: manifest ?? undefined,
-        orgAlias: orgUsername,
-      });
+      // Step 5: Check for Vite proxy and conditionally start standalone proxy
+      this.logger.debug('Checking if Vite WebApp proxy is active...');
+      const viteProxyActive = await WebappDev.checkViteProxyActive(devServerUrl);
 
-      await this.proxyServer.start();
-      const proxyUrl = this.proxyServer.getProxyUrl();
-      this.logger.debug(`Proxy server running on ${proxyUrl}`);
+      // Track the final URL to open in browser (either proxy or dev server)
+      let finalUrl: string;
 
-      // Listen for dev server status changes (minimal output)
-      this.proxyServer.on('dev-server-up', (url: string) => {
-        this.logger?.debug(messages.getMessage('info.dev-server-detected', [url]));
-      });
+      if (viteProxyActive) {
+        // Vite's WebAppProxyHandler is handling the proxy - skip standalone proxy
+        this.log(messages.getMessage('info.vite-proxy-detected', [devServerUrl]));
+        this.logger.debug('Vite proxy detected, skipping standalone proxy server');
+        finalUrl = devServerUrl;
+      } else {
+        // Start standalone proxy server
+        this.logger.debug(`Starting proxy server on port ${flags.port}...`);
+        const salesforceInstanceUrl = orgConnection.instanceUrl;
+        this.proxyServer = new ProxyServer({
+          devServerUrl,
+          salesforceInstanceUrl,
+          port: flags.port,
+          manifest: manifest ?? undefined,
+          orgAlias: orgUsername,
+        });
 
-      this.proxyServer.on('dev-server-down', (url: string) => {
-        this.log(messages.getMessage('warning.dev-server-unreachable-status', [url]));
-        this.log(messages.getMessage('info.start-dev-server-hint'));
-      });
+        await this.proxyServer.start();
+        const proxyUrl = this.proxyServer.getProxyUrl();
+        this.logger.debug(`Proxy server running on ${proxyUrl}`);
 
-      // Step 6: Check if dev server is reachable (non-blocking warning)
-      if (devServerUrl) {
+        // Listen for dev server status changes (minimal output)
+        this.proxyServer.on('dev-server-up', (url: string) => {
+          this.logger?.debug(messages.getMessage('info.dev-server-detected', [url]));
+        });
+
+        this.proxyServer.on('dev-server-down', (url: string) => {
+          this.log(messages.getMessage('warning.dev-server-unreachable-status', [url]));
+          this.log(messages.getMessage('info.start-dev-server-hint'));
+        });
+
+        finalUrl = proxyUrl;
+      }
+
+      // Step 6: Check if dev server is reachable (non-blocking warning) - only when using standalone proxy
+      if (!viteProxyActive && devServerUrl) {
         await this.checkDevServerHealth(devServerUrl);
       }
 
       // Step 7: Open browser if requested
       if (flags.open) {
         this.logger.debug('Opening browser...');
-        await WebappDev.openBrowser(proxyUrl);
+        await WebappDev.openBrowser(finalUrl);
       }
 
       // Display usage instructions
       this.log('');
-      this.log(messages.getMessage('info.ready-for-development', [proxyUrl]));
-      this.log(messages.getMessage('info.press-ctrl-c'));
+      if (viteProxyActive) {
+        this.log(messages.getMessage('info.ready-for-development-vite', [devServerUrl]));
+      } else {
+        this.log(messages.getMessage('info.ready-for-development', [finalUrl]));
+      }
+      // Show appropriate stop message based on execution context
+      // In TTY (interactive terminal): show "Press Ctrl+C to stop"
+      // In non-TTY (IDE, CI, piped): show generic "Server running" message
+      if (process.stdout.isTTY) {
+        this.log(messages.getMessage('info.press-ctrl-c'));
+      } else {
+        this.log(messages.getMessage('info.server-running'));
+      }
       this.log('');
 
       // Keep the command running until interrupted or dev server exits
@@ -403,7 +454,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
 
       // Return result (never reached, but required for type safety)
       return {
-        url: proxyUrl,
+        url: finalUrl,
         devServerUrl: devServerUrl ?? '',
       };
     } catch (error) {
@@ -417,7 +468,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
 
       // Wrap unknown errors
       const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new SfError(`Failed to start webapp dev command: ${errorMessage}`, 'UnexpectedError', [
+      throw new SfError(`❌ Failed to start webapp dev command: ${errorMessage}`, 'UnexpectedError', [
         'This is an unexpected error',
         'Please try again',
         'If the problem persists, check the command logs with SF_LOG_LEVEL=debug',

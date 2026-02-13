@@ -176,11 +176,6 @@ export class ProxyServer extends EventEmitter {
 
         this.server.on('connection', (socket) => {
           this.activeConnections.add(socket);
-          socket.on('error', (err) => {
-            // Handle ECONNRESET and other socket errors gracefully
-            // These can happen when the dev server crashes or a client disconnects abruptly
-            this.logger.debug(`Socket error (${err.message}), cleaning up connection`);
-          });
           socket.once('close', () => {
             this.activeConnections.delete(socket);
           });
@@ -412,6 +407,8 @@ export class ProxyServer extends EventEmitter {
   private initializeProxyHandler(): void {
     const manifest: WebAppManifest = this.config.manifest ?? {
       name: 'webapp',
+      label: 'WebApp',
+      version: '1.0.0',
       outputDir: 'dist',
     };
 
