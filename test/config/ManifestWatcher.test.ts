@@ -29,8 +29,6 @@ describe('ManifestWatcher', () => {
 
   const validManifest: WebAppManifest = {
     name: 'testApp',
-    label: 'Test App',
-    version: '1.0.0',
     outputDir: 'dist',
     dev: {
       command: 'npm run dev',
