@@ -24,6 +24,8 @@ Dev server origin to forward UI/HMR/static requests
 
 The URL where your dev server is running (e.g., http://localhost:5173). Required if webapplication.json does not contain a dev.command or dev.url configuration. All non-Salesforce API requests will be forwarded to this URL.
 
+Dev server URL precedence: --url flag > manifest dev.url > URL from dev server process (started via manifest dev.command or default npm run dev).
+
 # flags.port.summary
 
 Local proxy port
@@ -85,8 +87,7 @@ Proxy URL: %s (open this in your browser)
 # info.ready-for-development
 
 ✅ Ready for development!
-  → Proxy: %s (open this in your browser)
-  → Dev server: %s
+  → %s (open this URL in your browser)
 
 # info.press-ctrl-c
 
@@ -153,9 +154,9 @@ Auto-selected webapp "%s" (running from inside its folder)
 
 Select the webapp to run:
 
-# warning.no-manifest
+# info.no-manifest-defaults
 
-No webapplication.json found - using defaults (command: %s)
+No webapplication.json found. Using defaults: dev command=%s, proxy port=%s
 
 Tip: See "sf webapp dev --help" for configuration options.
 

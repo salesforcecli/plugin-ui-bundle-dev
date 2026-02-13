@@ -213,8 +213,8 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
           this.warn(messages.getMessage('error.manifest-watch-failed', [error.message]));
         });
       } else {
-        // No manifest - show warning and use defaults
-        this.warn(messages.getMessage('warning.no-manifest', [DEFAULT_DEV_COMMAND]));
+        // No manifest - log applied defaults for troubleshooting
+        this.log(messages.getMessage('info.no-manifest-defaults', [DEFAULT_DEV_COMMAND, String(flags.port)]));
         this.log('');
         this.log(messages.getMessage('info.starting-webapp', [selectedWebapp.name]));
       }
@@ -370,7 +370,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
 
       // Display usage instructions
       this.log('');
-      this.log(messages.getMessage('info.ready-for-development', [proxyUrl, devServerUrl ?? 'N/A']));
+      this.log(messages.getMessage('info.ready-for-development', [proxyUrl]));
       this.log(messages.getMessage('info.press-ctrl-c'));
       this.log('');
 
