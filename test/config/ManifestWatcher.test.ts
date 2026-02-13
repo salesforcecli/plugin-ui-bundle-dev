@@ -29,8 +29,6 @@ describe('ManifestWatcher', () => {
 
   const validManifest: WebAppManifest = {
     name: 'testApp',
-    label: 'Test Application',
-    version: '1.0.0',
     outputDir: 'dist',
     dev: {
       command: 'npm run dev',
@@ -160,7 +158,6 @@ describe('ManifestWatcher', () => {
       expect(manifest).to.exist;
       expect(manifest?.dev?.command).to.equal('npm run dev');
       expect(manifest?.name).to.be.undefined;
-      expect(manifest?.label).to.be.undefined;
 
       await watcher.stop();
     });
@@ -216,8 +213,6 @@ describe('ManifestWatcher', () => {
       const manifest = watcher.getManifest();
       expect(manifest).to.exist;
       expect(manifest?.name).to.equal('myApp');
-      expect(manifest?.label).to.be.undefined;
-      expect(manifest?.version).to.be.undefined;
       expect(manifest?.outputDir).to.be.undefined;
 
       await watcher.stop();
@@ -226,8 +221,6 @@ describe('ManifestWatcher', () => {
     it('should accept manifest without optional dev config', async () => {
       const minimalManifest = {
         name: 'testApp',
-        label: 'Test App',
-        version: '1.0.0',
         outputDir: 'dist',
       };
 
@@ -284,7 +277,7 @@ describe('ManifestWatcher', () => {
 
       const event = await changePromise;
       expect(event.type).to.equal('changed');
-      expect(event.manifest?.version).to.equal('2.0.0');
+      expect((event.manifest as unknown as Record<string, unknown>)?.version).to.equal('2.0.0');
       await watcher.stop();
     });
 
@@ -370,7 +363,7 @@ describe('ManifestWatcher', () => {
       await new Promise((resolve) => setTimeout(resolve, 800));
 
       expect(changeCount).to.equal(1);
-      expect(watcher.getManifest()?.version).to.equal('1.0.3');
+      expect((watcher.getManifest() as unknown as Record<string, unknown>)?.version).to.equal('1.0.3');
       await watcher.stop();
     });
   });
@@ -430,7 +423,8 @@ describe('ManifestWatcher', () => {
       await new Promise((resolve) => setTimeout(resolve, 300));
 
       expect(eventEmitted).to.be.false;
-      expect(watcher.getManifest()?.version).to.equal('1.0.0'); // Still old version
+      // Watcher stopped before write, so manifest unchanged (validManifest has no version)
+      expect(watcher.getManifest()).to.deep.equal(validManifest);
 
       await watcher.stop();
     });

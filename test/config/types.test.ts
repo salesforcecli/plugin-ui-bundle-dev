@@ -21,20 +21,16 @@ describe('TypeScript Types', () => {
   it('should allow valid WebAppManifest', () => {
     const manifest: WebAppManifest = {
       name: 'testApp',
-      label: 'Test Application',
-      version: '1.0.0',
       outputDir: 'dist',
     };
 
     expect(manifest.name).to.equal('testApp');
-    expect(manifest.version).to.equal('1.0.0');
+    expect(manifest.outputDir).to.equal('dist');
   });
 
   it('should allow WebAppManifest with dev config', () => {
     const manifest: WebAppManifest = {
       name: 'testApp',
-      label: 'Test Application',
-      version: '1.0.0',
       outputDir: 'dist',
       dev: {
         command: 'npm run dev',
@@ -44,18 +40,6 @@ describe('TypeScript Types', () => {
 
     expect(manifest.dev?.command).to.equal('npm run dev');
     expect(manifest.dev?.url).to.equal('http://localhost:5173');
-  });
-
-  it('should allow optional description', () => {
-    const manifest: WebAppManifest = {
-      name: 'testApp',
-      label: 'Test Application',
-      description: 'This is a test app',
-      version: '1.0.0',
-      outputDir: 'dist',
-    };
-
-    expect(manifest.description).to.equal('This is a test app');
   });
 
   it('should allow WebAppManifest with routing config', () => {
@@ -68,8 +52,6 @@ describe('TypeScript Types', () => {
 
     const manifest: WebAppManifest = {
       name: 'testApp',
-      label: 'Test Application',
-      version: '1.0.0',
       outputDir: 'dist',
       routing,
     };

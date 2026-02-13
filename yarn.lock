@@ -1758,6 +1758,19 @@
   resolved "https://registry.npmjs.org/@salesforce/prettier-config/-/prettier-config-0.0.3.tgz"
   integrity sha512-hYOhoPTCSYMDYn+U1rlEk16PoBeAJPkrdg4/UtAzupM1mRRJOwEPMG1d7U8DxJFKuXW3DMEYWr2MwAIBDaHmFg==
 
+"@salesforce/sdk-core@^1.29.1":
+  version "1.29.1"
+  resolved "https://registry.yarnpkg.com/@salesforce/sdk-core/-/sdk-core-1.29.1.tgz#4679e9e2cc8c34fafb302610312f1f8eb249349e"
+  integrity sha512-Xc2Hh1yzV+vMj8+Ot4SjBIJgqU8OZJ51H3Hg6clKlzlzcuBzSTprHB4Cw252NWOGJ7UtG0rLGG8Q6F3qEg2SMQ==
+
+"@salesforce/sdk-data@^1.29.1":
+  version "1.29.1"
+  resolved "https://registry.yarnpkg.com/@salesforce/sdk-data/-/sdk-data-1.29.1.tgz#4a1ad906d597d9e0ffca4e8c2991e2e54b90db7d"
+  integrity sha512-8TjrB8GiEgMEnVveQahYFd+8ak5Dr5xJgj0DoIDgIkToc1t6UzPVZAP4D/XO+aydPnzYO1ZXSPbemYOa3ar+uA==
+  dependencies:
+    "@conduit-client/salesforce-lightning-service-worker" "^3.7.0"
+    "@salesforce/sdk-core" "^1.29.1"
+
 "@salesforce/sf-plugins-core@^11.3.12":
   version "11.3.12"
   resolved "https://registry.npmjs.org/@salesforce/sf-plugins-core/-/sf-plugins-core-11.3.12.tgz"
@@ -1797,13 +1810,13 @@
   resolved "https://registry.npmjs.org/@salesforce/ts-types/-/ts-types-2.0.12.tgz"
   integrity sha512-BIJyduJC18Kc8z+arUm5AZ9VkPRyw1KKAm+Tk+9LT99eOzhNilyfKzhZ4t+tG2lIGgnJpmytZfVDZ0e2kFul8g==
 
-"@salesforce/webapp-experimental@^0.2.0":
-  version "0.2.0"
-  resolved "https://registry.npmjs.org/@salesforce/webapp-experimental/-/webapp-experimental-0.2.0.tgz"
-  integrity sha512-+E7b8u88ABJcgj7YSYiwXaF+LY9lCElibtEQbfuBdDXSUXjaMImwdZjhuyUtndIYWSXM+X38kjnIAFiikjqBIQ==
+"@salesforce/webapp-experimental@^1.23.0":
+  version "1.29.1"
+  resolved "https://registry.yarnpkg.com/@salesforce/webapp-experimental/-/webapp-experimental-1.29.1.tgz#98648cc166b34c1b479f9545e87d10b61dd76adc"
+  integrity sha512-i5ZzGs7hrjv3Fbrvmm7v8OTVoJRewWvqzXIB5JRW5l2mcz1HxK2DXriBbLHHOmYRcVSrNdN/VS8PW7YwcTuHZw==
   dependencies:
-    "@conduit-client/salesforce-lightning-service-worker" "^3.7.0"
     "@salesforce/core" "^8.23.4"
+    "@salesforce/sdk-data" "^1.29.1"
     axios "^1.7.7"
     micromatch "^4.0.8"
     path-to-regexp "^8.3.0"
