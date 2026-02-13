@@ -89,6 +89,11 @@ Proxy URL: %s (open this URL in your browser)
 ✅ Ready for development!
   → %s (open this URL in your browser)
 
+# info.ready-for-development-vite
+
+✅ Ready for development!
+  → %s (Vite proxy active - open this URL in your browser)
+
 # info.press-ctrl-c
 
 Press Ctrl+C to stop the proxy server
@@ -186,8 +191,3 @@ The proxy will use the actual dev server URL.
 # info.vite-proxy-detected
 
 Vite WebApp proxy detected at %s - using Vite's built-in proxy (standalone proxy skipped)
-
-# info.ready-for-development-vite
-
-✅ Ready for development!
-  → Dev server: %s (Vite proxy active - open this URL in your browser)
