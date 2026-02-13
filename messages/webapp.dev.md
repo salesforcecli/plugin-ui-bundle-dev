@@ -100,7 +100,7 @@ Press Ctrl+C to stop the proxy server
 
 # info.server-running
 
-Dev server is running. Stop it by running **SFDX: Close Live Preview** from the VS Code command palette.
+Dev server is running. Stop it by running "SFDX: Close Live Preview" from the VS Code command palette.
 
 # info.dev-server-healthy
 
