@@ -373,8 +373,15 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
         throw error;
       }
 
-      // Wrap unknown errors
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      // Wrap unknown errors (include plain objects e.g. DevServerError with .message/.title)
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : typeof error === 'object' && error !== null && 'message' in error
+            ? String((error as { message?: unknown }).message)
+            : typeof error === 'object' && error !== null && 'title' in error
+              ? String((error as { title?: unknown }).title)
+              : String(error);
       throw new SfError(`Failed to start webapp dev command: ${errorMessage}`, 'UnexpectedError', [
         'This is an unexpected error',
         'Please try again',

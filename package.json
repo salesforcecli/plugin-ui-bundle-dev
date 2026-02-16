@@ -70,6 +70,7 @@
   "repository": "salesforcecli/plugin-webapp",
   "scripts": {
     "build": "wireit",
+    "build:no-lint": "wireit compile",
     "clean": "sf-clean",
     "clean-all": "sf-clean all",
     "compile": "wireit",
