@@ -528,7 +528,7 @@ Output:
 ### Building the Plugin
 
 ```bash
-cd /path/to/plugin-webapp
+cd /path/to/plugin-app-dev
 
 # Install dependencies
 yarn install
@@ -552,7 +552,7 @@ yarn build  # Rebuild - no re-linking needed
 ### Project Structure
 
 ```
-plugin-webapp/
+plugin-app-dev/
 ├── src/
 │   ├── commands/webapp/
 │   │   └── dev.ts              # Main command implementation
@@ -596,4 +596,4 @@ plugin-webapp/
 
 ---
 
-**Repository:** [github.com/salesforcecli/plugin-webapp](https://github.com/salesforcecli/plugin-webapp)
+**Repository:** [github.com/salesforcecli/plugin-app-dev](https://github.com/salesforcecli/plugin-app-dev)
