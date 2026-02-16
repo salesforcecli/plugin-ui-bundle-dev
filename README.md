@@ -1,8 +1,8 @@
 **NOTE: This template for sf plugins is not yet official. Please consult with the Platform CLI team before using this template.**
 
-# plugin-webapp
+# plugin-app-dev
 
-[![NPM](https://img.shields.io/npm/v/@salesforce/plugin-webapp.svg?label=@salesforce/plugin-webapp)](https://www.npmjs.com/package/@salesforce/plugin-webapp) [![Downloads/week](https://img.shields.io/npm/dw/@salesforce/plugin-webapp.svg)](https://npmjs.org/package/@salesforce/plugin-webapp) [![License](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/license/apache-2-0)
+[![NPM](https://img.shields.io/npm/v/@salesforce/plugin-app-dev.svg?label=@salesforce/plugin-app-dev)](https://www.npmjs.com/package/@salesforce/plugin-app-dev) [![Downloads/week](https://img.shields.io/npm/dw/@salesforce/plugin-app-dev.svg)](https://npmjs.org/package/@salesforce/plugin-app-dev) [![License](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/license/apache-2-0)
 
 ## Using the template
 
@@ -40,7 +40,7 @@ Additionally, there are some additional tests that the Salesforce CLI will enfor
 - [@salesforce/dev-config](https://github.com/forcedotcom/dev-config)
 - [@salesforce/dev-scripts](https://github.com/forcedotcom/dev-scripts)
 
-# Salesforce CLI Webapp Plugin
+# Salesforce CLI App Dev Plugin
 
 A Salesforce CLI plugin for building and deploying web applications that integrate with Salesforce. This plugin provides tools for local development, packaging, and deployment of webapps with built-in Salesforce authentication.
 
@@ -62,7 +62,7 @@ We always recommend using the latest version of these commands bundled with the 
 1. **Install the plugin:**
 
    ```bash
-   sf plugins install @salesforce/plugin-webapp
+   sf plugins install @salesforce/plugin-app-dev
    ```
 
 2. **Authenticate with Salesforce:**
@@ -107,7 +107,7 @@ We always recommend using the latest version of these commands bundled with the 
 ## Install
 
 ```bash
-sf plugins install @salesforce/plugin-webapp@x.y.z
+sf plugins install @salesforce/plugin-app-dev@x.y.z
 ```
 
 ## Issues
@@ -139,7 +139,7 @@ To build the plugin locally, make sure to have yarn installed and run the follow
 
 ```bash
 # Clone the repository
-git clone git@github.com:salesforcecli/plugin-webapp
+git clone git@github.com:salesforcecli/plugin-app-dev
 
 # Install the dependencies and compile
 yarn && yarn build
