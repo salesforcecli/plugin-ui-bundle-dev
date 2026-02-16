@@ -1,3 +1,9 @@
+## [1.1.2](https://github.com/salesforcecli/plugin-app-dev/compare/1.1.1...1.1.2) (2026-02-16)
+
+### Bug Fixes
+
+- remove generated readme template ([f3b4591](https://github.com/salesforcecli/plugin-app-dev/commit/f3b459132e5a9d5624144e1af4d03c4ed6d12e6b))
+
 ## [1.1.1](https://github.com/salesforcecli/plugin-app-dev/compare/1.1.0...1.1.1) (2026-02-16)
 
 ### Bug Fixes
