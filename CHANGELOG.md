@@ -1,4 +1,10 @@
-# 1.1.0 (2026-02-16)
+## [1.1.1](https://github.com/salesforcecli/plugin-app-dev/compare/1.1.0...1.1.1) (2026-02-16)
+
+### Bug Fixes
+
+- npm release workflow @W-21218001@ ([#27](https://github.com/salesforcecli/plugin-app-dev/issues/27)) ([3c591e9](https://github.com/salesforcecli/plugin-app-dev/commit/3c591e92f3e53b51841498175dd83c51ad2ba643))
+
+# [1.1.0](https://github.com/salesforcecli/plugin-app-dev/compare/422fc169b395e0311cf0165d7accde46d438a021...1.1.0) (2026-02-16)
 
 ### Bug Fixes
 
