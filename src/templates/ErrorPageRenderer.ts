@@ -55,6 +55,7 @@ export class ErrorPageRenderer {
   <div class="{{RUNTIME_SECTION_CLASS}}"></div>
   <div class="{{DEV_SERVER_SECTION_CLASS}}"><pre>{{ERROR_MESSAGE_TEXT}}</pre><pre>{{STDERR_OUTPUT}}</pre><h2>{{SUGGESTIONS_TITLE}}</h2><ul>{{SUGGESTIONS_LIST}}</ul></div>
   <div class="{{SUGGESTIONS_SECTION_CLASS}}"></div>
+  <div class="quick-actions"><h3>Quick Actions</h3><button type="button" class="action-btn" data-proxy-action="retry">Retry Detection</button></div>
   <p class="{{AUTO_REFRESH_CLASS}}">{{AUTO_REFRESH_TEXT}}</p>
   <p>Dev: {{DEV_SERVER_URL}} | Proxy: {{PROXY_URL}} | Port: {{PROXY_PORT}} | Org: {{ORG_TARGET}} | Script: {{WORKSPACE_SCRIPT}} | Last: {{LAST_CHECK_TIME}}</p>
 </body>

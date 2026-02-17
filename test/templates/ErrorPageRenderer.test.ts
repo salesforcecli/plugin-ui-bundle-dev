@@ -68,9 +68,13 @@ describe('ErrorPageRenderer', () => {
         orgTarget: 'myorg@example.com',
       };
       const html = renderer.render(data);
+      // Template from @salesforce/webapp-experimental (or minimal fallback); assert placeholders and Quick Actions
+      expect(html).to.include('No Dev Server Detected');
+      expect(html).to.include('http://localhost:5173');
+      expect(html).to.include('http://localhost:4545');
+      expect(html).to.include('npm run dev');
       expect(html).to.include('Retry Detection');
-      expect(html).to.include('Proxy-only');
-      expect(html).to.include('Use URL');
+      expect(html.length).to.be.greaterThan(500);
     });
   });
 

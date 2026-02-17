@@ -54,6 +54,9 @@ describe('resolveDevCommand (W-20243732)', () => {
       if (!existsSync(join(FIXTURE_RESOLVE, 'package.json'))) {
         this.skip();
       }
+      if (!existsSync(join(FIXTURE_RESOLVE, 'node_modules', '.bin', 'vite'))) {
+        this.skip();
+      }
       const result = resolveDirectDevCommand(FIXTURE_RESOLVE, 'npm run dev');
       expect(result).to.not.be.null;
       expect(result!.cmd).to.include('node_modules');
@@ -64,6 +67,9 @@ describe('resolveDevCommand (W-20243732)', () => {
 
     it('should resolve yarn dev to node_modules/.bin binary when fixture exists', function () {
       if (!existsSync(join(FIXTURE_RESOLVE, 'package.json'))) {
+        this.skip();
+      }
+      if (!existsSync(join(FIXTURE_RESOLVE, 'node_modules', '.bin', 'vite'))) {
         this.skip();
       }
       const result = resolveDirectDevCommand(FIXTURE_RESOLVE, 'yarn dev');
