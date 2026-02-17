@@ -26,7 +26,7 @@ import { ProxyServer } from '../../proxy/ProxyServer.js';
 import { discoverWebapp, DEFAULT_DEV_COMMAND, type DiscoveredWebapp } from '../../config/webappDiscovery.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
-const messages = Messages.loadMessages('@salesforce/plugin-webapp', 'webapp.dev');
+const messages = Messages.loadMessages('@salesforce/plugin-app-dev', 'webapp.dev');
 
 export default class WebappDev extends SfCommand<WebAppDevResult> {
   public static readonly summary = messages.getMessage('summary');
