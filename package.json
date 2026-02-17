@@ -1,13 +1,13 @@
 {
-  "name": "@salesforce/plugin-webapp",
-  "description": "webapp development",
-  "version": "1.0.0",
+  "name": "@salesforce/plugin-app-dev",
+  "description": "",
+  "version": "1.1.2",
   "author": "Salesforce",
   "bugs": "https://github.com/forcedotcom/cli/issues",
   "dependencies": {
     "@inquirer/select": "^5.0.2",
     "@oclif/core": "^4",
-    "@salesforce/core": "^8.25.0",
+    "@salesforce/core": "^8.25.1",
     "@salesforce/kit": "^3.2.4",
     "@salesforce/sf-plugins-core": "^12.2.6",
     "@salesforce/webapp-experimental": "^1.23.0",
@@ -40,7 +40,7 @@
     "/oclif.manifest.json",
     "/schemas"
   ],
-  "homepage": "https://github.com/salesforcecli/plugin-webapp",
+  "homepage": "https://github.com/salesforcecli/plugin-app-dev",
   "keywords": [
     "force",
     "salesforce",
@@ -67,7 +67,7 @@
     },
     "flexibleTaxonomy": true
   },
-  "repository": "salesforcecli/plugin-webapp",
+  "repository": "salesforcecli/plugin-app-dev",
   "scripts": {
     "build": "wireit",
     "clean": "sf-clean",
