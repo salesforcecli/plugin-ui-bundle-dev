@@ -58,6 +58,20 @@ describe('ErrorPageRenderer', () => {
       // This is acceptable as the data comes from internal sources, not user input
       expect(html).to.be.a('string');
     });
+
+    it('should include Quick Action buttons (W-20243732 AC: error panel)', () => {
+      const data = {
+        status: 'No Dev Server Detected',
+        devServerUrl: 'http://localhost:5173',
+        workspaceScript: 'npm run dev',
+        proxyUrl: 'http://localhost:4545',
+        orgTarget: 'myorg@example.com',
+      };
+      const html = renderer.render(data);
+      expect(html).to.include('Retry Detection');
+      expect(html).to.include('Proxy-only');
+      expect(html).to.include('Use URL');
+    });
   });
 
   describe('Template Loading', () => {

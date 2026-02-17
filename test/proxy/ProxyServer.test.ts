@@ -265,4 +265,84 @@ describe('ProxyServer', () => {
       expect(proxy).to.be.instanceOf(ProxyServer);
     });
   });
+
+  describe('Proxy API (_proxy/*) – W-20243732', () => {
+    const API_PORT = 19545;
+    let proxy: ProxyServer | null = null;
+
+    afterEach(async function () {
+      this.timeout(5000);
+      if (proxy) {
+        await proxy.stop();
+        proxy = null;
+      }
+    });
+
+    it('GET /_proxy/status returns 200 with devServerStatus, proxyUrl, workspaceScript', async function () {
+      this.timeout(5000);
+      proxy = new ProxyServer({
+        port: API_PORT,
+        devServerUrl: 'http://localhost:5173',
+        salesforceInstanceUrl: 'https://test.salesforce.com',
+      });
+      try {
+        await proxy.start();
+      } catch (err) {
+        // Skip when binding is not allowed (e.g. sandbox, CI)
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes('EADDRINUSE') || msg.includes('EPERM') || msg.includes('listen')) {
+          this.skip();
+        }
+        throw err;
+      }
+
+      const res = await fetch(`http://127.0.0.1:${API_PORT}/_proxy/status`);
+      expect(res.status).to.equal(200);
+      expect(res.headers.get('content-type')).to.include('application/json');
+      const body = (await res.json()) as {
+        devServerStatus: string;
+        devServerUrl: string;
+        proxyUrl: string;
+        workspaceScript: string;
+        proxyOnlyMode: boolean;
+        activeError: unknown;
+      };
+      expect(body).to.have.property('devServerStatus');
+      expect(body.devServerStatus).to.be.oneOf(['unknown', 'up', 'down', 'error']);
+      expect(body.devServerUrl).to.equal('http://localhost:5173');
+      expect(body.proxyUrl).to.equal(`http://localhost:${API_PORT}`);
+      expect(body).to.have.property('workspaceScript');
+      expect(body).to.have.property('proxyOnlyMode');
+      expect(body.proxyOnlyMode).to.equal(false);
+      expect(body).to.have.property('activeError');
+    });
+
+    it('POST /_proxy/start-dev emits startDevServer and returns 200', async function () {
+      this.timeout(5000);
+      proxy = new ProxyServer({
+        port: API_PORT + 1,
+        devServerUrl: 'http://localhost:5173',
+        salesforceInstanceUrl: 'https://test.salesforce.com',
+      });
+      try {
+        await proxy.start();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes('EADDRINUSE') || msg.includes('EPERM') || msg.includes('listen')) {
+          this.skip();
+        }
+        throw err;
+      }
+
+      const emitted = new Promise<void>((resolve) => {
+        proxy!.once('startDevServer', () => resolve());
+      });
+      const res = await fetch(`http://127.0.0.1:${API_PORT + 1}/_proxy/start-dev`, { method: 'POST' });
+      expect(res.status).to.equal(200);
+      const body = (await res.json()) as { ok: boolean; message: string };
+      expect(body.ok).to.equal(true);
+      expect(body.message).to.include('start requested');
+      await emitted;
+    });
+  });
 });

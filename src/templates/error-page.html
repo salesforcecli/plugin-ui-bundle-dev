@@ -1,0 +1,1263 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>{{PAGE_TITLE}} - Salesforce Local Dev Proxy</title>
+		{{META_REFRESH}}
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+
+			body {
+				font-family:
+					-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+				background: linear-gradient(135deg, #1e2a47 0%, #2d3e5f 100%);
+				color: #333;
+				min-height: 100vh;
+				padding: 20px;
+			}
+
+			.main-container {
+				max-width: 1400px;
+				margin: 0 auto;
+				background: #e8e8e8;
+				border-radius: 16px;
+				box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+				overflow: hidden;
+			}
+
+			/* ============================================
+         TOP HEADER
+         ============================================ */
+			.top-header {
+				background: #e8e8e8;
+				padding: 30px 40px;
+				display: flex;
+				justify-content: space-between;
+				align-items: flex-start;
+				border-bottom: 1px solid #ccc;
+			}
+
+			.header-left h1 {
+				color: #1a1a1a;
+				font-size: 2.2em;
+				font-weight: 600;
+				margin-bottom: 8px;
+			}
+
+			.header-left .subtitle {
+				color: #666;
+				font-size: 1.05em;
+			}
+
+			.status-badge {
+				padding: 12px 24px;
+				border-radius: 8px;
+				font-weight: 600;
+				font-size: 0.95em;
+			}
+
+			.status-badge.critical {
+				background: #ffcdd2;
+				color: #b71c1c;
+			}
+
+			.status-badge.error {
+				background: #ffebee;
+				color: #c62828;
+			}
+
+			.status-badge.warning {
+				background: #fff3e0;
+				color: #e65100;
+			}
+
+			.status-badge.success {
+				background: #e8f5e9;
+				color: #2e7d32;
+			}
+
+			/* ============================================
+         TWO-COLUMN LAYOUT
+         ============================================ */
+			.content-wrapper {
+				display: grid;
+				grid-template-columns: 1fr 308px;
+				gap: 0;
+				background: #e8e8e8;
+			}
+
+			.main-content {
+				padding: 40px;
+				background: white;
+				border-right: 1px solid #ccc;
+			}
+
+			.diagnostics-panel {
+				padding: 40px 20px;
+				background: #f5f5f5;
+			}
+
+			/* ============================================
+         MAIN CONTENT SECTIONS
+         ============================================ */
+			.content-section {
+				margin-bottom: 30px;
+			}
+
+			.content-section h2 {
+				color: #1a1a1a;
+				font-size: 1.4em;
+				margin-bottom: 15px;
+				font-weight: 600;
+			}
+
+			.content-section h3 {
+				color: #1a1a1a;
+				font-size: 1.1em;
+				margin-bottom: 12px;
+				font-weight: 600;
+			}
+
+			.content-section p {
+				color: #555;
+				line-height: 1.6;
+				margin-bottom: 15px;
+			}
+
+			.content-section ul {
+				list-style: disc;
+				padding-left: 25px;
+				color: #555;
+				line-height: 1.8;
+			}
+
+			/* Message box for errors */
+			.message-box {
+				background: #fff3e0;
+				border-left: 4px solid #ff9800;
+				padding: 20px;
+				border-radius: 6px;
+				margin-bottom: 25px;
+			}
+
+			.message-box p {
+				color: #555;
+				margin: 0;
+			}
+
+			/* Stack trace and code outputs */
+			.code-output {
+				background: #1e1e1e;
+				border-radius: 8px;
+				padding: 20px;
+				max-height: 400px;
+				overflow-y: auto;
+				font-family: "Courier New", Consolas, Monaco, monospace;
+				font-size: 0.9em;
+				line-height: 1.5;
+				margin: 20px 0;
+			}
+
+			.code-output pre {
+				color: #ff6b6b;
+				margin: 0;
+				white-space: pre-wrap;
+				word-wrap: break-word;
+			}
+
+			.stack-trace-container {
+				background: #263238;
+				border-radius: 8px;
+				padding: 20px;
+				max-height: 350px;
+				overflow-y: auto;
+				font-family: "Courier New", Consolas, Monaco, monospace;
+				font-size: 0.9em;
+				line-height: 1.5;
+			}
+
+			/* Suggestions box */
+			.suggestions-box {
+				background: #e3f2fd;
+				border-left: 4px solid #2196f3;
+				padding: 20px;
+				border-radius: 6px;
+				margin: 20px 0;
+			}
+
+			.suggestions-box h3 {
+				color: #1a1a1a;
+				font-size: 1.1em;
+				margin-bottom: 15px;
+			}
+
+			.suggestions-box ul {
+				list-style: none;
+				padding: 0;
+			}
+
+			.suggestions-box li {
+				padding: 8px 0;
+				color: #555;
+				line-height: 1.6;
+			}
+
+			.suggestions-box li::before {
+				content: "💡";
+				margin-right: 10px;
+			}
+
+			/* ============================================
+         DIAGNOSTICS PANEL
+         ============================================ */
+			.diagnostics-panel h2 {
+				color: #1a1a1a;
+				font-size: 1.15em;
+				margin-bottom: 18px;
+				font-weight: 600;
+			}
+
+			.diagnostics-list {
+				list-style: none;
+				padding: 0;
+				margin-bottom: 20px;
+			}
+
+			.diagnostics-list li {
+				margin-bottom: 12px;
+				color: #555;
+				line-height: 1.4;
+				font-size: 0.9em;
+			}
+
+			.diagnostics-list .label {
+				display: block;
+				font-weight: 600;
+				color: #1a1a1a;
+				margin-bottom: 3px;
+				font-size: 0.85em;
+			}
+
+			.diagnostics-list .value {
+				font-family: "Courier New", monospace;
+				font-size: 0.85em;
+				color: #666;
+				word-break: break-word;
+			}
+
+			.diagnostics-list .value code {
+				background: #263238;
+				color: #aed581;
+				padding: 2px 5px;
+				border-radius: 3px;
+				font-size: 0.8em;
+			}
+
+			/* Live logs section */
+			.live-logs {
+				background: #1e1e1e;
+				border-radius: 4px;
+				padding: 12px;
+				margin-top: 18px;
+				font-family: "Courier New", monospace;
+				font-size: 0.75em;
+				color: #90a4ae;
+				max-height: 200px;
+				overflow-y: auto;
+				line-height: 1.6;
+			}
+
+			.live-logs .log-line {
+				margin-bottom: 3px;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+			}
+
+			.live-logs .timestamp {
+				color: #78909c;
+				font-size: 0.9em;
+			}
+
+			.live-logs .log-content {
+				color: #b0bec5;
+			}
+
+			/* Emergency exit commands */
+			.emergency-commands {
+				background: #fff3cd;
+				border: 1px solid #ffc107;
+				border-radius: 4px;
+				padding: 15px;
+				margin-top: 20px;
+			}
+
+			.emergency-commands h3 {
+				color: #856404;
+				font-size: 0.8em;
+				margin: 0 0 8px 0;
+				font-weight: 600;
+			}
+
+			.emergency-commands p {
+				color: #856404;
+				font-size: 0.75em;
+				margin: 0 0 8px 0;
+			}
+
+			.command-item {
+				margin-bottom: 10px;
+			}
+
+			.command-item:last-child {
+				margin-bottom: 0;
+			}
+
+			.command-comment {
+				color: #856404;
+				font-size: 0.7em;
+				margin-bottom: 3px;
+				font-style: italic;
+			}
+
+			.command-wrapper {
+				position: relative;
+			}
+
+			.command-box {
+				background: #263238;
+				color: #aed581;
+				padding: 10px 44px 10px 10px;
+				border-radius: 4px;
+				font-family: "Courier New", monospace;
+				font-size: 0.72em;
+				word-break: break-all;
+				position: relative;
+				min-height: 36px;
+				display: flex;
+				align-items: center;
+			}
+
+			.copy-button {
+				position: absolute;
+				right: 8px;
+				top: 50%;
+				transform: translateY(-50%);
+				background: #4caf50;
+				color: white;
+				border: none;
+				border-radius: 3px;
+				padding: 6px;
+				width: 28px;
+				height: 28px;
+				cursor: pointer;
+				transition: all 0.2s;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				flex-shrink: 0;
+			}
+
+			.copy-button:hover {
+				background: #45a049;
+				transform: translateY(-50%) scale(1.1);
+			}
+
+			.copy-button.copied {
+				background: #2196f3;
+			}
+
+			.copy-button svg {
+				width: 16px;
+				height: 16px;
+				fill: white;
+			}
+
+			/* ============================================
+         BOTTOM FOOTER
+         ============================================ */
+			.footer-section {
+				background: #e8e8e8;
+				padding: 20px 40px;
+				border-top: 1px solid #ccc;
+				text-align: center;
+			}
+
+			.help-text {
+				color: #666;
+				font-size: 0.9em;
+				line-height: 1.5;
+			}
+
+			.help-text strong {
+				color: #333;
+			}
+
+			/* ============================================
+         UTILITY CLASSES
+         ============================================ */
+			.hidden {
+				display: none;
+			}
+
+			.code {
+				background: #263238;
+				color: #aed581;
+				padding: 3px 8px;
+				border-radius: 4px;
+				font-family: "Courier New", Consolas, Monaco, monospace;
+				font-size: 0.9em;
+			}
+
+			.auto-refresh-indicator {
+				background: #e8f5e9;
+				border-left: 4px solid #4caf50;
+				padding: 12px 16px;
+				border-radius: 6px;
+				margin: 20px 0;
+				color: #2e7d32;
+				font-size: 0.9em;
+			}
+
+			.auto-refresh-indicator::before {
+				content: "🔄";
+				margin-right: 8px;
+			}
+
+			/* Error metadata cards */
+			.metadata-grid {
+				display: grid;
+				grid-template-columns: repeat(2, 1fr);
+				gap: 15px;
+				margin: 20px 0;
+			}
+
+			.metadata-card {
+				background: #f9f9f9;
+				padding: 15px;
+				border-radius: 6px;
+				border-left: 3px solid #2196f3;
+			}
+
+			.metadata-card .label {
+				font-weight: 600;
+				color: #1a1a1a;
+				font-size: 0.85em;
+				margin-bottom: 6px;
+			}
+
+			.metadata-card .value {
+				color: #666;
+				font-family: monospace;
+				font-size: 0.9em;
+			}
+
+			/* ============================================
+         SCROLLBARS
+         ============================================ */
+			.code-output::-webkit-scrollbar,
+			.stack-trace-container::-webkit-scrollbar,
+			.live-logs::-webkit-scrollbar {
+				width: 8px;
+			}
+
+			.code-output::-webkit-scrollbar-track,
+			.stack-trace-container::-webkit-scrollbar-track,
+			.live-logs::-webkit-scrollbar-track {
+				background: #1a1f2e;
+				border-radius: 4px;
+			}
+
+			.code-output::-webkit-scrollbar-thumb,
+			.stack-trace-container::-webkit-scrollbar-thumb,
+			.live-logs::-webkit-scrollbar-thumb {
+				background: #4a5568;
+				border-radius: 4px;
+			}
+
+			/* ============================================
+         AC1: INTERACTIVE PANEL
+         ============================================ */
+		.interactive-panel {
+			background: #f0f4ff;
+			border: 1px solid #c5cae9;
+			border-radius: 8px;
+			padding: 20px;
+			margin-top: 25px;
+		}
+
+		.interactive-panel h3 {
+			color: #1a1a1a;
+			font-size: 1.1em;
+			margin-bottom: 15px;
+			font-weight: 600;
+		}
+
+		.action-buttons {
+			display: flex;
+			gap: 10px;
+			flex-wrap: wrap;
+			margin-bottom: 18px;
+		}
+
+		.action-btn {
+			padding: 10px 18px;
+			border: none;
+			border-radius: 6px;
+			font-size: 0.9em;
+			font-weight: 500;
+			cursor: pointer;
+			transition: all 0.2s;
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+		}
+
+		.action-btn:hover {
+			transform: translateY(-1px);
+			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+		}
+
+		.action-btn:active {
+			transform: translateY(0);
+		}
+
+		.action-btn:disabled {
+			opacity: 0.6;
+			cursor: not-allowed;
+			transform: none;
+			box-shadow: none;
+		}
+
+		.action-btn.primary {
+			background: #1976d2;
+			color: white;
+		}
+
+		.action-btn.primary:hover {
+			background: #1565c0;
+		}
+
+		.action-btn.success {
+			background: #2e7d32;
+			color: white;
+		}
+
+		.action-btn.success:hover {
+			background: #1b5e20;
+		}
+
+		.action-btn.warning {
+			background: #ef6c00;
+			color: white;
+		}
+
+		.action-btn.warning:hover {
+			background: #e65100;
+		}
+
+		.action-btn.danger {
+			background: #c62828;
+			color: white;
+		}
+
+		.action-btn.danger:hover {
+			background: #b71c1c;
+		}
+
+		.action-btn.secondary {
+			background: #546e7a;
+			color: white;
+		}
+
+		.action-btn.secondary:hover {
+			background: #37474f;
+		}
+
+		.action-btn.secondary.active {
+			background: #ff9800;
+			color: white;
+		}
+
+		.btn-icon {
+			font-size: 1em;
+		}
+
+		.url-input-section {
+			margin-top: 5px;
+		}
+
+		.url-input-section label {
+			display: block;
+			font-weight: 600;
+			color: #1a1a1a;
+			font-size: 0.85em;
+			margin-bottom: 6px;
+		}
+
+		.url-input-wrapper {
+			display: flex;
+			gap: 8px;
+		}
+
+		.url-input-wrapper input {
+			flex: 1;
+			padding: 10px 14px;
+			border: 1px solid #c5cae9;
+			border-radius: 6px;
+			font-size: 0.9em;
+			font-family: "Courier New", monospace;
+			outline: none;
+			transition: border-color 0.2s;
+		}
+
+		.url-input-wrapper input:focus {
+			border-color: #1976d2;
+			box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.15);
+		}
+
+		.url-pills {
+			display: flex;
+			gap: 8px;
+			margin-top: 8px;
+			flex-wrap: wrap;
+		}
+
+		.url-pill {
+			background: #e3f2fd;
+			color: #1565c0;
+			padding: 4px 12px;
+			border-radius: 20px;
+			font-size: 0.8em;
+			cursor: pointer;
+			transition: all 0.2s;
+			font-family: "Courier New", monospace;
+			border: 1px solid #bbdefb;
+		}
+
+		.url-pill:hover {
+			background: #1976d2;
+			color: white;
+			border-color: #1976d2;
+		}
+
+		.action-status {
+			margin-top: 12px;
+			padding: 10px 14px;
+			border-radius: 6px;
+			font-size: 0.85em;
+			transition: all 0.3s;
+		}
+
+		.action-status.success {
+			background: #e8f5e9;
+			color: #2e7d32;
+			border-left: 3px solid #4caf50;
+		}
+
+		.action-status.error {
+			background: #ffebee;
+			color: #c62828;
+			border-left: 3px solid #f44336;
+		}
+
+		.action-status.info {
+			background: #e3f2fd;
+			color: #1565c0;
+			border-left: 3px solid #2196f3;
+		}
+
+		/* Footer links */
+		.footer-links {
+			display: flex;
+			gap: 15px;
+			justify-content: center;
+			margin-top: 8px;
+		}
+
+		.footer-link {
+			color: #1976d2;
+			text-decoration: none;
+			font-size: 0.85em;
+			cursor: pointer;
+			transition: color 0.2s;
+		}
+
+		.footer-link:hover {
+			color: #1565c0;
+			text-decoration: underline;
+		}
+
+		.footer-vscode-hint {
+			margin-top: 8px;
+			color: #666;
+			font-size: 0.85em;
+		}
+
+		/* ============================================
+         RESPONSIVE DESIGN
+         ============================================ */
+			@media (max-width: 900px) {
+				.content-wrapper {
+					grid-template-columns: 1fr;
+				}
+
+				.main-content {
+					border-right: none;
+					border-bottom: 1px solid #ccc;
+				}
+
+				.diagnostics-panel {
+					padding: 30px 20px;
+				}
+
+				.metadata-grid {
+					grid-template-columns: 1fr;
+				}
+			}
+
+			@media (max-width: 768px) {
+				.top-header {
+					flex-direction: column;
+					gap: 15px;
+					padding: 20px;
+				}
+
+				.main-content {
+					padding: 25px;
+				}
+			}
+		</style>
+	</head>
+
+	<body>
+		<div class="main-container">
+			<!-- Top Header -->
+			<div class="top-header">
+				<div class="header-left">
+					<h1>Local Dev Proxy</h1>
+					<p class="subtitle">Salesforce preview → Proxy → Your dev server</p>
+				</div>
+				<div class="status-badge {{STATUS_CLASS}}">{{ERROR_STATUS}}</div>
+			</div>
+
+			<!-- Two-Column Content -->
+			<div class="content-wrapper">
+				<!-- Main Content (Left) -->
+				<div class="main-content">
+					<!-- SECTION 1: Simple Error (Dev Server Down) -->
+					<div id="simple-error-section" class="{{SIMPLE_SECTION_CLASS}}">
+						<div class="content-section">
+							<h2>{{ERROR_TITLE}}</h2>
+							{{MESSAGE_CONTENT}}
+						</div>
+
+						<div class="auto-refresh-indicator {{AUTO_REFRESH_CLASS}}">{{AUTO_REFRESH_TEXT}}</div>
+
+					<div class="suggestions-box">
+						<h3>What to do next</h3>
+						<ul>
+							<li>
+								Start your dev server using: <code>npm run dev</code> or <code>yarn dev</code>
+							</li>
+							<li>Verify your dev server is running on the correct port</li>
+							<li>Check webapplication.json for the correct dev server URL</li>
+							<li>This page will auto-refresh when the server is detected</li>
+						</ul>
+					</div>
+
+					<!-- AC1: Interactive Quick Actions -->
+					<div class="interactive-panel">
+						<h3>Quick Actions</h3>
+						<div class="action-buttons">
+							<button class="action-btn primary" onclick="retryDetection()" id="btn-retry">
+								Retry Detection
+							</button>
+							<button class="action-btn success" onclick="startDevServer()" id="btn-start">
+								Start {{WORKSPACE_SCRIPT}}
+							</button>
+							<button class="action-btn warning" onclick="restartDevServer()" id="btn-restart">
+								Restart Dev Server
+							</button>
+							<button class="action-btn danger" onclick="forceKillDevServer()" id="btn-force-kill">
+								Force Kill
+							</button>
+							<button class="action-btn secondary" onclick="toggleProxyOnly()" id="btn-proxy-only">
+								Proxy-only Mode
+							</button>
+						</div>
+
+						<div class="url-input-section">
+							<label for="dev-url-input">Dev Server URL</label>
+							<div class="url-input-wrapper">
+								<input
+									type="url"
+									id="dev-url-input"
+									placeholder="http://localhost:5173"
+									value="{{DEV_SERVER_URL}}"
+								/>
+								<button class="action-btn primary" onclick="setDevUrl()">Use URL</button>
+							</div>
+							<div class="url-pills">
+								<span class="url-pill" onclick="setUrlFromPill('http://localhost:5173')"
+									>:5173</span
+								>
+								<span class="url-pill" onclick="setUrlFromPill('http://localhost:3000')"
+									>:3000</span
+								>
+								<span class="url-pill" onclick="setUrlFromPill('http://localhost:8080')"
+									>:8080</span
+								>
+								<span class="url-pill" onclick="setUrlFromPill('http://localhost:4200')"
+									>:4200</span
+								>
+							</div>
+						</div>
+
+						<div id="action-status" class="action-status hidden"></div>
+					</div>
+				</div>
+
+					<!-- SECTION 2: Runtime Error -->
+					<div id="runtime-error-section" class="{{RUNTIME_SECTION_CLASS}}">
+						<div class="content-section">
+							<h2>⚠️ Runtime Error: {{ERROR_TYPE}}</h2>
+							<div class="message-box">
+								<p>{{ERROR_MESSAGE_TEXT}}</p>
+							</div>
+						</div>
+
+						<div class="content-section">
+							<h3>Stack Trace</h3>
+							<div class="stack-trace-container">{{FORMATTED_STACK_HTML}}</div>
+						</div>
+
+						<div class="metadata-grid">
+							<div class="metadata-card">
+								<div class="label">Error Type</div>
+								<div class="value">{{ERROR_TYPE}}{{ERROR_CODE_BADGE}}</div>
+							</div>
+							<div class="metadata-card">
+								<div class="label">Severity</div>
+								<div class="value">{{SEVERITY_LABEL}}</div>
+							</div>
+							<div class="metadata-card">
+								<div class="label">Timestamp</div>
+								<div class="value">{{TIMESTAMP_FORMATTED}}</div>
+							</div>
+							<div class="metadata-card">
+								<div class="label">Process ID</div>
+								<div class="value">{{PID}}</div>
+							</div>
+						</div>
+
+						<div class="suggestions-box {{SUGGESTIONS_SECTION_CLASS}}">
+							<h3>{{SUGGESTIONS_TITLE}}</h3>
+							<ul>
+								{{SUGGESTIONS_LIST}}
+							</ul>
+						</div>
+					</div>
+
+					<!-- SECTION 3: Dev Server Error -->
+					<div id="dev-server-error-section" class="{{DEV_SERVER_SECTION_CLASS}}">
+						<div class="content-section">
+							<h2>⚠️ {{ERROR_TITLE}}</h2>
+							<div class="message-box">
+								<p>{{ERROR_MESSAGE_TEXT}}</p>
+							</div>
+						</div>
+
+						<div class="content-section">
+							<h3>Error Output</h3>
+							<div class="code-output">
+								<pre>{{STDERR_OUTPUT}}</pre>
+							</div>
+						</div>
+
+						<div class="auto-refresh-indicator {{AUTO_REFRESH_CLASS}}">{{AUTO_REFRESH_TEXT}}</div>
+
+						<div class="suggestions-box {{SUGGESTIONS_SECTION_CLASS}}">
+							<h3>{{SUGGESTIONS_TITLE}}</h3>
+							<ul>
+								{{SUGGESTIONS_LIST}}
+							</ul>
+						</div>
+					</div>
+				</div>
+
+				<!-- Diagnostics Panel (Right) -->
+				<div class="diagnostics-panel">
+					<h2>Diagnostics</h2>
+
+					<ul class="diagnostics-list">
+						<li class="{{SIMPLE_SECTION_CLASS}}">
+							<span class="label">Dev Server URL:</span>
+							<span class="value"><code>{{DEV_SERVER_URL}}</code></span>
+						</li>
+						<li class="{{SIMPLE_SECTION_CLASS}}">
+							<span class="label">Proxy URL:</span>
+							<span class="value"><code>{{PROXY_URL}}</code></span>
+						</li>
+						<li class="{{SIMPLE_SECTION_CLASS}}">
+							<span class="label">Workspace Script:</span>
+							<span class="value"><code>{{WORKSPACE_SCRIPT}}</code></span>
+						</li>
+						<li class="{{SIMPLE_SECTION_CLASS}}">
+							<span class="label">Target Org:</span>
+							<span class="value">{{ORG_TARGET}}</span>
+						</li>
+						<li class="{{SIMPLE_SECTION_CLASS}}">
+							<span class="label">Last Check:</span>
+							<span class="value">{{LAST_CHECK_TIME}}</span>
+						</li>
+
+						<li class="{{RUNTIME_SECTION_CLASS}}">
+							<span class="label">Node Version:</span>
+							<span class="value">{{NODE_VERSION}}</span>
+						</li>
+						<li class="{{RUNTIME_SECTION_CLASS}}">
+							<span class="label">Platform:</span>
+							<span class="value">{{PLATFORM}}</span>
+						</li>
+						<li class="{{RUNTIME_SECTION_CLASS}}">
+							<span class="label">Memory Usage:</span>
+							<span class="value">{{HEAP_USED_MB}} MB / {{HEAP_TOTAL_MB}} MB heap</span>
+						</li>
+						<li class="{{RUNTIME_SECTION_CLASS}}">
+							<span class="label">Process ID:</span>
+							<span class="value">{{PID}}</span>
+						</li>
+					</ul>
+
+					<div class="live-logs {{SIMPLE_SECTION_CLASS}}">
+						<div class="log-line">
+							<span class="timestamp">[{{LAST_CHECK_TIME}}]</span>
+							<span class="log-content">proxy ▶ waiting for backend...</span>
+						</div>
+						<div class="log-line">
+							<span class="timestamp">[{{LAST_CHECK_TIME}}]</span>
+							<span class="log-content">check {{DEV_SERVER_URL}} ▶ unreachable</span>
+						</div>
+						<div class="log-line">
+							<span class="timestamp">[{{LAST_CHECK_TIME}}]</span>
+							<span class="log-content">hint ▶ try "{{WORKSPACE_SCRIPT}}"</span>
+						</div>
+					</div>
+
+					<div class="live-logs {{RUNTIME_SECTION_CLASS}}">
+						<div class="log-line">
+							<span class="timestamp">[{{TIMESTAMP_FORMATTED}}]</span>
+							<span class="log-content">error ▶ {{ERROR_TYPE}} detected</span>
+						</div>
+						<div class="log-line">
+							<span class="log-content">severity ▶ {{SEVERITY_LABEL}}</span>
+						</div>
+					</div>
+
+					<!-- Emergency exit commands -->
+					<div class="emergency-commands">
+						<h3>⚠️ If Ctrl+C doesn't work</h3>
+						<p>Copy and run this command in a new terminal to force-stop the proxy:</p>
+
+						<div class="command-item">
+							<div class="command-comment">Kill all processes on port {{PROXY_PORT}}:</div>
+							<div class="command-wrapper">
+								<div class="command-box">lsof -ti:{{PROXY_PORT}} | xargs kill -9</div>
+								<button
+									class="copy-button"
+									onclick="copyCommand(this, 'lsof -ti:{{PROXY_PORT}} | xargs kill -9')"
+								>
+									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+										<path
+											d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"
+										/>
+									</svg>
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+		<script>
+			function copyCommand(button, command) {
+				const textarea = document.createElement("textarea");
+				textarea.value = command;
+				textarea.style.position = "fixed";
+				textarea.style.opacity = "0";
+				document.body.appendChild(textarea);
+				textarea.select();
+				document.execCommand("copy");
+				document.body.removeChild(textarea);
+				const originalHTML = button.innerHTML;
+				button.innerHTML =
+					'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+				button.classList.add("copied");
+				setTimeout(() => {
+					button.innerHTML = originalHTML;
+					button.classList.remove("copied");
+				}, 2000);
+			}
+
+			/* ============================================
+			   AC1: Interactive Error Page API Calls
+			   ============================================ */
+
+			function showStatus(message, type) {
+				var el = document.getElementById("action-status");
+				if (!el) return;
+				el.textContent = message;
+				el.className = "action-status " + type;
+			}
+
+			async function proxyApi(endpoint, options) {
+				try {
+					var resp = await fetch("/_proxy/" + endpoint, options || {});
+					return await resp.json();
+				} catch (err) {
+					showStatus("Request failed: " + err.message, "error");
+					return null;
+				}
+			}
+
+			async function retryDetection() {
+				var btn = document.getElementById("btn-retry");
+				btn.disabled = true;
+				btn.innerHTML = 'Checking...';
+				showStatus("Checking dev server...", "info");
+
+				var result = await proxyApi("retry", { method: "POST" });
+				btn.disabled = false;
+				btn.innerHTML = 'Retry Detection';
+
+				if (result && result.devServerStatus === "up") {
+					showStatus("Dev server detected! Reloading...", "success");
+					setTimeout(function () {
+						window.location.reload();
+					}, 1000);
+				} else {
+					showStatus("Dev server still not detected.", "error");
+				}
+			}
+
+			async function startDevServer() {
+				var btn = document.getElementById("btn-start");
+				btn.disabled = true;
+				btn.innerHTML = 'Starting...';
+				showStatus("Requesting dev server start...", "info");
+
+				var result = await proxyApi("start-dev", { method: "POST" });
+				btn.disabled = false;
+				btn.innerHTML = 'Start {{WORKSPACE_SCRIPT}}';
+
+				if (result && result.ok) {
+					showStatus(
+						"Dev server start requested. It may take a moment to become available.",
+						"success"
+					);
+					// Poll for server readiness
+					var attempts = 0;
+					var poll = setInterval(async function () {
+						attempts++;
+						var status = await proxyApi("status");
+						if (status && status.devServerStatus === "up") {
+							clearInterval(poll);
+							showStatus("Dev server is up! Reloading...", "success");
+							setTimeout(function () {
+								window.location.reload();
+							}, 1000);
+						} else if (attempts > 30) {
+							clearInterval(poll);
+							showStatus(
+								"Dev server hasn't come up yet. Check terminal for details.",
+								"error"
+							);
+						}
+					}, 2000);
+				} else {
+					showStatus("Failed to start dev server.", "error");
+				}
+			}
+
+			async function restartDevServer() {
+				var btn = document.getElementById("btn-restart");
+				btn.disabled = true;
+				btn.innerHTML = 'Restarting...';
+				showStatus("Requesting dev server restart...", "info");
+
+				var result = await proxyApi("restart", { method: "POST" });
+				btn.disabled = false;
+				btn.innerHTML = 'Restart Dev Server';
+
+				if (result && result.ok) {
+					showStatus(
+						"Dev server restart requested. Waiting for it to come back up...",
+						"success"
+					);
+					// Poll for server readiness
+					var attempts = 0;
+					var poll = setInterval(async function () {
+						attempts++;
+						var status = await proxyApi("status");
+						if (status && status.devServerStatus === "up") {
+							clearInterval(poll);
+							showStatus(
+								"Dev server is back up! Reloading...",
+								"success"
+							);
+							setTimeout(function () {
+								window.location.reload();
+							}, 1000);
+						} else if (attempts > 30) {
+							clearInterval(poll);
+							showStatus(
+								"Dev server hasn't come back up. Check terminal for details.",
+								"error"
+							);
+						}
+					}, 2000);
+				} else {
+					showStatus("Failed to restart dev server.", "error");
+				}
+			}
+
+			async function forceKillDevServer() {
+				var btn = document.getElementById("btn-force-kill");
+				btn.disabled = true;
+				btn.innerHTML = 'Killing...';
+				showStatus("Force-killing dev server...", "info");
+
+				var result = await proxyApi("force-kill", { method: "POST" });
+				btn.disabled = false;
+				btn.innerHTML = 'Force Kill';
+
+				if (result && result.ok) {
+					showStatus(
+						"Dev server force-killed. You can start it again with the button above.",
+						"success"
+					);
+				} else {
+					showStatus("Failed to force-kill dev server.", "error");
+				}
+			}
+
+			async function toggleProxyOnly() {
+				var btn = document.getElementById("btn-proxy-only");
+				showStatus("Toggling proxy-only mode...", "info");
+
+				var result = await proxyApi("proxy-only", { method: "POST" });
+				if (result && result.ok) {
+					if (result.proxyOnlyMode) {
+						btn.classList.add("active");
+						btn.innerHTML = 'Proxy-only: ON';
+						showStatus(
+							"Proxy-only mode enabled. Salesforce APIs are available. Reloading...",
+							"success"
+						);
+						setTimeout(function () {
+							window.location.reload();
+						}, 1500);
+					} else {
+						btn.classList.remove("active");
+						btn.innerHTML = 'Proxy-only Mode';
+						showStatus("Proxy-only mode disabled.", "info");
+					}
+				}
+			}
+
+			async function setDevUrl() {
+				var input = document.getElementById("dev-url-input");
+				var url = input.value.trim();
+				if (!url) {
+					showStatus("Please enter a URL.", "error");
+					return;
+				}
+
+				showStatus("Updating dev server URL...", "info");
+				var result = await proxyApi("set-url", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ url: url }),
+				});
+
+				if (result && result.ok) {
+					showStatus(
+						"Dev server URL updated to: " + url + ". Retrying detection...",
+						"success"
+					);
+					setTimeout(retryDetection, 1000);
+				} else {
+					showStatus("Failed to update URL.", "error");
+				}
+			}
+
+			function setUrlFromPill(url) {
+				var input = document.getElementById("dev-url-input");
+				if (input) {
+					input.value = url;
+				}
+			}
+
+			/* postMessage bridge for VS Code webview */
+			function postToHost(type, data) {
+				try {
+					if (window.parent !== window) {
+						window.parent.postMessage({ type: type, data: data }, "*");
+					}
+				} catch (e) {
+					/* ignore */
+				}
+			}
+		</script>
+
+		<!-- Footer -->
+		<div class="footer-section">
+			<p class="help-text">
+				Salesforce Web App Development Proxy &nbsp;•&nbsp; Press <strong>Ctrl+C</strong> in the
+				terminal to stop the proxy
+			</p>
+			<div class="footer-links">
+				<a class="footer-link footer-link-vscode" onclick="postToHost('openSettings')" title="Open VS Code settings (only in Live Preview)"
+					>Open Settings</a
+				>
+				<a class="footer-link footer-link-vscode" onclick="postToHost('viewLogs')" title="Show output channel (only in Live Preview)"
+					>View Logs</a
+				>
+				<a
+					class="footer-link"
+					href="https://developer.salesforce.com/docs/platform/salesforce-live-preview"
+					target="_blank"
+					>Docs</a
+				>
+			</div>
+			<p class="footer-vscode-hint hidden" id="footer-vscode-hint">Open Settings and View Logs work when using Live Preview inside VS Code.</p>
+		</div>
+		<script>
+			(function () {
+				var inIframe = window.parent !== window;
+				var vscodeLinks = document.querySelectorAll('.footer-link-vscode');
+				var hint = document.getElementById('footer-vscode-hint');
+				if (!inIframe) {
+					vscodeLinks.forEach(function (el) {
+						el.style.opacity = '0.6';
+						el.style.pointerEvents = 'auto';
+						el.onclick = function (e) {
+							e.preventDefault();
+							hint.classList.remove('hidden');
+							setTimeout(function () {
+								hint.classList.add('hidden');
+							}, 4000);
+						};
+					});
+				}
+			})();
+		</script>
+		</div>
+	</body>
+</html>
