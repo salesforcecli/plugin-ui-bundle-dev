@@ -148,20 +148,6 @@ export class DevServerManager extends EventEmitter {
   }
 
   /**
-   * Static helper to remove a PID file at a given cwd.
-   */
-  private static removePidFileAt(cwd: string): void {
-    try {
-      const pidPath = join(cwd, DevServerManager.PID_DIR, DevServerManager.PID_FILENAME);
-      if (existsSync(pidPath)) {
-        unlinkSync(pidPath);
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  /**
    * AC2: Kill an orphaned dev server process from a previous session.
    * Call this before starting a new dev server.
    * Returns true if an orphan was found and killed.
@@ -208,6 +194,20 @@ export class DevServerManager extends EventEmitter {
     // Clean up the PID file regardless (stale file)
     DevServerManager.removePidFileAt(cwd);
     return false;
+  }
+
+  /**
+   * Static helper to remove a PID file at a given cwd.
+   */
+  private static removePidFileAt(cwd: string): void {
+    try {
+      const pidPath = join(cwd, DevServerManager.PID_DIR, DevServerManager.PID_FILENAME);
+      if (existsSync(pidPath)) {
+        unlinkSync(pidPath);
+      }
+    } catch {
+      // ignore
+    }
   }
 
   /**
