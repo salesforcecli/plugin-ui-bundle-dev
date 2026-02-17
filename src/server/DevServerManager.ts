@@ -15,10 +15,13 @@
  */
 
 import { EventEmitter } from 'node:events';
-import { spawn, type ChildProcess } from 'node:child_process';
+import { spawn, type ChildProcess, type SpawnOptions } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { Logger, SfError } from '@salesforce/core';
 import type { DevServerOptions } from '../config/types.js';
 import { DevServerErrorParser } from '../error/DevServerErrorParser.js';
+import { parseCommand, resolveDirectDevCommand } from './resolveDevCommand.js';
 
 /**
  * URL detection patterns for various dev servers
@@ -103,6 +106,10 @@ type DevServerConfig = {
  * ```
  */
 export class DevServerManager extends EventEmitter {
+  // AC2: PID file path for orphaned-process recovery (CLI / Code Builder) — static before instance per member-ordering
+  private static readonly PID_DIR = '.sf';
+  private static readonly PID_FILENAME = 'webapp-dev-server.pid';
+
   private options: DevServerConfig;
   private process: ChildProcess | null = null;
   private detectedUrl: string | null = null;
@@ -124,21 +131,83 @@ export class DevServerManager extends EventEmitter {
   }
 
   /**
-   * Parses a command string into executable and arguments
-   *
-   * Handles common patterns like:
-   * - "npm run dev"
-   * - "yarn dev"
-   * - "pnpm dev"
-   * - "node server.js"
-   *
-   * @param command The command string to parse
-   * @returns Array with executable as first element and args as remaining
+   * Read saved PID from the PID file.
+   * Returns null if no PID file exists or it's unreadable.
    */
-  private static parseCommand(command: string): string[] {
-    // Split by spaces, but respect quoted strings
-    const parts = command.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) ?? [command];
-    return parts.map((part) => part.replace(/^["']|["']$/g, ''));
+  public static readSavedPid(cwd: string): { pid: number; url: string | null; timestamp: number } | null {
+    try {
+      const pidPath = join(cwd, DevServerManager.PID_DIR, DevServerManager.PID_FILENAME);
+      if (!existsSync(pidPath)) {
+        return null;
+      }
+      const raw = readFileSync(pidPath, 'utf-8');
+      return JSON.parse(raw) as { pid: number; url: string | null; timestamp: number };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * AC2: Kill an orphaned dev server process from a previous session.
+   * Call this before starting a new dev server.
+   * Returns true if an orphan was found and killed.
+   */
+  public static async cleanupOrphanedProcess(cwd: string, logger?: Logger): Promise<boolean> {
+    const saved = DevServerManager.readSavedPid(cwd);
+    if (!saved) {
+      return false;
+    }
+
+    logger?.debug(`Found saved PID file: PID=${saved.pid}, URL=${String(saved.url ?? 'null')}`);
+
+    try {
+      // Signal 0 just checks if the process exists
+      process.kill(saved.pid, 0);
+
+      // Process is alive — kill it
+      logger?.warn(`Killing orphaned dev server process: PID=${saved.pid}`);
+      process.kill(saved.pid, 'SIGTERM');
+
+      // Wait briefly for termination, then force kill if needed
+      await new Promise<void>((resolve) => {
+        setTimeout(() => {
+          try {
+            process.kill(saved.pid, 0);
+            // Still alive — force kill
+            logger?.warn(`Orphaned process still alive, sending SIGKILL: PID=${saved.pid}`);
+            process.kill(saved.pid, 'SIGKILL');
+          } catch {
+            // Process gone — good
+          }
+          resolve();
+        }, 2000);
+      });
+
+      // Clean up PID file after killing the orphan
+      DevServerManager.removePidFileAt(cwd);
+      return true;
+    } catch {
+      // ESRCH: process doesn't exist — stale PID file
+      logger?.debug(`Saved PID ${saved.pid} no longer exists, cleaning up stale file`);
+    }
+
+    // Clean up the PID file regardless (stale file)
+    DevServerManager.removePidFileAt(cwd);
+    return false;
+  }
+
+  /**
+   * Static helper to remove a PID file at a given cwd.
+   */
+  private static removePidFileAt(cwd: string): void {
+    try {
+      const pidPath = join(cwd, DevServerManager.PID_DIR, DevServerManager.PID_FILENAME);
+      if (existsSync(pidPath)) {
+        unlinkSync(pidPath);
+      }
+    } catch {
+      // ignore
+    }
   }
 
   /**
@@ -187,6 +256,13 @@ export class DevServerManager extends EventEmitter {
   }
 
   /**
+   * Get the PID of the running dev server process (if any).
+   */
+  public getPid(): number | undefined {
+    return this.process?.pid ?? undefined;
+  }
+
+  /**
    * Starts the dev server process
    *
    * If an explicit URL is provided, skips process spawning and immediately
@@ -218,17 +294,28 @@ export class DevServerManager extends EventEmitter {
 
     this.logger.debug(`Starting dev server with command: ${this.options.command}`);
 
-    // Parse command into executable and arguments
-    const [cmd, ...args] = DevServerManager.parseCommand(this.options.command);
+    // Prefer running the dev script binary directly to avoid npm workspace resolution
+    // (avoids npm workspace resolution issues when project is inside a monorepo)
+    const direct = resolveDirectDevCommand(this.options.cwd, this.options.command);
+    const spawnOpts: SpawnOptions = {
+      cwd: this.options.cwd,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, FORCE_COLOR: '0' },
+    };
+    let cmd: string;
+    let args: string[];
+    if (direct) {
+      cmd = direct.cmd;
+      args = direct.args;
+      this.logger.debug(`Using direct binary: ${cmd} ${args.join(' ')}`);
+    } else {
+      [cmd, ...args] = parseCommand(this.options.command);
+      spawnOpts.shell = true;
+    }
 
     // Spawn the dev server process
     try {
-      this.process = spawn(cmd, args, {
-        cwd: this.options.cwd,
-        shell: true,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env, FORCE_COLOR: '0' }, // Disable colors for easier parsing
-      });
+      this.process = spawn(cmd, args, spawnOpts);
     } catch (error) {
       const sfError =
         error instanceof Error ? error : new Error(error instanceof Object ? JSON.stringify(error) : String(error));
@@ -262,6 +349,9 @@ export class DevServerManager extends EventEmitter {
     }
 
     this.logger.debug('Stopping dev server process...');
+
+    // AC2: Remove PID file on clean stop
+    this.removePidFile();
 
     // Clear startup timer
     if (this.startupTimer) {
@@ -297,6 +387,46 @@ export class DevServerManager extends EventEmitter {
         }
       }, 3000);
     });
+  }
+
+  /**
+   * Get the PID file path. Uses the project root's .sf/ directory.
+   */
+  private getPidFilePath(): string {
+    return join(this.options.cwd, DevServerManager.PID_DIR, DevServerManager.PID_FILENAME);
+  }
+
+  /**
+   * Save the dev server PID to a file on disk.
+   * This allows orphan cleanup if the CLI process crashes or Code Builder disconnects.
+   */
+  private savePidFile(pid: number): void {
+    try {
+      const dir = join(this.options.cwd, DevServerManager.PID_DIR);
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+      }
+      const pidData = JSON.stringify({ pid, url: this.detectedUrl, timestamp: Date.now() });
+      writeFileSync(this.getPidFilePath(), pidData, 'utf-8');
+      this.logger.debug(`Saved dev server PID file: ${pid}`);
+    } catch (error) {
+      this.logger.warn(`Failed to write PID file: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Remove the PID file (on clean shutdown).
+   */
+  private removePidFile(): void {
+    try {
+      const pidPath = this.getPidFilePath();
+      if (existsSync(pidPath)) {
+        unlinkSync(pidPath);
+        this.logger.debug('Removed dev server PID file');
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to remove PID file: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   /**
@@ -393,6 +523,11 @@ export class DevServerManager extends EventEmitter {
     // Clear stderr buffer on successful start
     this.stderrBuffer = [];
 
+    // AC2: Save PID to disk for orphan recovery
+    if (this.process?.pid) {
+      this.savePidFile(this.process.pid);
+    }
+
     this.logger.debug(`Dev server detected at: ${url}`);
     this.emit('ready', url);
   }
@@ -413,6 +548,9 @@ export class DevServerManager extends EventEmitter {
       clearTimeout(this.startupTimer);
       this.startupTimer = null;
     }
+
+    // AC2: Remove PID file on exit
+    this.removePidFile();
 
     // Emit exit event
     this.emit('exit', code, signal);

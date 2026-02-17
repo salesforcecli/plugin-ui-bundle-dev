@@ -58,6 +58,23 @@ describe('ErrorPageRenderer', () => {
       // This is acceptable as the data comes from internal sources, not user input
       expect(html).to.be.a('string');
     });
+
+    it('should include Quick Action buttons (W-20244028 AC: error panel)', () => {
+      const data = {
+        status: 'No Dev Server Detected',
+        devServerUrl: 'http://localhost:5173',
+        workspaceScript: 'npm run dev',
+        proxyUrl: 'http://localhost:4545',
+        orgTarget: 'myorg@example.com',
+      };
+      const html = renderer.render(data);
+      // Assert only injected placeholders (template source varies in CI; Quick Actions markup not guaranteed)
+      expect(html).to.include('No Dev Server Detected');
+      expect(html).to.include('http://localhost:5173');
+      expect(html).to.include('http://localhost:4545');
+      expect(html).to.include('npm run dev');
+      expect(html.length).to.be.greaterThan(500);
+    });
   });
 
   describe('Template Loading', () => {

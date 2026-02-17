@@ -139,6 +139,13 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
       // The webapp directory path (where the webapp lives)
       const webappDir = selectedWebapp.path;
 
+      // AC2: Clean up any orphaned dev server from a previous session
+      // Must happen after webapp discovery so we know the correct directory for the PID file
+      const killedOrphan = await DevServerManager.cleanupOrphanedProcess(webappDir, this.logger);
+      if (killedOrphan) {
+        this.log('Cleaned up orphaned dev server from a previous session.');
+      }
+
       this.logger.debug(`Using webapp: ${selectedWebapp.name} at ${selectedWebapp.relativePath}`);
 
       // Step 2: Handle manifest-based vs no-manifest webapps
@@ -315,6 +322,109 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
         this.log(messages.getMessage('info.start-dev-server-hint'));
       });
 
+      // AC1+AC4: Listen for "restart dev server" requests from the interactive error page
+      this.proxyServer.on('restartDevServer', () => {
+        this.logger?.info('Received restartDevServer request from error page');
+        const doRestart = async (): Promise<void> => {
+          // Stop existing dev server
+          if (this.devServerManager) {
+            this.log('Stopping current dev server for restart...');
+            await this.devServerManager.stop();
+            this.devServerManager = null;
+          }
+          // Small delay for port release
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          // Re-create and start
+          const devCommand = manifest?.dev?.command ?? DEFAULT_DEV_COMMAND;
+          this.devServerManager = new DevServerManager({
+            command: devCommand,
+            cwd: webappDir,
+          });
+          this.devServerManager.on('ready', (readyUrl: string) => {
+            this.logger?.debug(`Dev server restarted at: ${readyUrl}`);
+            this.proxyServer?.clearActiveDevServerError();
+            this.proxyServer?.updateDevServerUrl(readyUrl);
+          });
+          this.devServerManager.on('error', (error: SfError | DevServerError) => {
+            if (
+              'stderrLines' in error &&
+              Array.isArray(error.stderrLines) &&
+              'title' in error &&
+              'type' in error
+            ) {
+              this.proxyServer?.setActiveDevServerError(error);
+            }
+          });
+          this.devServerManager.on('exit', () => {
+            this.logger?.debug('Restarted dev server stopped');
+          });
+          this.devServerManager.start();
+          this.log('Dev server restart initiated from error page.');
+        };
+        doRestart().catch((err) => {
+          this.logger?.error(`Failed to restart dev server: ${err instanceof Error ? err.message : String(err)}`);
+        });
+      });
+
+      // AC4: Listen for "force kill dev server" requests from the interactive error page
+      this.proxyServer.on('forceKillDevServer', () => {
+        this.logger?.info('Received forceKillDevServer request from error page');
+        if (this.devServerManager) {
+          const pid = this.devServerManager.getPid();
+          if (pid) {
+            try {
+              process.kill(pid, 'SIGKILL');
+              this.logger?.warn(`Force-killed dev server process: PID=${pid}`);
+              this.log(`Dev server force-killed (PID: ${pid}).`);
+            } catch (err) {
+              this.logger?.error(
+                `Failed to force-kill PID=${pid}: ${err instanceof Error ? err.message : String(err)}`
+              );
+            }
+          }
+          this.devServerManager = null;
+        }
+      });
+
+      // AC1: Listen for "start dev server" requests from the interactive error page
+      this.proxyServer.on('startDevServer', () => {
+        this.logger?.info('Received startDevServer request from error page');
+        if (!this.devServerManager) {
+          const devCommand = manifest?.dev?.command ?? DEFAULT_DEV_COMMAND;
+          this.devServerManager = new DevServerManager({
+            command: devCommand,
+            cwd: webappDir,
+          });
+
+          this.devServerManager.on('ready', (readyUrl: string) => {
+            this.logger?.debug(`Dev server ready at: ${readyUrl}`);
+            this.proxyServer?.clearActiveDevServerError();
+            this.proxyServer?.updateDevServerUrl(readyUrl);
+          });
+
+          this.devServerManager.on('error', (error: SfError | DevServerError) => {
+            if (
+              'stderrLines' in error &&
+              Array.isArray(error.stderrLines) &&
+              'title' in error &&
+              'type' in error
+            ) {
+              this.proxyServer?.setActiveDevServerError(error);
+            }
+            this.logger?.debug(`Dev server error: ${error.message}`);
+          });
+
+          this.devServerManager.on('exit', () => {
+            this.logger?.debug('Dev server stopped');
+          });
+
+          this.devServerManager.start();
+          this.log('Dev server start initiated from error page.');
+        } else {
+          this.logger?.debug('Dev server manager already exists, ignoring start request');
+        }
+      });
+
       // Step 5: Check if dev server is reachable (non-blocking warning)
       if (devServerUrl) {
         await this.checkDevServerHealth(devServerUrl);
@@ -373,8 +483,15 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
         throw error;
       }
 
-      // Wrap unknown errors
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      // Wrap unknown errors (include plain objects e.g. DevServerError with .message/.title)
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : typeof error === 'object' && error !== null && 'message' in error
+            ? String((error as { message?: unknown }).message)
+            : typeof error === 'object' && error !== null && 'title' in error
+              ? String((error as { title?: unknown }).title)
+              : String(error);
       throw new SfError(`Failed to start webapp dev command: ${errorMessage}`, 'UnexpectedError', [
         'This is an unexpected error',
         'Please try again',

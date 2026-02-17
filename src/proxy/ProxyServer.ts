@@ -62,6 +62,9 @@ export class ProxyServer extends EventEmitter {
   private proxyHandler: ProxyHandler | null = null;
   private orgInfo: OrgInfo | undefined;
 
+  // AC1: Proxy-only mode (skip proxying to dev server, use proxy for Salesforce API only)
+  private proxyOnlyMode = false;
+
   // Constructor
   public constructor(config: ProxyServerConfig) {
     super();
@@ -347,10 +350,130 @@ export class ProxyServer extends EventEmitter {
     }
   }
 
+  /**
+   * AC1: Handle internal proxy API requests from the interactive error page.
+   * Returns true if the request was handled, false if it should continue to the normal flow.
+   */
+  private async handleProxyApi(req: IncomingMessage, res: ServerResponse, url: string): Promise<boolean> {
+    if (!url.startsWith('/_proxy/')) {
+      return false;
+    }
+
+    const setCorsHeaders = (): void => {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    };
+
+    if (req.method === 'OPTIONS') {
+      setCorsHeaders();
+      res.writeHead(204);
+      res.end();
+      return true;
+    }
+
+    setCorsHeaders();
+
+    const sendJson = (statusCode: number, data: Record<string, unknown>): void => {
+      res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+    };
+
+    const readBody = (): Promise<string> =>
+      new Promise((resolve) => {
+        let body = '';
+        req.on('data', (chunk: Buffer) => {
+          body += chunk.toString();
+        });
+        req.on('end', () => resolve(body));
+      });
+
+    try {
+      switch (url) {
+        case '/_proxy/status': {
+          sendJson(200, {
+            devServerStatus: this.devServerStatus,
+            devServerUrl: this.config.devServerUrl,
+            proxyOnlyMode: this.proxyOnlyMode,
+            proxyUrl: this.getProxyUrl(),
+            workspaceScript: this.workspaceScript,
+            activeError: this.activeDevServerError
+              ? { title: this.activeDevServerError.title, message: this.activeDevServerError.message }
+              : null,
+          });
+          return true;
+        }
+
+        case '/_proxy/set-url': {
+          const body = await readBody();
+          const parsed = JSON.parse(body) as { url?: string };
+          if (!parsed.url) {
+            sendJson(400, { error: 'Missing "url" in request body' });
+            return true;
+          }
+          this.logger.info(`[Proxy API] Updating dev server URL to: ${parsed.url}`);
+          this.updateDevServerUrl(parsed.url);
+          sendJson(200, { ok: true, devServerUrl: parsed.url });
+          return true;
+        }
+
+        case '/_proxy/retry': {
+          this.logger.info('[Proxy API] Retrying dev server detection');
+          await this.checkDevServerHealth();
+          sendJson(200, { ok: true, devServerStatus: this.devServerStatus });
+          return true;
+        }
+
+        case '/_proxy/start-dev': {
+          this.logger.info('[Proxy API] Request to start dev server');
+          this.emit('startDevServer');
+          sendJson(200, { ok: true, message: 'Dev server start requested' });
+          return true;
+        }
+
+        case '/_proxy/proxy-only': {
+          this.proxyOnlyMode = !this.proxyOnlyMode;
+          this.logger.info(`[Proxy API] Proxy-only mode: ${this.proxyOnlyMode ? 'ON' : 'OFF'}`);
+          sendJson(200, { ok: true, proxyOnlyMode: this.proxyOnlyMode });
+          return true;
+        }
+
+        case '/_proxy/restart': {
+          this.logger.info('[Proxy API] Request to restart dev server');
+          this.emit('restartDevServer');
+          sendJson(200, { ok: true, message: 'Dev server restart requested' });
+          return true;
+        }
+
+        case '/_proxy/force-kill': {
+          this.logger.info('[Proxy API] Request to force-kill dev server');
+          this.emit('forceKillDevServer');
+          sendJson(200, { ok: true, message: 'Dev server force-kill requested' });
+          return true;
+        }
+
+        default: {
+          sendJson(404, { error: `Unknown proxy API endpoint: ${url}` });
+          return true;
+        }
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`[Proxy API] Error handling ${url}: ${errorMessage}`);
+      sendJson(500, { error: errorMessage });
+      return true;
+    }
+  }
+
   private async handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const url = req.url ?? '/';
     const method = req.method ?? 'GET';
     this.logger.debug(`[${method}] ${url}`);
+
+    // AC1: Handle internal proxy API requests first
+    if (await this.handleProxyApi(req, res, url)) {
+      return;
+    }
 
     if (this.activeDevServerError) {
       this.logger.debug('Active dev server error - serving error page');
@@ -358,7 +481,8 @@ export class ProxyServer extends EventEmitter {
       return;
     }
 
-    if (this.devServerStatus === 'down' && !url.includes('/services')) {
+    // AC1: In proxy-only mode, skip the dev server "down" check
+    if (this.devServerStatus === 'down' && !this.proxyOnlyMode && !url.includes('/services')) {
       this.serveErrorPage(res);
       return;
     }

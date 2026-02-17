@@ -27,15 +27,39 @@ export type ErrorPageData = {
 
 /**
  * Renders HTML error pages for browser display when dev server is unavailable
- * or when runtime errors occur
- *
- * Uses a single template with conditional sections for all error types
+ * or when runtime errors occur. Template is consumed from @salesforce/webapp-experimental
+ * (W-21111977: single source of truth in webapps proxy package).
  */
 export class ErrorPageRenderer {
   private template: string;
 
   public constructor() {
-    this.template = getErrorPageTemplate();
+    try {
+      this.template = getErrorPageTemplate();
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.warn('[ErrorPageRenderer] Failed to load template from package, using minimal fallback:', error);
+      this.template = ErrorPageRenderer.getMinimalFallbackTemplate();
+    }
+  }
+
+  /** Minimal HTML with all placeholders so render/renderDevServerError still work if package template is missing */
+  private static getMinimalFallbackTemplate(): string {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>{{PAGE_TITLE}}</title>{{META_REFRESH}}</head>
+<body>
+  <h1>{{ERROR_TITLE}}</h1>
+  <p class="{{STATUS_CLASS}}">{{ERROR_STATUS}}</p>
+  <div class="{{SIMPLE_SECTION_CLASS}}">{{MESSAGE_CONTENT}}</div>
+  <div class="{{RUNTIME_SECTION_CLASS}}"></div>
+  <div class="{{DEV_SERVER_SECTION_CLASS}}"><pre>{{ERROR_MESSAGE_TEXT}}</pre><pre>{{STDERR_OUTPUT}}</pre><h2>{{SUGGESTIONS_TITLE}}</h2><ul>{{SUGGESTIONS_LIST}}</ul></div>
+  <div class="{{SUGGESTIONS_SECTION_CLASS}}"></div>
+  <div class="quick-actions"><h3>Quick Actions</h3><button type="button" class="action-btn" data-proxy-action="retry">Retry Detection</button></div>
+  <p class="{{AUTO_REFRESH_CLASS}}">{{AUTO_REFRESH_TEXT}}</p>
+  <p>Dev: {{DEV_SERVER_URL}} | Proxy: {{PROXY_URL}} | Port: {{PROXY_PORT}} | Org: {{ORG_TARGET}} | Script: {{WORKSPACE_SCRIPT}} | Last: {{LAST_CHECK_TIME}}</p>
+</body>
+</html>`;
   }
 
   /**

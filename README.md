@@ -123,6 +123,15 @@ sf plugins link .
 sf plugins
 ```
 
+**Build when nested in another repo (e.g. monorepo):** If `yarn build` or `npm run compile` fails with workspace name conflicts, compile manually. The error page template is consumed from `@salesforce/webapp-experimental` at runtime (W-21111977); no copy step needed.
+
+```bash
+./node_modules/.bin/tsc -p . --pretty
+sf plugins link .
+```
+
+See **[CODE_MAP.md](CODE_MAP.md)** for where AC1–AC4 and the iframe/postMessage flow live.
+
 ## Commands
 
 ### `sf webapp dev`
