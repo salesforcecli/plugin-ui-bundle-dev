@@ -337,7 +337,7 @@ export class DevServerManager extends EventEmitter {
     this.logger.debug(`Starting dev server with command: ${this.options.command}`);
 
     // Prefer running the dev script binary directly to avoid npm workspace resolution
-    // (e.g. "multiple workspaces with the same name" when project is under a monorepo)
+    // (avoids npm workspace resolution issues when project is inside a monorepo)
     const direct = resolveDirectDevCommand(this.options.cwd, this.options.command);
     const spawnOpts: SpawnOptions = {
       cwd: this.options.cwd,

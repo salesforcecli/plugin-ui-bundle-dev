@@ -28,8 +28,8 @@ export function parseCommand(command: string): string[] {
 
 /**
  * When command is "npm run dev" (or "yarn dev"), resolve to the webapp's dev script
- * binary under node_modules/.bin to avoid npm workspace resolution (e.g. VC4 monorepo
- * "multiple workspaces with the same name" conflict).
+ * binary under node_modules/.bin to avoid npm workspace resolution issues when the
+ * project lives inside a monorepo (e.g. "multiple workspaces with the same name").
  * Returns null to fall back to the original command.
  */
 export function resolveDirectDevCommand(

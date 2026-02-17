@@ -14,13 +14,8 @@
  * limitations under the License.
  */
 
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { getErrorPageTemplate } from '@salesforce/webapp-experimental/proxy';
 import type { DevServerError } from '../config/types.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export type ErrorPageData = {
   status: string;
@@ -32,25 +27,19 @@ export type ErrorPageData = {
 
 /**
  * Renders HTML error pages for browser display when dev server is unavailable
- * or when runtime errors occur
- *
- * Uses a single template with conditional sections for all error types
+ * or when runtime errors occur. Template is consumed from @salesforce/webapp-experimental
+ * (W-21111977: single source of truth in webapps proxy package).
  */
 export class ErrorPageRenderer {
   private template: string;
 
   public constructor() {
-    // Prefer plugin's own template (full Quick Actions: Retry, Start npm run dev, Restart, Force Kill, Proxy-only, URL)
-    const localPath = join(__dirname, 'error-page.html');
     try {
-      this.template = readFileSync(localPath, 'utf-8');
-    } catch {
-      try {
-        this.template = getErrorPageTemplate();
-      } catch {
-        console.warn('[ErrorPageRenderer] Using minimal fallback template.');
-        this.template = ErrorPageRenderer.getMinimalFallbackTemplate();
-      }
+      this.template = getErrorPageTemplate();
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.warn('[ErrorPageRenderer] Failed to load template from package, using minimal fallback:', error);
+      this.template = ErrorPageRenderer.getMinimalFallbackTemplate();
     }
   }
 
