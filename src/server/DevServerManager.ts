@@ -106,6 +106,10 @@ type DevServerConfig = {
  * ```
  */
 export class DevServerManager extends EventEmitter {
+  // AC2: PID file path for orphaned-process recovery (CLI / Code Builder) — static before instance per member-ordering
+  private static readonly PID_DIR = '.sf';
+  private static readonly PID_FILENAME = 'webapp-dev-server.pid';
+
   private options: DevServerConfig;
   private process: ChildProcess | null = null;
   private detectedUrl: string | null = null;
@@ -114,10 +118,6 @@ export class DevServerManager extends EventEmitter {
   private readonly logger: Logger;
   private stderrBuffer: string[] = []; // Buffer to store stderr lines for error parsing
   private readonly maxStderrLines = 100; // Keep last 100 lines
-
-  // AC2: PID file path for orphaned-process recovery (CLI / Code Builder)
-  private static readonly PID_DIR = '.sf';
-  private static readonly PID_FILENAME = 'webapp-dev-server.pid';
 
   /**
    * Creates a new DevServerManager instance
@@ -128,48 +128,6 @@ export class DevServerManager extends EventEmitter {
     super();
     this.options = { ...DEFAULT_OPTIONS, ...options };
     this.logger = Logger.childFromRoot('DevServerManager');
-  }
-
-  // --- AC2: PID file persistence (for CLI / direct browser path) ---
-
-  /**
-   * Get the PID file path. Uses the project root's .sf/ directory.
-   */
-  private getPidFilePath(): string {
-    return join(this.options.cwd, DevServerManager.PID_DIR, DevServerManager.PID_FILENAME);
-  }
-
-  /**
-   * Save the dev server PID to a file on disk.
-   * This allows orphan cleanup if the CLI process crashes or Code Builder disconnects.
-   */
-  private savePidFile(pid: number): void {
-    try {
-      const dir = join(this.options.cwd, DevServerManager.PID_DIR);
-      if (!existsSync(dir)) {
-        mkdirSync(dir, { recursive: true });
-      }
-      const pidData = JSON.stringify({ pid, url: this.detectedUrl, timestamp: Date.now() });
-      writeFileSync(this.getPidFilePath(), pidData, 'utf-8');
-      this.logger.debug(`Saved dev server PID file: ${pid}`);
-    } catch (error) {
-      this.logger.warn(`Failed to write PID file: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-
-  /**
-   * Remove the PID file (on clean shutdown).
-   */
-  private removePidFile(): void {
-    try {
-      const pidPath = this.getPidFilePath();
-      if (existsSync(pidPath)) {
-        unlinkSync(pidPath);
-        this.logger.debug('Removed dev server PID file');
-      }
-    } catch (error) {
-      this.logger.warn(`Failed to remove PID file: ${error instanceof Error ? error.message : String(error)}`);
-    }
   }
 
   /**
@@ -214,7 +172,7 @@ export class DevServerManager extends EventEmitter {
       return false;
     }
 
-    logger?.debug(`Found saved PID file: PID=${saved.pid}, URL=${saved.url}`);
+    logger?.debug(`Found saved PID file: PID=${saved.pid}, URL=${String(saved.url ?? 'null')}`);
 
     try {
       // Signal 0 just checks if the process exists
@@ -250,13 +208,6 @@ export class DevServerManager extends EventEmitter {
     // Clean up the PID file regardless (stale file)
     DevServerManager.removePidFileAt(cwd);
     return false;
-  }
-
-  /**
-   * Get the PID of the running dev server process (if any).
-   */
-  public getPid(): number | undefined {
-    return this.process?.pid ?? undefined;
   }
 
   /**
@@ -302,6 +253,13 @@ export class DevServerManager extends EventEmitter {
     }
 
     return null;
+  }
+
+  /**
+   * Get the PID of the running dev server process (if any).
+   */
+  public getPid(): number | undefined {
+    return this.process?.pid ?? undefined;
   }
 
   /**
@@ -429,6 +387,46 @@ export class DevServerManager extends EventEmitter {
         }
       }, 3000);
     });
+  }
+
+  /**
+   * Get the PID file path. Uses the project root's .sf/ directory.
+   */
+  private getPidFilePath(): string {
+    return join(this.options.cwd, DevServerManager.PID_DIR, DevServerManager.PID_FILENAME);
+  }
+
+  /**
+   * Save the dev server PID to a file on disk.
+   * This allows orphan cleanup if the CLI process crashes or Code Builder disconnects.
+   */
+  private savePidFile(pid: number): void {
+    try {
+      const dir = join(this.options.cwd, DevServerManager.PID_DIR);
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+      }
+      const pidData = JSON.stringify({ pid, url: this.detectedUrl, timestamp: Date.now() });
+      writeFileSync(this.getPidFilePath(), pidData, 'utf-8');
+      this.logger.debug(`Saved dev server PID file: ${pid}`);
+    } catch (error) {
+      this.logger.warn(`Failed to write PID file: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Remove the PID file (on clean shutdown).
+   */
+  private removePidFile(): void {
+    try {
+      const pidPath = this.getPidFilePath();
+      if (existsSync(pidPath)) {
+        unlinkSync(pidPath);
+        this.logger.debug('Removed dev server PID file');
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to remove PID file: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   /**

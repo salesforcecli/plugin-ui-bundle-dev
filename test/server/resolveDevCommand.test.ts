@@ -20,8 +20,8 @@ import { fileURLToPath } from 'node:url';
 import { expect } from 'chai';
 import { parseCommand, resolveDirectDevCommand } from '../../src/server/resolveDevCommand.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const FIXTURE_RESOLVE = join(__dirname, '../fixtures/dev-server-resolve');
+const currentDir = dirname(fileURLToPath(import.meta.url));
+const FIXTURE_RESOLVE = join(currentDir, '../fixtures/dev-server-resolve');
 
 describe('resolveDevCommand (W-20243732)', () => {
   describe('parseCommand', () => {
