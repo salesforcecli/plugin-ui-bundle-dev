@@ -23,7 +23,7 @@ import { parseCommand, resolveDirectDevCommand } from '../../src/server/resolveD
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const FIXTURE_RESOLVE = join(currentDir, '../fixtures/dev-server-resolve');
 
-describe('resolveDevCommand (W-20243732)', () => {
+describe('resolveDevCommand (W-20244028)', () => {
   describe('parseCommand', () => {
     it('should split simple command into cmd and args', () => {
       expect(parseCommand('vite')).to.deep.equal(['vite']);

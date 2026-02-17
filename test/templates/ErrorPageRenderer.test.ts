@@ -59,7 +59,7 @@ describe('ErrorPageRenderer', () => {
       expect(html).to.be.a('string');
     });
 
-    it('should include Quick Action buttons (W-20243732 AC: error panel)', () => {
+    it('should include Quick Action buttons (W-20244028 AC: error panel)', () => {
       const data = {
         status: 'No Dev Server Detected',
         devServerUrl: 'http://localhost:5173',

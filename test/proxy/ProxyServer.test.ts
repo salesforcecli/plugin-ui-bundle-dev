@@ -266,7 +266,7 @@ describe('ProxyServer', () => {
     });
   });
 
-  describe('Proxy API (_proxy/*) – W-20243732', () => {
+  describe('Proxy API (_proxy/*) – W-20244028', () => {
     const API_PORT = 19_545;
     let proxy: ProxyServer | null = null;
 
