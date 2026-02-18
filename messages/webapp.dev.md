@@ -82,16 +82,25 @@ Dev server URL: %s
 
 # info.proxy-url
 
-Proxy URL: %s (open this in your browser)
+Proxy URL: %s (open this URL in your browser)
 
 # info.ready-for-development
 
 ✅ Ready for development!
   → %s (open this URL in your browser)
 
+# info.ready-for-development-vite
+
+✅ Ready for development!
+  → %s (Vite proxy active - open this URL in your browser)
+
 # info.press-ctrl-c
 
 Press Ctrl+C to stop the proxy server
+
+# info.server-running
+
+Dev server is running. Stop it by running "SFDX: Close Live Preview" from the VS Code command palette.
 
 # info.dev-server-healthy
 
@@ -178,3 +187,7 @@ Using default dev command: %s
 
 ⚠️ The --url flag (%s) does not match the actual dev server URL (%s).
 The proxy will use the actual dev server URL.
+
+# info.vite-proxy-detected
+
+Vite WebApp proxy detected at %s - using Vite's built-in proxy (standalone proxy skipped)

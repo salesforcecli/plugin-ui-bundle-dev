@@ -142,7 +142,7 @@ describe('ManifestWatcher', () => {
   });
 
   describe('Partial Manifest Support', () => {
-    it('should accept manifest with only dev.command (no name, outputDir)', async () => {
+    it('should accept manifest with only dev.command (no name, label, version, outputDir)', async () => {
       const partialManifest = {
         dev: {
           command: 'npm run dev',
@@ -271,13 +271,13 @@ describe('ManifestWatcher', () => {
 
       // Wait a bit then modify the file
       setTimeout(() => {
-        const updated = { ...validManifest, name: 'updatedApp' };
+        const updated = { ...validManifest, version: '2.0.0' };
         writeFileSync(testManifestPath, JSON.stringify(updated, null, 2));
       }, 200);
 
       const event = await changePromise;
       expect(event.type).to.equal('changed');
-      expect(event.manifest?.name).to.equal('updatedApp');
+      expect((event.manifest as unknown as Record<string, unknown>)?.version).to.equal('2.0.0');
       await watcher.stop();
     });
 
@@ -348,22 +348,22 @@ describe('ManifestWatcher', () => {
 
       // Make multiple rapid changes
       setTimeout(() => {
-        writeFileSync(testManifestPath, JSON.stringify({ ...validManifest, name: 'change1' }, null, 2));
+        writeFileSync(testManifestPath, JSON.stringify({ ...validManifest, version: '1.0.1' }, null, 2));
       }, 100);
 
       setTimeout(() => {
-        writeFileSync(testManifestPath, JSON.stringify({ ...validManifest, name: 'change2' }, null, 2));
+        writeFileSync(testManifestPath, JSON.stringify({ ...validManifest, version: '1.0.2' }, null, 2));
       }, 150);
 
       setTimeout(() => {
-        writeFileSync(testManifestPath, JSON.stringify({ ...validManifest, name: 'change3' }, null, 2));
+        writeFileSync(testManifestPath, JSON.stringify({ ...validManifest, version: '1.0.3' }, null, 2));
       }, 200);
 
       // Check that only one change event was emitted after debounce
       await new Promise((resolve) => setTimeout(resolve, 800));
 
       expect(changeCount).to.equal(1);
-      expect(watcher.getManifest()?.name).to.equal('change3');
+      expect((watcher.getManifest() as unknown as Record<string, unknown>)?.version).to.equal('1.0.3');
       await watcher.stop();
     });
   });
@@ -418,12 +418,13 @@ describe('ManifestWatcher', () => {
         eventEmitted = true;
       });
 
-      writeFileSync(testManifestPath, JSON.stringify({ ...validManifest, name: 'changedApp' }, null, 2));
+      writeFileSync(testManifestPath, JSON.stringify({ ...validManifest, version: '2.0.0' }, null, 2));
 
       await new Promise((resolve) => setTimeout(resolve, 300));
 
       expect(eventEmitted).to.be.false;
-      expect(watcher.getManifest()?.name).to.equal('testApp'); // Still old value
+      // Watcher stopped before write, so manifest unchanged (validManifest has no version)
+      expect(watcher.getManifest()).to.deep.equal(validManifest);
 
       await watcher.stop();
     });
