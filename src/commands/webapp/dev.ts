@@ -286,6 +286,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
           this.devServerManager = new DevServerManager({
             command: devCommand,
             cwd: webappDir,
+            startupTimeout: 60_000, // 60 seconds - aligned with VS Code extension
           });
 
           // Setup dev server event handlers
@@ -314,13 +315,13 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
           const actualDevServerUrl = await new Promise<string>((resolve, reject) => {
             const timeout = setTimeout(() => {
               reject(
-                new SfError('❌ Dev server did not start within 30 seconds.', 'DevServerTimeoutError', [
+                new SfError('❌ Dev server did not start within 60 seconds.', 'DevServerTimeoutError', [
                   'The dev server may be taking longer than expected to start',
                   'Check if the dev server command is correct in webapplication.json',
                   'Try running the dev server command manually to see if it starts',
                 ])
               );
-            }, 30_000);
+            }, 60_000);
 
             this.devServerManager?.on('ready', (url: string) => {
               clearTimeout(timeout);

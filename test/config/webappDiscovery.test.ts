@@ -285,5 +285,21 @@ describe('webappDiscovery', () => {
       expect(result.webapp?.name).to.equal('standalone-app');
       expect(result.allWebapps).to.have.length(1);
     });
+
+    it('should warn and use first match when directory has multiple .webapplication-meta.xml files', async () => {
+      setupSfdxProject();
+
+      // Create webapp directory with multiple metadata files (misconfiguration)
+      const multiMetaPath = join(sfdxWebappsPath, 'multi-meta-app');
+      mkdirSync(multiMetaPath, { recursive: true });
+      writeFileSync(join(multiMetaPath, 'alpha.webapplication-meta.xml'), '<WebApplication/>');
+      writeFileSync(join(multiMetaPath, 'beta.webapplication-meta.xml'), '<WebApplication/>');
+
+      const result = await discoverWebapp(undefined, testDir);
+
+      // Discovery should succeed - uses first match (order depends on readdir)
+      expect(result.allWebapps).to.have.length(1);
+      expect(['alpha', 'beta']).to.include(result.allWebapps[0].name);
+    });
   });
 });

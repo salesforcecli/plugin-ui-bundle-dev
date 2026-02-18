@@ -16,8 +16,10 @@
 
 import { access, readdir, readFile } from 'node:fs/promises';
 import { basename, dirname, join, relative } from 'node:path';
-import { SfError, SfProject } from '@salesforce/core';
+import { Logger, SfError, SfProject } from '@salesforce/core';
 import type { WebAppManifest } from './manifest.js';
+
+const logger = Logger.childFromRoot('WebappDiscovery');
 
 /**
  * Default command to run when no webapplication.json manifest is found
@@ -76,18 +78,32 @@ function isWebapplicationsFolder(folderName: string): boolean {
 
 /**
  * Check if a directory contains a {name}.webapplication-meta.xml file
- * Returns the webapp name extracted from the filename, or null if not found
+ * Returns the webapp name extracted from the filename, or null if not found.
+ * Logs a warning if multiple metadata files are found (uses first match).
  */
 async function findWebappMetaXml(dirPath: string): Promise<string | null> {
   try {
     const entries = await readdir(dirPath);
+    const matches: string[] = [];
+
     for (const entry of entries) {
       const match = WEBAPP_META_XML_PATTERN.exec(entry);
       if (match) {
-        return match[1]; // Return the webapp name from the filename
+        matches.push(match[1]);
       }
     }
-    return null;
+
+    if (matches.length === 0) {
+      return null;
+    }
+
+    if (matches.length > 1) {
+      logger.warn(
+        `Multiple .webapplication-meta.xml files found in ${dirPath}: ${matches.join(', ')}. Using "${matches[0]}".`
+      );
+    }
+
+    return matches[0];
   } catch {
     return null;
   }
