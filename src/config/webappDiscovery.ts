@@ -27,9 +27,10 @@ const logger = Logger.childFromRoot('WebappDiscovery');
 export const DEFAULT_DEV_COMMAND = 'npm run dev';
 
 /**
- * Standard SFDX path to webapplications folder relative to project root
+ * Standard metadata path segment for webapplications (relative to package directory).
+ * Consistent with other metadata types: packagePath/main/default/webapplications
  */
-const SFDX_WEBAPPLICATIONS_PATH = 'force-app/main/default/webapplications';
+const WEBAPPLICATIONS_RELATIVE_PATH = 'main/default/webapplications';
 
 /**
  * Pattern to match webapplication metadata XML files
@@ -46,7 +47,7 @@ export type DiscoveredWebapp = {
   relativePath: string;
   /** Parsed manifest content (null if no webapplication.json found) */
   manifest: WebAppManifest | null;
-  /** Webapp name (from manifest.name or folder name) */
+  /** Webapp name (from .webapplication-meta.xml or folder name) */
   name: string;
   /** Whether this webapp has a webapplication.json manifest file */
   hasManifest: boolean;
@@ -69,11 +70,14 @@ function shouldExcludeDirectory(dirName: string): boolean {
   return EXCLUDED_DIRECTORIES.has(dirName) || dirName.startsWith('.');
 }
 
+/** Folder name for webapplications metadata */
+const WEBAPPLICATIONS_FOLDER = 'webapplications';
+
 /**
  * Check if a folder name is the standard webapplications folder
  */
 function isWebapplicationsFolder(folderName: string): boolean {
-  return folderName === basename(SFDX_WEBAPPLICATIONS_PATH);
+  return folderName === WEBAPPLICATIONS_FOLDER;
 }
 
 /**
@@ -142,17 +146,14 @@ async function tryParseWebappManifest(filePath: string): Promise<WebAppManifest 
 }
 
 /**
- * Resolve webapp name using priority: manifest.name > metaXmlName > folderName
+ * Resolve webapp name using priority: metaXmlName > folderName.
+ * Manifest does not have a name property - do not depend on it.
  *
  * @param folderName - The folder name (fallback)
  * @param metaXmlName - Name extracted from .webapplication-meta.xml (or null)
- * @param manifest - Parsed manifest (or null)
  * @returns The resolved webapp name
  */
-function resolveWebappName(folderName: string, metaXmlName: string | null, manifest: WebAppManifest | null): string {
-  if (manifest?.name && typeof manifest.name === 'string' && manifest.name.trim()) {
-    return manifest.name;
-  }
+function resolveWebappName(folderName: string, metaXmlName: string | null): string {
   return metaXmlName ?? folderName;
 }
 
@@ -169,6 +170,31 @@ async function tryResolveSfdxProjectRoot(cwd: string): Promise<string | null> {
   } catch {
     // Not in an SFDX project
     return null;
+  }
+}
+
+/**
+ * Get all webapplications folder paths from the project's package directories.
+ * Consistent with other metadata types: each package can have main/default/webapplications.
+ *
+ * @param projectRoot - Absolute path to project root (where sfdx-project.json lives)
+ * @returns Array of absolute paths to webapplications folders that exist
+ */
+async function getWebapplicationsPathsFromProject(projectRoot: string): Promise<string[]> {
+  try {
+    const project = await SfProject.resolve(projectRoot);
+    const packageDirs = project.getUniquePackageDirectories();
+
+    const existenceChecks = await Promise.all(
+      packageDirs.map(async (pkg) => {
+        const webappsPath = join(projectRoot, pkg.path, WEBAPPLICATIONS_RELATIVE_PATH);
+        return (await pathExists(webappsPath)) ? webappsPath : null;
+      })
+    );
+
+    return existenceChecks.filter((p): p is string => p !== null);
+  } catch {
+    return [];
   }
 }
 
@@ -275,7 +301,7 @@ async function discoverWebappsInFolder(webappsFolderPath: string, cwd: string): 
         path: webappPath,
         relativePath: relative(cwd, webappPath) || entry.name,
         manifest,
-        name: resolveWebappName(entry.name, metaXmlName, manifest),
+        name: resolveWebappName(entry.name, metaXmlName),
         hasManifest: manifest !== null,
         manifestPath: manifest ? manifestFilePath : null,
         hasMetaXml: true,
@@ -311,7 +337,7 @@ type FindAllWebappsResult = {
  *
  * Discovery strategy (in order):
  * 1. Check if inside a webapplications/<webapp> directory (upward search)
- * 2. Check for SFDX project and use fixed path: force-app/main/default/webapplications
+ * 2. Check for SFDX project and search webapplications in all package directories
  * 3. If neither, check if current directory is a webapp (has .webapplication-meta.xml)
  *
  * @param cwd - Directory to search from (defaults to process.cwd())
@@ -330,15 +356,26 @@ async function findAllWebapps(cwd: string = process.cwd()): Promise<FindAllWebap
     webappsFolder = upwardResult.webappsFolder;
     currentWebappName = upwardResult.currentWebappName;
   } else {
-    // Step 2: Check for SFDX project and use fixed path
+    // Step 2: Check for SFDX project and search webapplications in all package directories
     const projectRoot = await tryResolveSfdxProjectRoot(cwd);
 
     if (projectRoot) {
       inSfdxProject = true;
-      const sfdxWebappsPath = join(projectRoot, SFDX_WEBAPPLICATIONS_PATH);
+      const webappsPaths = await getWebapplicationsPathsFromProject(projectRoot);
 
-      if (await pathExists(sfdxWebappsPath)) {
-        webappsFolder = sfdxWebappsPath;
+      if (webappsPaths.length > 0) {
+        // Discover webapps from all package directories and combine
+        const webappArrays = await Promise.all(
+          webappsPaths.map((path) => discoverWebappsInFolder(path, cwd))
+        );
+        const allWebapps = webappArrays.flat();
+
+        return {
+          webapps: allWebapps.sort((a, b) => a.name.localeCompare(b.name)),
+          currentWebappName: null,
+          webappsFolderFound: true,
+          inSfdxProject,
+        };
       }
     }
   }
@@ -351,7 +388,7 @@ async function findAllWebapps(cwd: string = process.cwd()): Promise<FindAllWebap
       // Current directory is a standalone webapp
       const manifestFilePath = join(cwd, 'webapplication.json');
       const manifest = await tryParseWebappManifest(manifestFilePath);
-      const webappName = resolveWebappName(basename(cwd), metaXmlName, manifest);
+      const webappName = resolveWebappName(basename(cwd), metaXmlName);
 
       const standaloneWebapp: DiscoveredWebapp = {
         path: cwd,
@@ -408,7 +445,7 @@ export type DiscoverWebappResult = {
  * Get a single webapp, handling the various discovery scenarios.
  *
  * Discovery use cases:
- * 1. SFDX Project Root: Check fixed path force-app/main/default/webapplications
+ * 1. SFDX Project Root: Search webapplications in all package directories
  * - Webapps identified by {name}.webapplication-meta.xml
  * - Always prompt for selection (even if only 1 webapp)
  *
@@ -447,10 +484,9 @@ export async function discoverWebapp(
     } else if (inSfdxProject) {
       // In SFDX project but webapplications folder doesn't exist
       throw new SfError(
-        'No webapplications folder found in the SFDX project.\n' +
-          `Expected location: ${SFDX_WEBAPPLICATIONS_PATH}\n\n` +
-          'Create the folder structure:\n' +
-          '  force-app/main/default/webapplications/\n' +
+        'No webapplications folder found in the SFDX project.\n\n' +
+          'Create the folder structure in any package directory (e.g. force-app, packages/my-pkg):\n' +
+          '  <package-path>/main/default/webapplications/\n' +
           '    └── my-app/\n' +
           '        ├── my-app.webapplication-meta.xml  (required)\n' +
           '        └── webapplication.json             (optional, for dev config)',
@@ -461,7 +497,7 @@ export async function discoverWebapp(
       throw new SfError(
         'No webapp found.\n\n' +
           'To use this command, either:\n' +
-          '1. Run from an SFDX project with webapps in force-app/main/default/webapplications/\n' +
+          '1. Run from an SFDX project with webapps in <package>/main/default/webapplications/\n' +
           '2. Run from inside a webapplications/<webapp>/ directory\n' +
           '3. Run from a directory containing a {name}.webapplication-meta.xml file',
         'WebappNotFoundError'

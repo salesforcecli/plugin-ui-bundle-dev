@@ -44,12 +44,18 @@ describe('webappDiscovery', () => {
   }
 
   /**
-   * Helper to setup SFDX project structure and mock SfProject.resolveProjectPath
+   * Helper to setup SFDX project structure and mock SfProject.resolveProjectPath.
+   * Creates sfdx-project.json with packageDirectories so getUniquePackageDirectories works.
    */
-  function setupSfdxProject(): void {
+  function setupSfdxProject(
+    packageDirs: Array<{ path: string; default?: boolean }> = [{ path: 'force-app', default: true }]
+  ): void {
     // Create SFDX project structure
     mkdirSync(sfdxWebappsPath, { recursive: true });
-    writeFileSync(join(testDir, 'sfdx-project.json'), '{}');
+    writeFileSync(
+      join(testDir, 'sfdx-project.json'),
+      JSON.stringify({ packageDirectories: packageDirs })
+    );
     // Mock SfProject.resolveProjectPath to return testDir
     SfProject.resolveProjectPath = async () => testDir;
   }
@@ -72,8 +78,9 @@ describe('webappDiscovery', () => {
   });
 
   afterEach(() => {
-    // Restore original
+    // Restore original and clear cached project instances
     SfProject.resolveProjectPath = originalResolveProjectPath;
+    SfProject.clearInstances();
     // Clean up test directory
     try {
       rmSync(testDir, { recursive: true, force: true });
@@ -104,7 +111,10 @@ describe('webappDiscovery', () => {
 
     it('should throw error if SFDX project has no webapplications folder', async () => {
       // Create SFDX project but NOT the webapplications folder
-      writeFileSync(join(testDir, 'sfdx-project.json'), '{}');
+      writeFileSync(
+        join(testDir, 'sfdx-project.json'),
+        JSON.stringify({ packageDirectories: [{ path: 'force-app', default: true }] })
+      );
       SfProject.resolveProjectPath = async () => testDir;
 
       try {
@@ -185,7 +195,7 @@ describe('webappDiscovery', () => {
       expect(result.autoSelected).to.be.true;
     });
 
-    it('should use manifest name when available', async () => {
+    it('should use meta.xml name (manifest.name is not used)', async () => {
       const webappsPath = join(testDir, 'webapplications');
       mkdirSync(webappsPath, { recursive: true });
       const myAppPath = createWebapp(webappsPath, 'folder-name', { name: 'ManifestName' });
@@ -193,7 +203,8 @@ describe('webappDiscovery', () => {
 
       const result = await discoverWebapp(undefined, myAppPath);
 
-      expect(result.webapp?.name).to.equal('ManifestName');
+      // Name comes from .webapplication-meta.xml (folder-name), not manifest.name
+      expect(result.webapp?.name).to.equal('folder-name');
       expect(result.autoSelected).to.be.true;
     });
 
@@ -284,6 +295,24 @@ describe('webappDiscovery', () => {
 
       expect(result.webapp?.name).to.equal('standalone-app');
       expect(result.allWebapps).to.have.length(1);
+    });
+
+    it('should discover webapps from multiple package directories', async () => {
+      // Create project with two packages: force-app and packages/einstein
+      const einsteinWebappsPath = join(testDir, 'packages', 'einstein', 'main', 'default', 'webapplications');
+      mkdirSync(einsteinWebappsPath, { recursive: true });
+      setupSfdxProject([
+        { path: 'force-app', default: true },
+        { path: 'packages/einstein', default: false },
+      ]);
+      createWebapp(sfdxWebappsPath, 'force-app-webapp');
+      createWebapp(einsteinWebappsPath, 'einstein-webapp');
+
+      const result = await discoverWebapp(undefined, testDir);
+
+      expect(result.allWebapps).to.have.length(2);
+      const names = result.allWebapps.map((w) => w.name).sort();
+      expect(names).to.deep.equal(['einstein-webapp', 'force-app-webapp']);
     });
 
     it('should warn and use first match when directory has multiple .webapplication-meta.xml files', async () => {
