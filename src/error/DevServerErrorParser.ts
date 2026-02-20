@@ -189,8 +189,9 @@ export class DevServerErrorParser {
       }
     }
 
-    // Fallback (should never reach here due to catch-all pattern)
-    return this.createGenericError(stderr, exitCode, signal);
+    // This point is unreachable because the last pattern (.*) matches everything
+    // TypeScript requires a return statement, so we throw an error for safety
+    throw new Error('Unreachable: ERROR_PATTERNS catch-all should always match');
   }
 
   /**
@@ -215,30 +216,5 @@ export class DevServerErrorParser {
 
     // Return last N lines (most recent errors)
     return lines.slice(-maxLines);
-  }
-
-  /**
-   * Create a generic error when no specific pattern matches
-   *
-   * @param stderr - Full stderr output
-   * @param exitCode - Process exit code
-   * @param signal - Process exit signal
-   * @returns Generic DevServerError
-   */
-  private static createGenericError(stderr: string, exitCode?: number | null, signal?: string | null): DevServerError {
-    return {
-      type: 'unknown',
-      title: 'Dev Server Failed to Start',
-      message: 'The dev server encountered an error. Check the error output below for details.',
-      stderrLines: this.extractRelevantLines(stderr, 15),
-      suggestions: [
-        'Review the error output above',
-        'Try running your dev command manually to debug',
-        'Verify your project setup is correct',
-      ],
-      fullStderr: stderr,
-      exitCode,
-      signal,
-    };
   }
 }

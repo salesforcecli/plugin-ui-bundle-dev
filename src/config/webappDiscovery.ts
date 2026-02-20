@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
-import { readdir, readFile } from 'node:fs/promises';
+import { access, readdir, readFile } from 'node:fs/promises';
 import { basename, dirname, join, relative } from 'node:path';
-import { SfError } from '@salesforce/core';
+import { Logger, SfError, SfProject } from '@salesforce/core';
 import type { WebAppManifest } from './manifest.js';
+
+const logger = Logger.childFromRoot('WebappDiscovery');
 
 /**
  * Default command to run when no webapplication.json manifest is found
@@ -25,9 +27,15 @@ import type { WebAppManifest } from './manifest.js';
 export const DEFAULT_DEV_COMMAND = 'npm run dev';
 
 /**
- * Pattern to match the webapplications folder (case-insensitive)
+ * Standard metadata path segment for webapplications (relative to package directory).
+ * Consistent with other metadata types: packagePath/main/default/webapplications
  */
-const WEBAPPLICATIONS_FOLDER_PATTERN = /^webapplications$/i;
+const WEBAPPLICATIONS_RELATIVE_PATH = 'main/default/webapplications';
+
+/**
+ * Pattern to match webapplication metadata XML files
+ */
+const WEBAPP_META_XML_PATTERN = /^(.+)\.webapplication-meta\.xml$/;
 
 /**
  * Discovered webapp with its directory path and optional manifest
@@ -39,49 +47,82 @@ export type DiscoveredWebapp = {
   relativePath: string;
   /** Parsed manifest content (null if no webapplication.json found) */
   manifest: WebAppManifest | null;
-  /** Webapp name (from manifest.name or folder name) */
+  /** Webapp name (from .webapplication-meta.xml or folder name) */
   name: string;
   /** Whether this webapp has a webapplication.json manifest file */
   hasManifest: boolean;
   /** Path to the manifest file (null if no manifest) */
   manifestPath: string | null;
+  /** Whether this webapp has a .webapplication-meta.xml file (valid SFDX webapp) */
+  hasMetaXml: boolean;
 };
 
 /**
- * Directories to exclude when searching for webapplications folder
+ * Directories to exclude when processing webapplications folder.
+ * Note: Directories starting with '.' are excluded separately in shouldExcludeDirectory()
  */
-const EXCLUDED_DIRECTORIES = new Set([
-  'node_modules',
-  '.git',
-  'dist',
-  'build',
-  'out',
-  'coverage',
-  '.next',
-  '.nuxt',
-  '.output',
-  '__pycache__',
-  '.venv',
-  'venv',
-]);
+const EXCLUDED_DIRECTORIES = new Set(['node_modules', 'dist', 'build', 'out', 'coverage', '__pycache__', 'venv']);
 
 /**
- * Maximum depth to search for webapplications folder
- */
-const MAX_SEARCH_DEPTH = 10;
-
-/**
- * Check if a directory should be excluded from search
+ * Check if a directory should be excluded from processing
  */
 function shouldExcludeDirectory(dirName: string): boolean {
   return EXCLUDED_DIRECTORIES.has(dirName) || dirName.startsWith('.');
 }
 
+/** Folder name for webapplications metadata */
+const WEBAPPLICATIONS_FOLDER = 'webapplications';
+
 /**
- * Check if a folder name matches "webapplications" (case-insensitive)
+ * Check if a folder name is the standard webapplications folder
  */
 function isWebapplicationsFolder(folderName: string): boolean {
-  return WEBAPPLICATIONS_FOLDER_PATTERN.test(folderName);
+  return folderName === WEBAPPLICATIONS_FOLDER;
+}
+
+/**
+ * Check if a directory contains a {name}.webapplication-meta.xml file
+ * Returns the webapp name extracted from the filename, or null if not found.
+ * Logs a warning if multiple metadata files are found (uses first match).
+ */
+async function findWebappMetaXml(dirPath: string): Promise<string | null> {
+  try {
+    const entries = await readdir(dirPath);
+    const matches: string[] = [];
+
+    for (const entry of entries) {
+      const match = WEBAPP_META_XML_PATTERN.exec(entry);
+      if (match) {
+        matches.push(match[1]);
+      }
+    }
+
+    if (matches.length === 0) {
+      return null;
+    }
+
+    if (matches.length > 1) {
+      logger.warn(
+        `Multiple .webapplication-meta.xml files found in ${dirPath}: ${matches.join(', ')}. Using "${matches[0]}".`
+      );
+    }
+
+    return matches[0];
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check if a path exists
+ */
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -105,38 +146,55 @@ async function tryParseWebappManifest(filePath: string): Promise<WebAppManifest 
 }
 
 /**
- * Recursively search for the webapplications folder (case-insensitive)
+ * Resolve webapp name using priority: metaXmlName > folderName.
+ * Manifest does not have a name property - do not depend on it.
  *
- * @param dir - Directory to search in
- * @param depth - Current search depth
- * @returns Path to webapplications folder or null if not found
+ * @param folderName - The folder name (fallback)
+ * @param metaXmlName - Name extracted from .webapplication-meta.xml (or null)
+ * @returns The resolved webapp name
  */
-async function findWebapplicationsFolderRecursive(dir: string, depth: number = 0): Promise<string | null> {
-  if (depth > MAX_SEARCH_DEPTH) {
+function resolveWebappName(folderName: string, metaXmlName: string | null): string {
+  return metaXmlName ?? folderName;
+}
+
+/**
+ * Try to resolve SFDX project root from a given directory.
+ * Uses SfProject from @salesforce/core which walks up directories to find sfdx-project.json.
+ *
+ * @param cwd - Directory to start from
+ * @returns Project root path or null if not in an SFDX project
+ */
+async function tryResolveSfdxProjectRoot(cwd: string): Promise<string | null> {
+  try {
+    return await SfProject.resolveProjectPath(cwd);
+  } catch {
+    // Not in an SFDX project
     return null;
   }
+}
 
+/**
+ * Get all webapplications folder paths from the project's package directories.
+ * Consistent with other metadata types: each package can have main/default/webapplications.
+ *
+ * @param projectRoot - Absolute path to project root (where sfdx-project.json lives)
+ * @returns Array of absolute paths to webapplications folders that exist
+ */
+async function getWebapplicationsPathsFromProject(projectRoot: string): Promise<string[]> {
   try {
-    const entries = await readdir(dir, { withFileTypes: true });
+    const project = await SfProject.resolve(projectRoot);
+    const packageDirs = project.getUniquePackageDirectories();
 
-    // Check if any directory at this level is "webapplications" (case-insensitive)
-    const webappsFolder = entries.find((e) => e.isDirectory() && isWebapplicationsFolder(e.name));
-    if (webappsFolder) {
-      return join(dir, webappsFolder.name);
-    }
-
-    // Recursively search subdirectories in parallel
-    const subdirectories = entries.filter((e) => e.isDirectory() && !shouldExcludeDirectory(e.name));
-
-    const results = await Promise.all(
-      subdirectories.map((subdir) => findWebapplicationsFolderRecursive(join(dir, subdir.name), depth + 1))
+    const existenceChecks = await Promise.all(
+      packageDirs.map(async (pkg) => {
+        const webappsPath = join(projectRoot, pkg.path, WEBAPPLICATIONS_RELATIVE_PATH);
+        return (await pathExists(webappsPath)) ? webappsPath : null;
+      })
     );
 
-    // Return the first non-null result
-    return results.find((result) => result !== null) ?? null;
+    return existenceChecks.filter((p): p is string => p !== null);
   } catch {
-    // Permission denied or other read error - skip this directory
-    return null;
+    return [];
   }
 }
 
@@ -145,21 +203,17 @@ async function findWebapplicationsFolderRecursive(dir: string, depth: number = 0
  *
  * This handles cases where the user runs the command from inside a webapp folder:
  *
- * Example 1: Running from /project/webapplications/my-app/src/
+ * Example 1: Running from /project/force-app/main/default/webapplications/my-app/src/
  * Traverses: src -> my-app -> webapplications (found!)
- * Returns: { webappsFolder: "/project/webapplications", currentWebappName: "my-app" }
+ * Returns: { webappsFolder: "/project/.../webapplications", currentWebappName: "my-app" }
  *
- * Example 2: Running from /project/webapplications/my-app/
+ * Example 2: Running from /project/force-app/main/default/webapplications/my-app/
  * Checks parent: webapplications (found!)
- * Returns: { webappsFolder: "/project/webapplications", currentWebappName: "my-app" }
+ * Returns: { webappsFolder: "/project/.../webapplications", currentWebappName: "my-app" }
  *
- * Example 3: Running from /project/webapplications/
+ * Example 3: Running from /project/force-app/main/default/webapplications/
  * Current dir is webapplications (found!)
- * Returns: { webappsFolder: "/project/webapplications", currentWebappName: null }
- *
- * Example 4: Running from /project/src/
- * Traverses: src -> project -> / (not found)
- * Returns: null (will fall back to downward search)
+ * Returns: { webappsFolder: "/project/.../webapplications", currentWebappName: null }
  *
  * @param dir - Directory to start from
  * @returns Object with webapplications folder path and current webapp name, or null if not found
@@ -211,13 +265,13 @@ function findWebapplicationsFolderUpward(
 }
 
 /**
- * Discover all webapps inside the webapplications folder
- * Each subdirectory is treated as a webapp. If a webapplication.json exists, use it.
- * Otherwise, use the folder name as the webapp name with defaults.
+ * Discover all webapps inside the webapplications folder.
+ * Only directories containing a {name}.webapplication-meta.xml file are considered valid webapps.
+ * If a webapplication.json exists, use it for dev configuration.
  *
  * @param webappsFolderPath - Absolute path to the webapplications folder
  * @param cwd - Original working directory for relative path calculation
- * @returns Array of discovered webapps
+ * @returns Array of discovered webapps (only those with .webapplication-meta.xml)
  */
 async function discoverWebappsInFolder(webappsFolderPath: string, cwd: string): Promise<DiscoveredWebapp[]> {
   try {
@@ -227,41 +281,37 @@ async function discoverWebappsInFolder(webappsFolderPath: string, cwd: string): 
     const webappDirs = entries.filter((e) => e.isDirectory() && !shouldExcludeDirectory(e.name));
 
     // Process each webapp directory in parallel
-    const webappPromises = webappDirs.map(async (entry): Promise<DiscoveredWebapp> => {
+    const webappPromises = webappDirs.map(async (entry): Promise<DiscoveredWebapp | null> => {
       const webappPath = join(webappsFolderPath, entry.name);
+
+      // Check for .webapplication-meta.xml file - this identifies valid webapps
+      const metaXmlName = await findWebappMetaXml(webappPath);
+
+      // Only include directories that have a .webapplication-meta.xml file
+      if (!metaXmlName) {
+        return null;
+      }
+
       const manifestFilePath = join(webappPath, 'webapplication.json');
 
-      // Try to load manifest
+      // Try to load manifest for dev configuration
       const manifest = await tryParseWebappManifest(manifestFilePath);
 
-      if (manifest) {
-        // Webapp has manifest file - use manifest data with folder name as fallback
-        // Name: use manifest.name if present, otherwise folder name
-        const webappName =
-          manifest.name && typeof manifest.name === 'string' && manifest.name.trim() ? manifest.name : entry.name;
-
-        return {
-          path: webappPath,
-          relativePath: relative(cwd, webappPath) || entry.name,
-          manifest,
-          name: webappName,
-          hasManifest: true,
-          manifestPath: manifestFilePath,
-        };
-      } else {
-        // No manifest file - use folder name and defaults
-        return {
-          path: webappPath,
-          relativePath: relative(cwd, webappPath) || entry.name,
-          manifest: null,
-          name: entry.name,
-          hasManifest: false,
-          manifestPath: null,
-        };
-      }
+      return {
+        path: webappPath,
+        relativePath: relative(cwd, webappPath) || entry.name,
+        manifest,
+        name: resolveWebappName(entry.name, metaXmlName),
+        hasManifest: manifest !== null,
+        manifestPath: manifest ? manifestFilePath : null,
+        hasMetaXml: true,
+      };
     });
 
-    return await Promise.all(webappPromises);
+    const results = await Promise.all(webappPromises);
+
+    // Filter out null results (directories without .webapplication-meta.xml)
+    return results.filter((webapp): webapp is DiscoveredWebapp => webapp !== null);
   } catch {
     // Permission denied or other read error
     return [];
@@ -269,41 +319,102 @@ async function discoverWebappsInFolder(webappsFolderPath: string, cwd: string): 
 }
 
 /**
- * Result of finding all webapps, includes hint for auto-selection
+ * Result of finding all webapps, includes context about current location
  */
 type FindAllWebappsResult = {
   /** All discovered webapps */
   webapps: DiscoveredWebapp[];
-  /** Name of webapp user is currently inside (for auto-selection), null if not inside any */
+  /** Name of webapp user is currently inside (folder name), null if not inside any */
   currentWebappName: string | null;
-  /** Whether the webapplications folder was found (even if empty) */
+  /** Whether the webapplications folder was found (even if empty or no valid webapps) */
   webappsFolderFound: boolean;
+  /** Whether we're in an SFDX project context */
+  inSfdxProject: boolean;
 };
 
 /**
- * Find all webapps in the webapplications folder.
- * Also returns a hint if the user is currently inside a specific webapp folder.
+ * Find all webapps using simplified discovery algorithm.
+ *
+ * Discovery strategy (in order):
+ * 1. Check if inside a webapplications/<webapp> directory (upward search)
+ * 2. Check for SFDX project and search webapplications in all package directories
+ * 3. If neither, check if current directory is a webapp (has .webapplication-meta.xml)
  *
  * @param cwd - Directory to search from (defaults to process.cwd())
- * @returns Object with discovered webapps and currentWebappName hint for auto-selection
+ * @returns Object with discovered webapps and context information
  */
 async function findAllWebapps(cwd: string = process.cwd()): Promise<FindAllWebappsResult> {
-  // Step 1: Check upward first - this gives us currentWebappName if inside a webapp
-  const upwardResult = findWebapplicationsFolderUpward(cwd);
-
   let webappsFolder: string | null = null;
   let currentWebappName: string | null = null;
+  let inSfdxProject = false;
+
+  // Step 1: Check if we're inside a webapplications folder (upward search)
+  // This handles: running from webapplications/<webapp> or webapplications/<webapp>/src/
+  const upwardResult = findWebapplicationsFolderUpward(cwd);
 
   if (upwardResult) {
     webappsFolder = upwardResult.webappsFolder;
     currentWebappName = upwardResult.currentWebappName;
   } else {
-    // Step 2: Search downward if not found upward
-    webappsFolder = await findWebapplicationsFolderRecursive(cwd);
+    // Step 2: Check for SFDX project and search webapplications in all package directories
+    const projectRoot = await tryResolveSfdxProjectRoot(cwd);
+
+    if (projectRoot) {
+      inSfdxProject = true;
+      const webappsPaths = await getWebapplicationsPathsFromProject(projectRoot);
+
+      if (webappsPaths.length > 0) {
+        // Discover webapps from all package directories and combine
+        const webappArrays = await Promise.all(
+          webappsPaths.map((path) => discoverWebappsInFolder(path, cwd))
+        );
+        const allWebapps = webappArrays.flat();
+
+        return {
+          webapps: allWebapps.sort((a, b) => a.name.localeCompare(b.name)),
+          currentWebappName: null,
+          webappsFolderFound: true,
+          inSfdxProject,
+        };
+      }
+    }
   }
 
+  // Step 3: If no webapplications folder found, check if current directory IS a webapp
+  // (has a .webapplication-meta.xml file) - for running outside SFDX project context
   if (!webappsFolder) {
-    return { webapps: [], currentWebappName: null, webappsFolderFound: false };
+    const metaXmlName = await findWebappMetaXml(cwd);
+    if (metaXmlName) {
+      // Current directory is a standalone webapp
+      const manifestFilePath = join(cwd, 'webapplication.json');
+      const manifest = await tryParseWebappManifest(manifestFilePath);
+      const webappName = resolveWebappName(basename(cwd), metaXmlName);
+
+      const standaloneWebapp: DiscoveredWebapp = {
+        path: cwd,
+        relativePath: '.',
+        manifest,
+        name: webappName,
+        hasManifest: manifest !== null,
+        manifestPath: manifest ? manifestFilePath : null,
+        hasMetaXml: true,
+      };
+
+      return {
+        webapps: [standaloneWebapp],
+        currentWebappName: webappName,
+        webappsFolderFound: false,
+        inSfdxProject: false,
+      };
+    }
+
+    // No webapp found anywhere
+    return {
+      webapps: [],
+      currentWebappName: null,
+      webappsFolderFound: false,
+      inSfdxProject,
+    };
   }
 
   // Discover all webapps in the folder
@@ -314,14 +425,15 @@ async function findAllWebapps(cwd: string = process.cwd()): Promise<FindAllWebap
     webapps: webapps.sort((a, b) => a.name.localeCompare(b.name)),
     currentWebappName,
     webappsFolderFound: true,
+    inSfdxProject,
   };
 }
 
 /**
  * Result of webapp discovery
  */
-type DiscoverWebappResult = {
-  /** The selected/discovered webapp (null if user needs to select) */
+export type DiscoverWebappResult = {
+  /** The selected/discovered webapp (null if user needs to select via prompt) */
   webapp: DiscoveredWebapp | null;
   /** All discovered webapps */
   allWebapps: DiscoveredWebapp[];
@@ -332,60 +444,93 @@ type DiscoverWebappResult = {
 /**
  * Get a single webapp, handling the various discovery scenarios.
  *
- * Selection priority:
- * 1. If --name flag provided, find that specific webapp
- * 2. If user is inside a webapp folder, auto-select that webapp
- * 3. If only one webapp exists, auto-select it
- * 4. If multiple webapps, return null (user must select)
+ * Discovery use cases:
+ * 1. SFDX Project Root: Search webapplications in all package directories
+ * - Webapps identified by {name}.webapplication-meta.xml
+ * - Always prompt for selection (even if only 1 webapp)
  *
- * @param name - Optional webapp name to search for
+ * 2. Inside webapplications/<webapp> directory:
+ * - Auto-select current webapp
+ * - Error if --name conflicts with current directory
+ *
+ * 3. Outside SFDX project with .webapplication-meta.xml in current dir:
+ * - Use current directory as standalone webapp
+ *
+ * @param name - Optional webapp name to search for (--name flag)
  * @param cwd - Directory to search from
  * @returns Object containing the discovered webapp, all webapps, and autoSelected flag
- * @throws SfError if no webapps found or named webapp not found
+ * @throws SfError if no webapps found, named webapp not found, or --name conflicts with current dir
  */
 export async function discoverWebapp(
   name: string | undefined,
   cwd: string = process.cwd()
 ): Promise<DiscoverWebappResult> {
-  const { webapps: allWebapps, currentWebappName, webappsFolderFound } = await findAllWebapps(cwd);
+  const { webapps: allWebapps, currentWebappName, webappsFolderFound, inSfdxProject } = await findAllWebapps(cwd);
 
   // No webapps found
   if (allWebapps.length === 0) {
     if (webappsFolderFound) {
-      // Folder exists but is empty
+      // Folder exists but no valid webapps (no .webapplication-meta.xml files)
       throw new SfError(
-        'Found "webapplications" folder but no webapps inside it.\n' +
-          'Create webapp subdirectories inside the "webapplications" folder to get started.\n\n' +
+        'Found "webapplications" folder but no valid webapps inside it.\n' +
+          'Each webapp must have a {name}.webapplication-meta.xml file.\n\n' +
           'Expected structure:\n' +
           '  webapplications/\n' +
-          '    ├── my-app-1/\n' +
-          '    │   └── webapplication.json (optional)\n' +
-          '    └── my-app-2/',
+          '    └── my-app/\n' +
+          '        ├── my-app.webapplication-meta.xml  (required)\n' +
+          '        └── webapplication.json             (optional, for dev config)',
+        'WebappNotFoundError'
+      );
+    } else if (inSfdxProject) {
+      // In SFDX project but webapplications folder doesn't exist
+      throw new SfError(
+        'No webapplications folder found in the SFDX project.\n\n' +
+          'Create the folder structure in any package directory (e.g. force-app, packages/my-pkg):\n' +
+          '  <package-path>/main/default/webapplications/\n' +
+          '    └── my-app/\n' +
+          '        ├── my-app.webapplication-meta.xml  (required)\n' +
+          '        └── webapplication.json             (optional, for dev config)',
         'WebappNotFoundError'
       );
     } else {
-      // Folder doesn't exist
+      // Not in SFDX project and no webapp found
       throw new SfError(
-        'No webapplications folder found in the current directory or subdirectories.\n' +
-          'Create a "webapplications" folder with webapp subdirectories to get started.\n\n' +
-          'Expected structure:\n' +
-          '  webapplications/\n' +
-          '    ├── my-app-1/\n' +
-          '    │   └── webapplication.json (optional)\n' +
-          '    └── my-app-2/',
+        'No webapp found.\n\n' +
+          'To use this command, either:\n' +
+          '1. Run from an SFDX project with webapps in <package>/main/default/webapplications/\n' +
+          '2. Run from inside a webapplications/<webapp>/ directory\n' +
+          '3. Run from a directory containing a {name}.webapplication-meta.xml file',
         'WebappNotFoundError'
       );
     }
   }
 
-  // Priority 1: If name is provided via --name flag, find that specific webapp
+  // Check for --name conflict with current directory
+  // If user is inside webapp A but specifies --name B, that's an error
+  if (name && currentWebappName) {
+    const currentWebapp = allWebapps.find(
+      (w) => w.name === currentWebappName || basename(w.path) === currentWebappName
+    );
+    if (currentWebapp && currentWebapp.name !== name && basename(currentWebapp.path) !== name) {
+      throw new SfError(
+        `You are inside the "${currentWebappName}" webapp directory but specified --name "${name}".\n\n` +
+          'Either:\n' +
+          `  - Remove the --name flag to use the current webapp ("${currentWebappName}")\n` +
+          `  - Navigate to the "${name}" webapp directory and run the command from there\n` +
+          '  - Run the command from the project root to use --name',
+        'WebappNameConflictError'
+      );
+    }
+  }
+
+  // Priority 1: If --name flag provided, find that specific webapp
   if (name) {
-    const webapp = allWebapps.find((w) => w.name === name);
+    const webapp = allWebapps.find((w) => w.name === name || basename(w.path) === name);
     if (!webapp) {
       const WARNING = '\u26A0\uFE0F'; // ⚠️
 
       const availableNames = allWebapps
-        .map((w) => `  - ${w.name} - (Path:${w.relativePath})${w.hasManifest ? '' : ` - ${WARNING} No Manifest`}`)
+        .map((w) => `  - ${w.name} (${w.relativePath})${w.hasManifest ? '' : ` ${WARNING} No dev manifest`}`)
         .join('\n');
       throw new SfError(
         `No webapp found with name "${name}".\n\nAvailable webapps:\n${availableNames}`,
@@ -396,7 +541,6 @@ export async function discoverWebapp(
   }
 
   // Priority 2: If user is inside a webapp folder, auto-select that webapp
-  // Match by webapp.name OR by folder name (extracted from path)
   if (currentWebappName) {
     const webapp = allWebapps.find((w) => w.name === currentWebappName || basename(w.path) === currentWebappName);
     if (webapp) {
@@ -404,11 +548,7 @@ export async function discoverWebapp(
     }
   }
 
-  // Priority 3: If only one webapp exists, auto-select it
-  if (allWebapps.length === 1) {
-    return { webapp: allWebapps[0], allWebapps, autoSelected: false };
-  }
-
-  // Multiple webapps found - return null to indicate selection is needed
+  // No auto-selection - always prompt user to select
+  // (Removed: auto-selection of single webapp - reviewer wants prompt even for 1 webapp)
   return { webapp: null, allWebapps, autoSelected: false };
 }

@@ -24,6 +24,8 @@ Dev server origin to forward UI/HMR/static requests
 
 The URL where your dev server is running (e.g., http://localhost:5173). Required if webapplication.json does not contain a dev.command or dev.url configuration. All non-Salesforce API requests will be forwarded to this URL.
 
+Dev server URL precedence: --url flag > manifest dev.url > URL from dev server process (started via manifest dev.command or default npm run dev).
+
 # flags.port.summary
 
 Local proxy port
@@ -80,17 +82,25 @@ Dev server URL: %s
 
 # info.proxy-url
 
-Proxy URL: %s (open this in your browser)
+Proxy URL: %s (open this URL in your browser)
 
 # info.ready-for-development
 
 ✅ Ready for development!
-→ Proxy: %s (open this in your browser)
-→ Dev server: %s
+  → %s (open this URL in your browser)
+
+# info.ready-for-development-vite
+
+✅ Ready for development!
+  → %s (Vite proxy active - open this URL in your browser)
 
 # info.press-ctrl-c
 
-Press Ctrl+C to stop the server
+Press Ctrl+C to stop the proxy server
+
+# info.server-running
+
+Dev server is running. Stop it by running "SFDX: Close Live Preview" from the VS Code command palette.
 
 # info.dev-server-healthy
 
@@ -145,40 +155,39 @@ Auto-selected webapp "%s" (running from inside its folder)
 
 ✅ Using webapp: %s (%s)
 
+# info.starting-webapp
+
+✅ Starting %s
+
 # prompt.select-webapp
 
 Select the webapp to run:
 
-# warning.no-manifest
+# info.no-manifest-defaults
 
-No webapplication.json found for webapp "%s"
-Location: %s
+No webapplication.json found. Using defaults: dev command=%s, proxy port=%s
 
-Using defaults:
-→ Name: "%s" (derived from folder)
-→ Command: "%s"
-→ Manifest watching: disabled
-
-💡 To customize, create a webapplication.json file in your webapp directory.
+Tip: See "sf webapp dev --help" for configuration options.
 
 # warning.empty-manifest
 
-webapplication.json found for webapp "%s" but has no dev configuration
-Location: %s
+No dev configuration in webapplication.json - using defaults (command: %s)
 
-Using defaults:
-→ Name: "%s" (derived from folder)
-→ Command: "%s"
-→ Manifest watching: enabled
-
-💡 To customize, add dev configuration to your webapplication.json file.
-Example:
-{
-"dev": {
-"command": "npm run dev"
-}
-}
+Tip: See "sf webapp dev --help" for configuration options.
 
 # info.using-defaults
 
 Using default dev command: %s
+
+# info.url-already-available
+
+✅ URL %s is already available, skipping dev server startup (proxy-only mode)
+
+# warning.url-mismatch
+
+⚠️ The --url flag (%s) does not match the actual dev server URL (%s).
+The proxy will use the actual dev server URL.
+
+# info.vite-proxy-detected
+
+Vite WebApp proxy detected at %s - using Vite's built-in proxy (standalone proxy skipped)
