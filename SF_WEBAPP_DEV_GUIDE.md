@@ -31,7 +31,7 @@ my-sfdx-project/
 ├── sfdx-project.json
 └── force-app/main/default/webapplications/
     └── my-app/                              # Your webapp folder
-        ├── my-app.webapplication-meta.xml   # Required: identifies as webapp
+        ├── my-app.webapplication-meta.xml
         ├── package.json
         ├── src/
         └── webapplication.json
