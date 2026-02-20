@@ -34,7 +34,7 @@ my-sfdx-project/
         ├── my-app.webapplication-meta.xml   # Required: identifies as webapp
         ├── package.json
         ├── src/
-        └── webapplication.json              # Optional: dev configuration
+        └── webapplication.json
 ```
 
 ### 2. Run the command
