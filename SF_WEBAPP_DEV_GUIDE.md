@@ -68,7 +68,7 @@ sf webapp dev [OPTIONS]
 | Option         | Short | Description                                     | Default       |
 | -------------- | ----- | ----------------------------------------------- | ------------- |
 | `--target-org` | `-o`  | Salesforce org alias or username                | Required      |
-| `--name`       | `-n`  | Web application name (from webapplication.json) | Auto-discover |
+| `--name`       | `-n`  | Web application name (folder name)              | Auto-discover |
 | `--url`        | `-u`  | Explicit dev server URL                         | Auto-detect   |
 | `--port`       | `-p`  | Proxy server port                               | 4545          |
 | `--open`       | `-b`  | Open browser automatically                      | false         |
@@ -177,16 +177,15 @@ When multiple webapps are found, you'll see an interactive prompt:
 ```
 Found 3 webapps in project
 ? Select the webapp to run: (Use arrow keys)
-❯ MyApp - My Application (webapplications/app-one)
+❯ app-one (webapplications/app-one)
   app-two (webapplications/app-two) [no manifest]
-  CustomName (webapplications/app-three)
+  app-three (webapplications/app-three)
 ```
 
 Format:
 
-- **With manifest + label**: `Name - Label (path)`
-- **With manifest, no label**: `Name (path)`
-- **No manifest**: `name (path) [no manifest]`
+- **With manifest**: `folder-name (path)`
+- **No manifest**: `folder-name (path) [no manifest]`
 
 ---
 
@@ -239,28 +238,14 @@ Browser → Proxy → [Auth Headers Injected] → Salesforce → Response
 
 The `webapplication.json` file is **optional**. All fields are also optional - missing fields use defaults.
 
-#### All Fields (All Optional)
-
-```json
-{
-  "name": "myApp",
-  "label": "My Application",
-  "version": "1.0.0",
-  "outputDir": "dist",
-  "dev": {
-    "command": "npm run dev"
-  }
-}
-```
-
-| Field       | Type   | Description                               | Default            |
-| ----------- | ------ | ----------------------------------------- | ------------------ |
-| `name`      | string | Unique identifier (used with --name flag) | Folder name        |
-| `label`     | string | Human-readable display name               | None               |
-| `version`   | string | Semantic version (e.g., "1.0.0")          | None               |
-| `outputDir` | string | Build output directory                    | None (deploy only) |
-
 #### Dev Configuration
+
+| Field         | Type   | Description                           | Default                   |
+| ------------- | ------ | ------------------------------------- | ------------------------- |
+| `dev.command` | string | Command to start dev server           | `npm run dev`             |
+| `dev.url`     | string | Dev server URL (when already running)  | `http://localhost:5173`   |
+
+All fields are optional. Only specify what you need to override.
 
 **Option A: No manifest (uses defaults)**
 
@@ -279,8 +264,6 @@ If no `webapplication.json` exists:
   }
 }
 ```
-
-Only specify what you need to override.
 
 **Option C: Explicit URL (dev server already running)**
 
@@ -337,15 +320,10 @@ Warning: No webapplication.json found for webapp "my-dashboard"
 Press Ctrl+C to stop
 ```
 
-### Example: Full Configuration
+### Example: Dev + Routing
 
 ```json
 {
-  "name": "salesDashboard",
-  "label": "Sales Dashboard",
-  "description": "Real-time sales analytics dashboard",
-  "version": "2.1.0",
-  "outputDir": "dist",
   "dev": {
     "command": "npm run dev"
   },
@@ -493,10 +471,7 @@ sf webapp dev --name SecondWebApp --target-org myOrg  # Error!
 
 ### "No webapp found with name X"
 
-The `--name` flag matches either:
-
-1. The `name` field in `webapplication.json`
-2. The folder name (if no manifest or no name in manifest)
+The `--name` flag matches the folder name of the webapp.
 
 ```bash
 # This looks for webapp named "myApp"
