@@ -30,7 +30,7 @@ The `sf webapp dev` command enables local development of modern web applications
 my-sfdx-project/
 ├── sfdx-project.json
 └── force-app/main/default/webapplications/
-    └── my-app/                              # Your webapp folder
+    └── my-app/
         ├── my-app.webapplication-meta.xml
         ├── package.json
         ├── src/
