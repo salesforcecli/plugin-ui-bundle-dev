@@ -428,6 +428,12 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
 
       // Keep the command running until interrupted or dev server exits
       await new Promise<void>((resolve) => {
+        const handleSignal = (signal: string): void => {
+          this.logger?.debug(`Received ${signal} signal, initiating graceful shutdown`);
+          process.exitCode = 130; // Standard exit code for SIGINT/SIGTERM
+          resolve();
+        };
+
         // Exit if dev server exits with SIGINT (user pressed Ctrl+C)
         if (this.devServerManager) {
           this.devServerManager.on('exit', (code: number | null, signal: string | null) => {
@@ -438,19 +444,15 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
           });
         }
 
-        // CRITICAL: Use prependOnceListener to add our handlers BEFORE sfCommand's handlers
+        // CRITICAL: Remove sfCommand's signal handlers before adding our own.
         // sfCommand adds process.on('SIGINT', () => this.exit(130)) which throws ExitError
-        // By using prependOnceListener, our resolve() runs FIRST, allowing clean shutdown
-        // This is especially important when there's no dev server (explicit URL mode)
-        process.prependOnceListener('SIGINT', () => {
-          this.logger?.debug('Received SIGINT signal, initiating graceful shutdown');
-          resolve();
-        });
-
-        process.prependOnceListener('SIGTERM', () => {
-          this.logger?.debug('Received SIGTERM signal, initiating graceful shutdown');
-          resolve();
-        });
+        // and prints an ugly stack trace. By removing those handlers and handling signals
+        // ourselves, we exit cleanly: resolve() -> run() returns -> finally() cleans up.
+        const signalsToHandle = ['SIGINT', 'SIGTERM', 'SIGBREAK', 'SIGHUP'] as const;
+        for (const signal of signalsToHandle) {
+          process.removeAllListeners(signal);
+          process.once(signal, () => handleSignal(signal));
+        }
       });
 
       // Return result (never reached, but required for type safety)
@@ -482,8 +484,6 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
    * This is the proper way to handle cleanup in oclif commands
    */
   protected async finally(): Promise<void> {
-    // Cleanup all resources silently
-    // Don't show messages here as this runs on ALL exits (errors, Ctrl+C, etc)
     await this.cleanup();
   }
 
@@ -514,11 +514,18 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
    * Cleanup all resources (proxy, dev server, file watcher)
    */
   private async cleanup(): Promise<void> {
-    // Stop proxy server
+    const hasProxy = !!this.proxyServer;
+    const hasDevServer = !!this.devServerManager;
+    const showShutdownLog = hasProxy || hasDevServer;
+
+    if (showShutdownLog) {
+      this.log('');
+    }
+
+    // Stop proxy server first (closes connections, stops accepting new requests)
     if (this.proxyServer) {
       try {
         await this.proxyServer.stop();
-        this.logger?.debug('Proxy server stopped');
       } catch (error) {
         this.logger?.debug(`Failed to stop proxy server: ${(error as Error).message}`);
       }
@@ -529,7 +536,6 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
     if (this.devServerManager) {
       try {
         await this.devServerManager.stop();
-        this.logger?.debug('Dev server stopped');
       } catch (error) {
         this.logger?.debug(`Failed to stop dev server: ${(error as Error).message}`);
       }
@@ -540,13 +546,21 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
     if (this.manifestWatcher) {
       try {
         await this.manifestWatcher.stop();
-        this.logger?.debug('Manifest watcher stopped');
       } catch (error) {
         this.logger?.debug(`Failed to stop manifest watcher: ${(error as Error).message}`);
       }
       this.manifestWatcher = null;
     }
 
+    if (showShutdownLog) {
+      if (hasProxy && hasDevServer) {
+        this.log(messages.getMessage('info.stopped-dev-and-proxy'));
+      } else if (hasProxy) {
+        this.log(messages.getMessage('info.stopped-proxy-only'));
+      } else {
+        this.log(messages.getMessage('info.stopped-dev-only'));
+      }
+    }
     this.logger?.debug('Cleanup complete');
   }
 }

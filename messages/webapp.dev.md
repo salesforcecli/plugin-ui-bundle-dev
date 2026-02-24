@@ -191,3 +191,15 @@ The proxy will use the actual dev server URL.
 # info.vite-proxy-detected
 
 Vite WebApp proxy detected at %s - using Vite's built-in proxy (standalone proxy skipped)
+
+# info.stopped-proxy-only
+
+✅ Stopped proxy server.
+
+# info.stopped-dev-only
+
+✅ Stopped dev server.
+
+# info.stopped-dev-and-proxy
+
+✅ Stopped dev & proxy servers.

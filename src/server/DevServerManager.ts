@@ -277,8 +277,17 @@ export class DevServerManager extends EventEmitter {
 
       const processToKill = this.process;
 
-      // Setup exit handler
+      // Force kill after 3 seconds if still running
+      const forceKillTimeout = setTimeout(() => {
+        if (this.process && !this.process.killed) {
+          this.logger.warn('Dev server did not exit gracefully, forcing kill...');
+          this.process.kill('SIGKILL');
+        }
+      }, 3000);
+
+      // Setup exit handler - must clear timeout so process can exit immediately
       const onExit = (): void => {
+        clearTimeout(forceKillTimeout);
         this.logger.debug('Dev server process stopped');
         this.process = null;
         resolve();
@@ -288,14 +297,6 @@ export class DevServerManager extends EventEmitter {
 
       // Try graceful shutdown first
       processToKill.kill('SIGTERM');
-
-      // Force kill after 3 seconds if still running
-      setTimeout(() => {
-        if (this.process && !this.process.killed) {
-          this.logger.warn('Dev server did not exit gracefully, forcing kill...');
-          this.process.kill('SIGKILL');
-        }
-      }, 3000);
     });
   }
 

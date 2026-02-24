@@ -365,9 +365,7 @@ async function findAllWebapps(cwd: string = process.cwd()): Promise<FindAllWebap
 
       if (webappsPaths.length > 0) {
         // Discover webapps from all package directories and combine
-        const webappArrays = await Promise.all(
-          webappsPaths.map((path) => discoverWebappsInFolder(path, cwd))
-        );
+        const webappArrays = await Promise.all(webappsPaths.map((path) => discoverWebappsInFolder(path, cwd)));
         const allWebapps = webappArrays.flat();
 
         return {
