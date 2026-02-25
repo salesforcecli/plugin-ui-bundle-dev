@@ -1,3 +1,9 @@
+## [1.1.3](https://github.com/salesforcecli/plugin-app-dev/compare/1.1.2...1.1.3) (2026-02-25)
+
+### Bug Fixes
+
+- improve dev stop Ctrl+C output with concise shutdown messages ([#29](https://github.com/salesforcecli/plugin-app-dev/issues/29)) ([46a93f0](https://github.com/salesforcecli/plugin-app-dev/commit/46a93f09db5c49d4cbe7f4465cb93dc0d56b1ccb))
+
 ## [1.1.2](https://github.com/salesforcecli/plugin-app-dev/compare/1.1.1...1.1.2) (2026-02-16)
 
 ### Bug Fixes
