@@ -52,10 +52,7 @@ describe('webappDiscovery', () => {
   ): void {
     // Create SFDX project structure
     mkdirSync(sfdxWebappsPath, { recursive: true });
-    writeFileSync(
-      join(testDir, 'sfdx-project.json'),
-      JSON.stringify({ packageDirectories: packageDirs })
-    );
+    writeFileSync(join(testDir, 'sfdx-project.json'), JSON.stringify({ packageDirectories: packageDirs }));
     // Mock SfProject.resolveProjectPath to return testDir
     SfProject.resolveProjectPath = async () => testDir;
   }
