@@ -50,7 +50,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
       summary: messages.getMessage('flags.port.summary'),
       description: messages.getMessage('flags.port.description'),
       char: 'p',
-      default: 4545,
+      required: false,
     }),
     'target-org': Flags.requiredOrg(),
     open: Flags.boolean({
@@ -116,6 +116,31 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Poll a URL until it is reachable or timeout.
+   *
+   * @param url - URL to poll (HEAD request)
+   * @param timeoutMs - Max time to wait
+   * @param intervalMs - Poll interval
+   * @param start - Start timestamp (for recursion)
+   * @returns true if reachable within timeout
+   */
+  private static async pollUntilReachable(
+    url: string,
+    timeoutMs: number,
+    intervalMs = 500,
+    start = Date.now()
+  ): Promise<boolean> {
+    if (await WebappDev.isUrlReachable(url)) {
+      return true;
+    }
+    if (Date.now() - start >= timeoutMs) {
+      return false;
+    }
+    await new Promise((r) => setTimeout(r, intervalMs));
+    return WebappDev.pollUntilReachable(url, timeoutMs, intervalMs, start);
   }
 
   /**
@@ -238,110 +263,122 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
         });
       } else {
         // No manifest - log applied defaults for troubleshooting
-        this.log(messages.getMessage('info.no-manifest-defaults', [DEFAULT_DEV_COMMAND, String(flags.port)]));
+        const defaultPort = flags.port ?? 4545;
+        this.log(messages.getMessage('info.no-manifest-defaults', [DEFAULT_DEV_COMMAND, String(defaultPort)]));
         this.log('');
         this.log(messages.getMessage('info.starting-webapp', [selectedWebapp.name]));
       }
 
-      // Step 3: Determine dev server URL
-      // Track whether we should skip starting dev server (when --url is already reachable)
-      let skipDevServer = false;
-      let explicitUrlProvided = false;
-
-      // Handle --url flag: check if URL is already reachable before starting dev server
-      if (flags.url) {
-        explicitUrlProvided = true;
-        this.logger.debug(`Checking if explicit URL is reachable: ${flags.url}`);
-
-        const isReachable = await WebappDev.isUrlReachable(flags.url);
-
-        if (isReachable) {
-          // URL is already available - skip starting dev server, only start proxy
-          devServerUrl = flags.url;
-          skipDevServer = true;
-          this.log(messages.getMessage('info.url-already-available', [flags.url]));
-          this.logger.debug(`URL ${flags.url} is reachable, skipping dev server startup`);
-        } else {
-          // URL not reachable - will start dev server and check for mismatch later
-          this.logger.debug(`URL ${flags.url} is not reachable, will start dev server`);
-        }
+      // Step 3: Resolve dev server URL (config-driven, no stdout parsing)
+      // Priority: --url > dev.url > (dev.command or no-manifest or no dev config ? default localhost:5173 : throw)
+      // Use default URL when: no manifest, no dev section, no dev.command, or dev.command is non-empty
+      const hasExplicitCommand = Boolean(manifest?.dev?.command?.trim());
+      const hasDevCommand =
+        !selectedWebapp.hasManifest || !manifest?.dev?.command || hasExplicitCommand;
+      const resolvedUrl =
+        flags.url ?? manifest?.dev?.url ?? (hasDevCommand ? 'http://localhost:5173' : null);
+      if (!resolvedUrl) {
+        throw new SfError(
+          '❌ Unable to determine dev server URL. Specify --url or configure dev.url or dev.command in webapplication.json.',
+          'DevServerUrlError'
+        );
       }
 
-      // If we're not skipping dev server, determine how to start it
-      if (!skipDevServer) {
-        if (manifest?.dev?.url && !explicitUrlProvided) {
-          // Use manifest dev.url
-          devServerUrl = manifest.dev.url;
-          this.logger.debug(`Using dev server URL from manifest: ${devServerUrl}`);
-        } else {
-          // Start dev server with command
-          const devCommand = manifest?.dev?.command ?? DEFAULT_DEV_COMMAND;
-
-          if (!selectedWebapp.hasManifest) {
-            this.logger.debug(messages.getMessage('info.using-defaults', [devCommand]));
-          }
-
-          // Start dev server from the webapp directory
-          this.logger.debug(`Starting dev server with command: ${devCommand}`);
-          this.devServerManager = new DevServerManager({
-            command: devCommand,
-            cwd: webappDir,
-            startupTimeout: 60_000, // 60 seconds - aligned with VS Code extension
-          });
-
-          // Setup dev server event handlers
-          this.devServerManager.on('ready', (url: string) => {
-            this.logger?.debug(`Dev server ready at: ${url}`);
-            // Clear any dev server error when server starts successfully
-            this.proxyServer?.clearActiveDevServerError();
-          });
-
-          this.devServerManager.on('error', (error: SfError | DevServerError) => {
-            // Set error for proxy to display in browser (if proxy is running)
-            // Don't log here - the error will be thrown and displayed by the main catch block
-            if ('stderrLines' in error && Array.isArray(error.stderrLines) && 'title' in error && 'type' in error) {
-              this.proxyServer?.setActiveDevServerError(error);
-            }
-            this.logger?.debug(`Dev server error: ${error.message}`);
-          });
-
-          this.devServerManager.on('exit', () => {
-            this.logger?.debug('Dev server stopped');
-          });
-
-          this.devServerManager.start();
-
-          // Wait for dev server to be ready
-          const actualDevServerUrl = await new Promise<string>((resolve, reject) => {
-            const timeout = setTimeout(() => {
-              reject(
-                new SfError('❌ Dev server did not start within 60 seconds.', 'DevServerTimeoutError', [
-                  'The dev server may be taking longer than expected to start',
-                  'Check if the dev server command is correct in webapplication.json',
-                  'Try running the dev server command manually to see if it starts',
-                ])
-              );
-            }, 60_000);
-
-            this.devServerManager?.on('ready', (url: string) => {
-              clearTimeout(timeout);
-              resolve(url);
-            });
-
-            this.devServerManager?.on('error', (error: SfError) => {
-              clearTimeout(timeout);
-              reject(error);
-            });
-          });
-
-          // Check for URL mismatch if --url was provided
-          if (explicitUrlProvided && flags.url && flags.url !== actualDevServerUrl) {
-            this.warn(messages.getMessage('warning.url-mismatch', [flags.url, actualDevServerUrl]));
-          }
-
-          // Use the actual dev server URL
-          devServerUrl = actualDevServerUrl;
+      // Check if URL is already reachable
+      const isReachable = await WebappDev.isUrlReachable(resolvedUrl);
+      if (isReachable) {
+        devServerUrl = resolvedUrl;
+        this.log(messages.getMessage('info.url-already-available', [resolvedUrl]));
+        this.logger.debug(`URL ${resolvedUrl} is reachable, skipping dev server startup`);
+      } else if ((flags.url ?? manifest?.dev?.url) && !manifest?.dev?.command?.trim()) {
+        // Explicit URL (--url or dev.url) but no dev.command - don't start (we can't control the port)
+        throw new SfError(
+          messages.getMessage('error.dev-url-unreachable', [resolvedUrl]),
+          'DevServerUrlError',
+          [
+            `Ensure your dev server is running at ${resolvedUrl}`,
+            'Or add dev.command to webapplication.json to start it automatically',
+          ]
+        );
+      } else {
+        // URL not reachable - we have dev.command (or defaults) to start
+        const devCommand = manifest?.dev?.command ?? DEFAULT_DEV_COMMAND;
+        if (!selectedWebapp.hasManifest) {
+          this.logger.debug(messages.getMessage('info.using-defaults', [devCommand]));
         }
+
+        this.logger.debug(`Starting dev server with command: ${devCommand}, expected URL: ${resolvedUrl}`);
+        this.devServerManager = new DevServerManager({
+          command: devCommand,
+          expectedUrl: resolvedUrl,
+          cwd: webappDir,
+          startupTimeout: 60_000,
+        });
+
+        let lastDevServerError: (SfError | DevServerError) | null = null;
+        this.devServerManager.on('error', (error: SfError | DevServerError) => {
+          lastDevServerError = error;
+          const devError = 'devServerError' in error ? (error as SfError & { devServerError?: DevServerError }).devServerError : error;
+          if (devError && 'stderrLines' in devError && Array.isArray(devError.stderrLines) && 'title' in devError && 'type' in devError) {
+            this.proxyServer?.setActiveDevServerError(devError);
+          }
+          this.logger?.debug(`Dev server error: ${error.message}`);
+        });
+
+        this.devServerManager.on('exit', () => {
+          this.logger?.debug('Dev server stopped');
+        });
+
+        this.devServerManager.start();
+
+        // Poll until URL is reachable, or fail immediately on process error
+        const pollPromise = WebappDev.pollUntilReachable(resolvedUrl, 60_000);
+        const errorPromise = new Promise<boolean>((_, reject) => {
+          this.devServerManager!.once('error', (error: SfError | DevServerError) => {
+            const devError = 'devServerError' in error ? (error as SfError & { devServerError?: DevServerError }).devServerError : null;
+            const suggestions: string[] = [
+              `Try running the command manually to see the error: ${devCommand}`,
+            ];
+            if (devError) {
+              suggestions.unshift(`Reason: ${devError.title} - ${devError.message}`);
+              if (devError.suggestions.length > 0) suggestions.push(...devError.suggestions);
+            } else if ('message' in error) {
+              suggestions.unshift(`Reason: ${(error as { message: string }).message}`);
+            }
+            const lastOutput = this.devServerManager?.getLastOutput();
+            if (lastOutput?.trim()) suggestions.push(`Last dev server output:\n${lastOutput}`);
+            reject(new SfError('❌ Dev server failed to start.', 'DevServerError', suggestions));
+          });
+        });
+
+        const pollReached = await Promise.race([pollPromise, errorPromise]);
+        if (!pollReached) {
+          // Timeout - capture context before cleanup nulls devServerManager
+          const manager = this.devServerManager;
+          const lastOutput = manager?.getLastOutput() ?? '';
+
+          const suggestions: string[] = [
+            'The dev server may be taking longer than expected to start',
+            'Check if the dev server command is correct in webapplication.json',
+            `Try running the command manually to see the error: ${devCommand}`,
+          ];
+          const devError = lastDevServerError && 'devServerError' in lastDevServerError
+            ? (lastDevServerError as SfError & { devServerError?: DevServerError }).devServerError
+            : null;
+          if (devError) {
+            suggestions.unshift(`Reason: ${devError.title} - ${devError.message}`);
+            if (devError.suggestions.length > 0) suggestions.push(...devError.suggestions);
+          } else if (lastDevServerError && 'message' in lastDevServerError) {
+            suggestions.unshift(`Reason: ${(lastDevServerError as { message: string }).message}`);
+          }
+          if (lastOutput.trim()) suggestions.push(`Last dev server output:\n${lastOutput}`);
+
+          await this.cleanup();
+          throw new SfError('❌ Dev server did not start within 60 seconds.', 'DevServerTimeoutError', suggestions);
+        }
+
+        devServerUrl = resolvedUrl;
+        this.logger?.debug(`Dev server ready at: ${devServerUrl}`);
       }
 
       // Step 4: Get org info for authentication
@@ -370,33 +407,66 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
         this.logger.debug('Vite proxy detected, skipping standalone proxy server');
         finalUrl = devServerUrl;
       } else {
-        // Start standalone proxy server
-        this.logger.debug(`Starting proxy server on port ${flags.port}...`);
-        const salesforceInstanceUrl = orgConnection.instanceUrl;
-        this.proxyServer = new ProxyServer({
-          devServerUrl,
-          salesforceInstanceUrl,
-          port: flags.port,
-          manifest: manifest ?? undefined,
-          orgAlias: orgUsername,
-        });
+        // Resolve proxy port: --port > dev.port > default 4545
+        // If configured and busy: throw. If not configured and busy: try next port.
+        const portExplicitlyConfigured = flags.port !== undefined || manifest?.dev?.port != null;
+        const initialProxyPort = flags.port ?? manifest?.dev?.port ?? 4545;
+        const maxPortAttempts = 10;
+        const serverUrl = devServerUrl;
 
-        await this.proxyServer.start();
-        const proxyUrl = this.proxyServer.getProxyUrl();
+        const tryStartProxy = async (port: number, attempt: number): Promise<void> => {
+          this.logger?.debug(`Starting proxy server on port ${port}...`);
+          const salesforceInstanceUrl = orgConnection.instanceUrl;
+          this.proxyServer = new ProxyServer({
+            devServerUrl: serverUrl,
+            salesforceInstanceUrl,
+            port,
+            manifest: manifest ?? undefined,
+            orgAlias: orgUsername,
+          });
+
+          try {
+            await this.proxyServer.start();
+          } catch (error) {
+            const err = error as NodeJS.ErrnoException;
+            if (err.code === 'EADDRINUSE') {
+              if (portExplicitlyConfigured) {
+                throw new SfError(
+                  messages.getMessage('error.port-in-use', [String(port)]),
+                  'PortInUseError'
+                );
+              }
+              if (attempt >= maxPortAttempts - 1) {
+                throw error;
+              }
+              this.proxyServer = null;
+              this.logger?.debug(`Port ${port} busy, trying ${port + 1}...`);
+              return tryStartProxy(port + 1, attempt + 1);
+            }
+            throw error;
+          }
+        };
+
+        await tryStartProxy(initialProxyPort, 0);
+
+        const proxyUrl = this.proxyServer!.getProxyUrl();
         this.logger.debug(`Proxy server running on ${proxyUrl}`);
 
         // Listen for dev server status changes (minimal output)
-        this.proxyServer.on('dev-server-up', (url: string) => {
+        this.proxyServer!.on('dev-server-up', (url: string) => {
           this.logger?.debug(messages.getMessage('info.dev-server-detected', [url]));
         });
 
-        this.proxyServer.on('dev-server-down', (url: string) => {
+        this.proxyServer!.on('dev-server-down', (url: string) => {
           this.log(messages.getMessage('warning.dev-server-unreachable-status', [url]));
           this.log(messages.getMessage('info.start-dev-server-hint'));
         });
 
         finalUrl = proxyUrl;
       }
+
+      // Emit JSON line to stderr before human messages (CLI-extension contract)
+      process.stderr.write(JSON.stringify({ url: finalUrl }) + '\n');
 
       // Step 6: Check if dev server is reachable (non-blocking warning) - only when using standalone proxy
       if (!viteProxyActive && devServerUrl) {
@@ -417,12 +487,23 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
         this.log(messages.getMessage('info.ready-for-development', [finalUrl]));
       }
       // Show appropriate stop message based on execution context
-      // In TTY (interactive terminal): show "Press Ctrl+C to stop"
-      // In non-TTY (IDE, CI, piped): show generic "Server running" message
+      // In TTY: match the "Stopped" messages (dev server, proxy server, or both)
+      // In non-TTY (IDE, CI, piped): same target-based format, but "Close Live Preview" instead of Ctrl+C
+      const hasProxy = !!this.proxyServer;
+      const hasDevServer = !!this.devServerManager;
+      const targetKey =
+        hasProxy && hasDevServer ? 'info.stop-target-both' : hasProxy ? 'info.stop-target-proxy' : hasDevServer ? 'info.stop-target-dev' : null;
+      const runningTargetKey =
+        hasProxy && hasDevServer ? 'info.server-running-target-both' : hasProxy ? 'info.server-running-target-proxy' : hasDevServer ? 'info.server-running-target-dev' : null;
+
       if (process.stdout.isTTY) {
-        this.log(messages.getMessage('info.press-ctrl-c'));
+        if (targetKey) {
+          this.log(messages.getMessage('info.press-ctrl-c-target', [messages.getMessage(targetKey)]));
+        } else {
+          this.log(messages.getMessage('info.press-ctrl-c'));
+        }
       } else {
-        this.log(messages.getMessage('info.server-running'));
+        this.log(messages.getMessage(runningTargetKey ?? 'info.server-running'));
       }
       this.log('');
 
@@ -553,13 +634,9 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
     }
 
     if (showShutdownLog) {
-      if (hasProxy && hasDevServer) {
-        this.log(messages.getMessage('info.stopped-dev-and-proxy'));
-      } else if (hasProxy) {
-        this.log(messages.getMessage('info.stopped-proxy-only'));
-      } else {
-        this.log(messages.getMessage('info.stopped-dev-only'));
-      }
+      const targetKey =
+        hasProxy && hasDevServer ? 'info.stop-target-both' : hasProxy ? 'info.stop-target-proxy' : 'info.stop-target-dev';
+      this.log(messages.getMessage('info.stopped-target', [messages.getMessage(targetKey)]));
     }
     this.logger?.debug('Cleanup complete');
   }

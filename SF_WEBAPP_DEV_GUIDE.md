@@ -234,38 +234,43 @@ Browser → Proxy → [Auth Headers Injected] → Salesforce → Response
 
 ## Configuration
 
+### Dev Server URL Resolution
+
+The command operates in two distinct modes based on configuration:
+
+| Mode | Configuration | Behavior |
+|------|---------------|----------|
+| **Command mode** | `dev.command` is set (or default `npm run dev`) | CLI starts the dev server. URL defaults to `http://localhost:5173`. Override with `dev.url` or `--url` if your dev server uses a different port. |
+| **URL-only mode** | `dev.url` or `--url` only (no `dev.command`) | CLI assumes the dev server is already running. Does **not** start the dev server. Starts proxy only and forwards to the given URL. |
+
+**URL precedence:** `--url` flag > `dev.url` in manifest > default `http://localhost:5173` (when command is used)
+
 ### webapplication.json Schema
 
 The `webapplication.json` file is **optional**. All fields are also optional - missing fields use defaults.
 
 #### Dev Configuration
 
-| Field         | Type   | Description                           | Default                   |
-| ------------- | ------ | ------------------------------------- | ------------------------- |
-| `dev.command` | string | Command to start dev server           | `npm run dev`             |
-| `dev.url`     | string | Dev server URL (when already running)  | `http://localhost:5173`   |
+| Field         | Type   | Description | Default |
+| ------------- | ------ | ----------- | ------- |
+| `dev.command` | string | Command to start the dev server (e.g., `npm run dev`). When set, the CLI starts the dev server and uses default URL `http://localhost:5173` unless overridden. | `npm run dev` |
+| `dev.url`     | string | Dev server URL. **Command mode**: Override the default 5173 port if needed. **URL-only mode**: Required—the CLI assumes the server is already running and does not start it. | `http://localhost:5173` |
 
-All fields are optional. Only specify what you need to override.
-
-**Option A: No manifest (uses defaults)**
-
-If no `webapplication.json` exists:
-
-- Dev command: `npm run dev`
-- Name: folder name
-- Manifest watching: disabled
-
-**Option B: Minimal manifest**
+**Command mode (CLI starts dev server):**
 
 ```json
 {
   "dev": {
-    "command": "npm start"
+    "command": "npm run dev"
   }
 }
 ```
 
-**Option C: Explicit URL (dev server already running)**
+- CLI runs `npm run dev` and waits for the server to be ready
+- Default URL: `http://localhost:5173`
+- Override port: add `"url": "http://localhost:3000"` if your dev server uses a different port
+
+**URL-only mode (proxy only, server already running):**
 
 ```json
 {
@@ -275,7 +280,15 @@ If no `webapplication.json` exists:
 }
 ```
 
-Use this when you want to start the dev server yourself.
+- No `dev.command` — CLI does **not** start the dev server
+- You must start the dev server yourself (e.g., `npm run dev` in another terminal)
+- CLI starts only the proxy and forwards to the given URL
+
+**No manifest (uses defaults):**
+
+- Dev command: `npm run dev`
+- Default URL: `http://localhost:5173`
+- Manifest watching: disabled
 
 #### Routing Configuration (Optional)
 
@@ -375,19 +388,19 @@ Automatically detects Salesforce Code Builder environment and binds to `0.0.0.0`
 
 ## The `--url` Flag
 
-The `--url` flag provides control over which dev server URL the proxy uses. It has smart behavior depending on whether the URL is already available.
+The `--url` flag overrides the dev server URL. Behavior depends on whether you have a command configured:
 
-### Behavior
+| Scenario | Command in manifest? | `--url` behavior |
+|----------|----------------------|------------------|
+| URL-only mode | No | Required. CLI assumes the server is already running and does not start it. Use when you run the dev server yourself. |
+| Command mode | Yes | Optional override. Default is `http://localhost:5173`. Use `--url` to point to a different port. |
+| URL reachable | Either | Proxy-only: skips starting dev server, starts proxy only |
+| URL not reachable | Yes (command) | Starts dev server and warns if actual URL differs from `--url` |
+| URL not reachable | No (URL-only) | Error: server must be running at the given URL |
 
-| Scenario                 | What Happens                                                      |
-| ------------------------ | ----------------------------------------------------------------- |
-| `--url` is reachable     | **Proxy-only mode**: Skips starting dev server, only starts proxy |
-| `--url` is NOT reachable | Starts dev server, warns if actual URL differs from `--url`       |
-| No `--url` provided      | Starts dev server automatically, detects URL                      |
+### Connect to Existing Dev Server (Proxy-Only Mode)
 
-### Use Case 1: Connect to Existing Dev Server (Proxy-Only Mode)
-
-If you prefer to manage your dev server separately:
+When you run the dev server yourself:
 
 ```bash
 # Terminal 1: Start your dev server manually
@@ -404,36 +417,18 @@ sf webapp dev --url http://localhost:5173 --target-org myOrg
 ```
 ✅ URL http://localhost:5173 is already available, skipping dev server startup (proxy-only mode)
 ✅ Ready for development!
-   → Proxy: http://localhost:4545
-   → Dev server: http://localhost:5173
+   → http://localhost:4545 (open this URL in your browser)
 ```
 
-### Use Case 2: URL Mismatch Warning
+### Override Default Port (Command Mode)
 
-If you specify a `--url` that doesn't match where the dev server actually starts:
+When using `dev.command`, the default URL is `http://localhost:5173`. Override with `--url` if your dev server uses a different port:
 
 ```bash
-# No dev server running, specify wrong port
-sf webapp dev --url http://localhost:9999 --target-org myOrg
+sf webapp dev --url http://localhost:3000 --target-org myOrg
 ```
 
-**Output:**
-
-```
-Warning: ⚠️ The --url flag (http://localhost:9999) does not match the actual dev server URL (http://localhost:5173/).
-The proxy will use the actual dev server URL.
-```
-
-The command continues working with the actual dev server URL.
-
-### Important Notes
-
-- The `--url` flag checks **only** the URL you specify, not other ports
-- If you have a dev server on port 5173 but specify `--url http://localhost:9999`:
-  - Command checks 9999 → not available
-  - Starts a NEW dev server → may get port 5174 (if 5173 is taken)
-  - Warns about mismatch (9999 ≠ 5174)
-- To use an existing dev server, specify its **exact** URL with `--url`
+If the URL is not reachable, the CLI starts the dev server and uses the actual URL (with a warning if it differs).
 
 ---
 

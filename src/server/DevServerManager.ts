@@ -17,44 +17,8 @@
 import { EventEmitter } from 'node:events';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { Logger, SfError } from '@salesforce/core';
-import type { DevServerOptions } from '../config/types.js';
+import type { DevServerError, DevServerOptions } from '../config/types.js';
 import { DevServerErrorParser } from '../error/DevServerErrorParser.js';
-
-/**
- * URL detection patterns for various dev servers
- * These patterns extract URLs from different dev server outputs
- */
-/**
- * URL detection patterns organized by dev server type
- * Add new server patterns here for easy maintenance
- */
-
-// Vite dev server patterns
-// Example: "  ➜  Local:   http://localhost:5173/"
-const VITE_PATTERNS = [
-  /➜\s*Local:\s+(https?:\/\/[^\s]+)/iu, // Unicode arrow (with colors)
-  />\s*Local:\s+(https?:\/\/[^\s]+)/i, // ASCII arrow fallback
-];
-
-// Create React App (Webpack) patterns
-// Example: "On Your Network:  http://192.168.1.1:3000"
-const CRA_PATTERNS = [/On Your Network:\s+(https?:\/\/[^\s]+)/i, /Local:\s+(https?:\/\/[^\s]+)/i];
-
-// Next.js dev server patterns
-// Example: "ready - started server on 0.0.0.0:3000, url: http://localhost:3000"
-const NEXTJS_PATTERNS = [/url:\s+(https?:\/\/[^\s,]+)/i, /-\s*Local:\s+(https?:\/\/[^\s]+)/i];
-
-// Generic patterns for custom/unknown servers
-// Example: "Server running at http://localhost:8080"
-const GENERIC_PATTERNS = [
-  /(?:Server|server|Running|running|started|Started).*?(https?:\/\/[^\s]+)/i,
-  /(https?:\/\/localhost:[0-9]+)/i,
-  /(https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0):[0-9]+)/i,
-];
-
-// Combined patterns in priority order
-// Specific patterns first, generic fallbacks last
-const URL_PATTERNS = [...VITE_PATTERNS, ...CRA_PATTERNS, ...NEXTJS_PATTERNS, ...GENERIC_PATTERNS];
 
 /**
  * Default configuration values for DevServerManager
@@ -70,6 +34,7 @@ const DEFAULT_OPTIONS = {
 type DevServerConfig = {
   command?: string;
   explicitUrl?: string;
+  expectedUrl?: string;
   cwd: string;
   startupTimeout: number;
 };
@@ -79,7 +44,7 @@ type DevServerConfig = {
  *
  * This class:
  * - Spawns the dev server as a child process (e.g., "npm run dev")
- * - Detects the dev server URL by parsing stdout (supports Vite, CRA, Next.js, etc.)
+ * - When explicitUrl or expectedUrl is set: no stdout URL parsing; URL comes from config
  * - Monitors process health and emits lifecycle events
  * - Handles process cleanup and graceful shutdown
  * - Provides debug logging for process output (use SF_LOG_LEVEL=debug)
@@ -107,10 +72,11 @@ export class DevServerManager extends EventEmitter {
   private process: ChildProcess | null = null;
   private detectedUrl: string | null = null;
   private startupTimer: NodeJS.Timeout | null = null;
-  private isReady = false;
   private readonly logger: Logger;
   private stderrBuffer: string[] = []; // Buffer to store stderr lines for error parsing
+  private outputBuffer: string[] = []; // Combined stdout+stderr for timeout context (many servers use stdout)
   private readonly maxStderrLines = 100; // Keep last 100 lines
+  private readonly maxOutputLines = 30; // Last N lines for timeout context
 
   /**
    * Creates a new DevServerManager instance
@@ -142,48 +108,14 @@ export class DevServerManager extends EventEmitter {
   }
 
   /**
-   * Strips ANSI color codes from a string
+   * Returns the buffered output (stdout + stderr) from the dev server process.
+   * Useful for including failure context when the server times out or crashes.
+   * Many dev servers (e.g. Vite) output to stdout, so we capture both streams.
    *
-   * @param text - Text with potential ANSI codes
-   * @returns Clean text without ANSI codes
+   * @returns Last N lines of combined output, or empty string
    */
-  private static stripAnsiCodes(text: string): string {
-    // eslint-disable-next-line no-control-regex
-    return text.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
-  }
-
-  /**
-   * Detects dev server URL from process output
-   *
-   * Attempts to match common dev server URL patterns like Vite,
-   * Create React App, Next.js, etc. Processes line-by-line for robustness.
-   *
-   * @param output - The output string to search for URLs
-   * @returns Detected URL or null if none found
-   */
-  private static detectUrlFromOutput(output: string): string | null {
-    // Split by newlines and check each line separately
-    // This is more robust against chunked output
-    const lines = output.split('\n');
-
-    for (const line of lines) {
-      // Strip ANSI color codes first (some tools ignore FORCE_COLOR=0)
-      const cleanLine = DevServerManager.stripAnsiCodes(line);
-      const trimmedLine = cleanLine.trim();
-      if (!trimmedLine) continue;
-
-      for (const pattern of URL_PATTERNS) {
-        const match = trimmedLine.match(pattern);
-
-        if (match?.[1]) {
-          const url = match[1].trim();
-          // Normalize 0.0.0.0 to localhost for better usability
-          return url.replace('0.0.0.0', 'localhost');
-        }
-      }
-    }
-
-    return null;
+  public getLastOutput(): string {
+    return this.outputBuffer.slice(-15).join('\n');
   }
 
   /**
@@ -202,7 +134,6 @@ export class DevServerManager extends EventEmitter {
     if (this.options.explicitUrl) {
       this.logger.debug(`Using explicit dev server URL: ${this.options.explicitUrl}`);
       this.detectedUrl = this.options.explicitUrl;
-      this.isReady = true;
       this.emit('ready', this.detectedUrl);
       return;
     }
@@ -242,10 +173,12 @@ export class DevServerManager extends EventEmitter {
     // Setup process event handlers
     this.setupProcessHandlers();
 
-    // Setup startup timeout
-    this.startupTimer = setTimeout(() => {
-      this.handleStartupTimeout();
-    }, this.options.startupTimeout);
+    // Setup startup timeout only when not using expectedUrl (caller verifies via polling)
+    if (!this.options.expectedUrl) {
+      this.startupTimer = setTimeout(() => {
+        this.handleStartupTimeout();
+      }, this.options.startupTimeout);
+    }
   }
 
   /**
@@ -360,43 +293,16 @@ export class DevServerManager extends EventEmitter {
       }
     }
 
+    // Capture combined output for timeout/context (stdout + stderr)
+    this.outputBuffer.push(...lines.map((line) => `[${stream}] ${line}`));
+    if (this.outputBuffer.length > this.maxOutputLines) {
+      this.outputBuffer = this.outputBuffer.slice(-this.maxOutputLines);
+    }
+
     // Log dev server output (only visible when SF_LOG_LEVEL=debug)
     for (const line of lines) {
       this.logger.debug(`[Dev Server ${stream}] ${line}`);
     }
-
-    // Try to detect URL if not yet ready
-    if (!this.isReady) {
-      const url = DevServerManager.detectUrlFromOutput(output);
-      if (url) {
-        this.handleUrlDetected(url);
-      }
-    }
-  }
-
-  /**
-   * Handles successful URL detection
-   *
-   * Clears the startup timeout, marks server as ready,
-   * and emits the ready event
-   *
-   * @param url The detected URL
-   */
-  private handleUrlDetected(url: string): void {
-    this.detectedUrl = url;
-    this.isReady = true;
-
-    // Clear startup timeout
-    if (this.startupTimer) {
-      clearTimeout(this.startupTimer);
-      this.startupTimer = null;
-    }
-
-    // Clear stderr buffer on successful start
-    this.stderrBuffer = [];
-
-    this.logger.debug(`Dev server detected at: ${url}`);
-    this.emit('ready', url);
   }
 
   /**
@@ -431,10 +337,11 @@ export class DevServerManager extends EventEmitter {
       this.logger.error(`Dev server error: ${parsedError.title}`);
       this.logger.debug(`Error type: ${parsedError.type}`);
 
-      // Convert to SfError for proper error handling
-      // Use just the message (not title) since title will be shown separately
-      // Prefix with ❌ for visual consistency with success messages (✅)
-      const sfError = new SfError(`❌ ${parsedError.message}`, 'DevServerError', parsedError.suggestions);
+      // Convert to SfError for proper error handling, attach parsed error for consumers
+      const sfError = new SfError(`❌ ${parsedError.message}`, 'DevServerError', parsedError.suggestions) as SfError & {
+        devServerError?: DevServerError;
+      };
+      sfError.devServerError = parsedError;
 
       this.emit('error', sfError);
     }

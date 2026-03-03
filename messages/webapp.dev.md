@@ -96,11 +96,43 @@ Proxy URL: %s (open this URL in your browser)
 
 # info.press-ctrl-c
 
-Press Ctrl+C to stop the proxy server
+Press Ctrl+C to stop.
+
+# info.press-ctrl-c-target
+
+Press Ctrl+C to stop the %s.
+
+# info.stopped-target
+
+✅ Stopped %s.
+
+# info.stop-target-dev
+
+dev server
+
+# info.stop-target-proxy
+
+proxy server
+
+# info.stop-target-both
+
+dev and proxy servers
 
 # info.server-running
 
 Dev server is running. Stop it by running "SFDX: Close Live Preview" from the VS Code command palette.
+
+# info.server-running-target-dev
+
+Dev server is running. Stop it by running "SFDX: Close Live Preview" from the VS Code command palette.
+
+# info.server-running-target-proxy
+
+Proxy server is running. Stop it by running "SFDX: Close Live Preview" from the VS Code command palette.
+
+# info.server-running-target-both
+
+Dev and proxy servers are running. Stop them by running "SFDX: Close Live Preview" from the VS Code command palette.
 
 # info.dev-server-healthy
 
@@ -138,6 +170,15 @@ dev.command changed to "%s" - restart the command to apply this change.
 # error.manifest-watch-failed
 
 Failed to watch manifest: %s
+
+# error.dev-url-unreachable
+
+Dev server unreachable at %s.
+Start your dev server manually at that URL, or add dev.command to webapplication.json to start it automatically.
+
+# error.port-in-use
+
+Port %s is already in use. Try specifying a different port with the --port flag or stopping the service that's using the port.
 
 # error.dev-server-failed
 
@@ -192,14 +233,3 @@ The proxy will use the actual dev server URL.
 
 Vite WebApp proxy detected at %s - using Vite's built-in proxy (standalone proxy skipped)
 
-# info.stopped-proxy-only
-
-✅ Stopped proxy server.
-
-# info.stopped-dev-only
-
-✅ Stopped dev server.
-
-# info.stopped-dev-and-proxy
-
-✅ Stopped dev & proxy servers.

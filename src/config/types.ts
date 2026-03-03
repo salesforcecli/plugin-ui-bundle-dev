@@ -40,9 +40,11 @@ export type DevServerOptions = {
   command?: string;
   /** Explicit URL override (skips auto-detection if provided) */
   explicitUrl?: string;
+  /** Expected URL when spawning - no stdout parsing; caller verifies via polling */
+  expectedUrl?: string;
   /** Working directory for the dev server process */
   cwd?: string;
-  /** Timeout in milliseconds to wait for dev server to start */
+  /** Timeout in milliseconds to wait for dev server to start (ignored when expectedUrl is set) */
   startupTimeout?: number;
 };
 

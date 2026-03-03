@@ -34,6 +34,8 @@ export type DevConfig = {
   command?: string;
   /** Explicit URL for the dev server */
   url?: string;
+  /** Proxy port (default 4545 when not specified) */
+  port?: number;
 };
 
 /**
