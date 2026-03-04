@@ -129,6 +129,11 @@ sf plugins
 
 Start a local development proxy server for webapp development with Salesforce authentication.
 
+**Two operating modes:**
+
+- **Command mode** (default): When `dev.command` is set in `webapplication.json` (or default `npm run dev`), the CLI starts the dev server. URL defaults to `http://localhost:5173`; override with `dev.url` or `--url` if needed.
+- **URL-only mode**: When only `dev.url` or `--url` is provided (no command), the CLI assumes the dev server is already running and does not start it. Proxy only.
+
 ```bash
 USAGE
   $ sf webapp dev --name <webapp-name> --target-org <org-alias> [options]
@@ -138,49 +143,28 @@ REQUIRED FLAGS
   -o, --target-org=<value>   Salesforce org to authenticate against
 
 OPTIONAL FLAGS
-  -u, --url=<value>          Dev server URL (overrides webapplication.json)
+  -u, --url=<value>          Dev server URL. Command mode: override default 5173. URL-only: required (server must be running)
   -p, --port=<value>         Proxy server port (default: 4545)
   --open                     Open browser automatically
 
-GLOBAL FLAGS
-  --flags-dir=<value>        Import flag values from a directory
-  --json                     Format output as json
-
 DESCRIPTION
-  Start a local development proxy server for webapp development.
-
-  This command starts a local HTTP proxy server that handles Salesforce
-  authentication and routes requests between your local dev server and
-  Salesforce APIs. It automatically spawns and monitors your dev server,
-  detects the URL, and provides health monitoring.
+  Starts a local HTTP proxy that injects Salesforce authentication and routes
+  requests between your dev server and Salesforce APIs. In command mode,
+  spawns and monitors the dev server (default URL: localhost:5173). In
+  URL-only mode, connects to an already-running dev server.
 
 EXAMPLES
-  Start proxy with automatic dev server management:
+  Command mode (CLI starts dev server, default port 5173):
 
     $ sf webapp dev --name myapp --target-org myorg --open
 
-  Use existing dev server:
+  URL-only mode (dev server already running):
 
     $ sf webapp dev --name myapp --target-org myorg --url http://localhost:5173 --open
 
-  Use custom proxy port:
+  Custom proxy port:
 
     $ sf webapp dev --name myapp --target-org myorg --port 8080 --open
-
-SUPPORTED DEV SERVERS
-  - Vite
-  - Create React App (Webpack)
-  - Next.js
-  - Any server that outputs http://localhost:PORT
-
-FEATURES
-  - Automatic Salesforce authentication injection
-  - Intelligent request routing (Salesforce vs dev server)
-  - WebSocket support for Hot Module Replacement (HMR)
-  - Beautiful HTML error pages with auto-refresh
-  - Periodic health monitoring (every 5s)
-  - Configuration file watching (webapplication.json)
-  - Graceful shutdown on Ctrl+C
 
 SEE ALSO
   - Complete Guide: SF_WEBAPP_DEV_GUIDE.md

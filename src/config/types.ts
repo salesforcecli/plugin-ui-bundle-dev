@@ -38,11 +38,15 @@ export type WebAppDevResult = {
 export type DevServerOptions = {
   /** Command to run the dev server (e.g., "npm run dev", "yarn dev") */
   command?: string;
-  /** Explicit URL override (skips auto-detection if provided) */
-  explicitUrl?: string;
+  /**
+   * URL from config/default. Behavior depends on command:
+   * - url without command: skip spawning, use URL as-is, emit ready immediately
+   * - url with command: spawn process, no stdout parsing; caller verifies via polling
+   */
+  url?: string;
   /** Working directory for the dev server process */
   cwd?: string;
-  /** Timeout in milliseconds to wait for dev server to start */
+  /** Timeout in milliseconds to wait for dev server to start (ignored when url+command; caller polls) */
   startupTimeout?: number;
 };
 

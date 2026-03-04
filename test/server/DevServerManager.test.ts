@@ -36,10 +36,10 @@ describe('DevServerManager', () => {
     }
   });
 
-  describe('Explicit URL Mode', () => {
-    it('should use explicit URL without spawning process', (done) => {
+  describe('URL without command (skip spawn)', () => {
+    it('should use url without spawning process', (done) => {
       manager = new DevServerManager({
-        explicitUrl: 'http://localhost:5173',
+        url: 'http://localhost:5173',
       });
 
       manager.on('ready', (url: string) => {
@@ -54,9 +54,9 @@ describe('DevServerManager', () => {
       void manager.start();
     });
 
-    it('should emit ready event immediately with explicit URL', (done) => {
+    it('should emit ready event immediately with url', (done) => {
       manager = new DevServerManager({
-        explicitUrl: 'http://localhost:3000',
+        url: 'http://localhost:3000',
       });
 
       manager.on('ready', (url: string) => {
@@ -73,7 +73,7 @@ describe('DevServerManager', () => {
   });
 
   describe('Command Validation', () => {
-    it('should throw error if no command and no explicit URL provided', () => {
+    it('should throw error if no command and no url provided', () => {
       manager = new DevServerManager({});
 
       try {
@@ -250,17 +250,18 @@ describe('DevServerManager', () => {
       void manager.start();
     });
 
-    it('should handle explicit URL override priority', function (done) {
-      this.timeout(2000);
+    it('should spawn when url and command both provided (caller polls)', function (done) {
+      this.timeout(3000);
 
       manager = new DevServerManager({
-        command: 'npm run dev', // This would normally spawn a process
-        explicitUrl: 'http://localhost:9999', // But explicit URL takes precedence
+        command: 'echo "started"',
+        url: 'http://localhost:9999',
       });
 
-      manager.on('ready', (url: string) => {
+      // With url+command we spawn; no ready event (caller polls). Process exits quickly.
+      manager.on('exit', () => {
         try {
-          expect(url).to.equal('http://localhost:9999');
+          expect(manager).to.not.be.null;
           done();
         } catch (error) {
           done(error);
@@ -328,7 +329,7 @@ describe('DevServerManager', () => {
 
       manager = new DevServerManager({
         command: 'sleep 30',
-        explicitUrl: 'http://localhost:5000',
+        url: 'http://localhost:5000',
       });
 
       void manager.start();
@@ -347,7 +348,7 @@ describe('DevServerManager', () => {
 
       manager = new DevServerManager({
         command: 'echo "test"',
-        explicitUrl: 'http://localhost:5000',
+        url: 'http://localhost:5000',
       });
 
       const exitPromise = new Promise<{ code: number | null; signal: string | null }>((resolve, reject) => {
@@ -372,7 +373,7 @@ describe('DevServerManager', () => {
 
       manager = new DevServerManager({
         command: 'echo "test output"',
-        explicitUrl: 'http://localhost:5000',
+        url: 'http://localhost:5000',
       });
 
       const timeout = setTimeout(() => done(new Error('Test timeout')), 2000);
@@ -395,7 +396,7 @@ describe('DevServerManager', () => {
 
       manager = new DevServerManager({
         command: 'node -e "console.error(\'error output\')"',
-        explicitUrl: 'http://localhost:5000',
+        url: 'http://localhost:5000',
       });
 
       const timeout = setTimeout(() => done(new Error('Test timeout')), 2000);
