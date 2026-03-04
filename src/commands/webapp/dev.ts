@@ -288,8 +288,15 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
         devServerUrl = resolvedUrl;
         this.log(messages.getMessage('info.url-already-available', [resolvedUrl]));
         this.logger.debug(`URL ${resolvedUrl} is reachable, skipping dev server startup`);
-      } else if ((flags.url ?? manifest?.dev?.url) && !manifest?.dev?.command?.trim()) {
-        // Explicit URL (--url or dev.url) but no dev.command - don't start (we can't control the port)
+      } else if (flags.url) {
+        // User explicitly passed --url; assume server is already running at that URL
+        // Fail immediately if unreachable (don't start dev server)
+        throw new SfError(messages.getMessage('error.dev-url-unreachable-with-flag', [resolvedUrl]), 'DevServerUrlError', [
+          `Ensure your dev server is running at ${resolvedUrl}`,
+          'Remove --url to use dev.command to start the server automatically',
+        ]);
+      } else if (manifest?.dev?.url && !manifest?.dev?.command?.trim()) {
+        // dev.url in manifest but no dev.command - don't start (we can't control the port)
         throw new SfError(messages.getMessage('error.dev-url-unreachable', [resolvedUrl]), 'DevServerUrlError', [
           `Ensure your dev server is running at ${resolvedUrl}`,
           'Or add dev.command to webapplication.json to start it automatically',
