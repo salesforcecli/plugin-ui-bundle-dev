@@ -176,6 +176,11 @@ Failed to watch manifest: %s
 Dev server unreachable at %s.
 Start your dev server manually at that URL, or add dev.command to webapplication.json to start it automatically.
 
+# error.dev-url-unreachable-with-flag
+
+Dev server unreachable at %s.
+Remove --url to use dev.command to start the server automatically, or ensure your dev server is running at that URL.
+
 # error.port-in-use
 
 Port %s is already in use. Try specifying a different port with the --port flag or stopping the service that's using the port.
