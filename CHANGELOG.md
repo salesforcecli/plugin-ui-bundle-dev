@@ -1,3 +1,9 @@
+## [1.1.4](https://github.com/salesforcecli/plugin-app-dev/compare/1.1.3...1.1.4) (2026-03-04)
+
+### Bug Fixes
+
+- **webapp:** refactor dev server URL detection @W-21331028@ ([#30](https://github.com/salesforcecli/plugin-app-dev/issues/30)) ([276bddd](https://github.com/salesforcecli/plugin-app-dev/commit/276bdddeaa333ae1ebf221fbb46241b3e8fdb02c))
+
 ## [1.1.3](https://github.com/salesforcecli/plugin-app-dev/compare/1.1.2...1.1.3) (2026-02-25)
 
 ### Bug Fixes
