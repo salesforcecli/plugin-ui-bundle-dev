@@ -33,8 +33,7 @@ const DEFAULT_OPTIONS = {
  */
 type DevServerConfig = {
   command?: string;
-  explicitUrl?: string;
-  expectedUrl?: string;
+  url?: string;
   cwd: string;
   startupTimeout: number;
 };
@@ -44,7 +43,7 @@ type DevServerConfig = {
  *
  * This class:
  * - Spawns the dev server as a child process (e.g., "npm run dev")
- * - When explicitUrl or expectedUrl is set: no stdout URL parsing; URL comes from config
+ * - When url is set: no stdout URL parsing; URL comes from config
  * - Monitors process health and emits lifecycle events
  * - Handles process cleanup and graceful shutdown
  * - Provides debug logging for process output (use SF_LOG_LEVEL=debug)
@@ -121,30 +120,29 @@ export class DevServerManager extends EventEmitter {
   /**
    * Starts the dev server process
    *
-   * If an explicit URL is provided, skips process spawning and immediately
+   * If url is provided without command, skips process spawning and immediately
    * emits the ready event. Otherwise, spawns the dev server command and
    * monitors its output for URL detection.
    *
-   * @throws SfError if command is not provided and no explicit URL is set
+   * @throws SfError if command is not provided and no url is set
    * @throws SfError if process fails to start
    * @throws SfError if URL is not detected within the timeout period
    */
   public start(): void {
-    // If explicit URL is provided, skip process spawning
-    if (this.options.explicitUrl) {
-      this.logger.debug(`Using explicit dev server URL: ${this.options.explicitUrl}`);
-      this.detectedUrl = this.options.explicitUrl;
+    // If url provided without command, skip process spawning
+    if (this.options.url && !this.options.command) {
+      this.logger.debug(`Using dev server URL: ${this.options.url}`);
+      this.detectedUrl = this.options.url;
       this.emit('ready', this.detectedUrl);
       return;
     }
 
     // Validate that command is provided
     if (!this.options.command) {
-      throw new SfError(
-        '❌ Dev server command is required when explicit URL is not provided',
-        'DevServerCommandRequired',
-        ['Provide a "command" in DevServerOptions', 'Or provide an "explicitUrl" to skip spawning']
-      );
+      throw new SfError('❌ Dev server command is required when url is not provided', 'DevServerCommandRequired', [
+        'Provide a "command" in DevServerOptions',
+        'Or provide a "url" to skip spawning',
+      ]);
     }
 
     this.logger.debug(`Starting dev server with command: ${this.options.command}`);
@@ -173,8 +171,8 @@ export class DevServerManager extends EventEmitter {
     // Setup process event handlers
     this.setupProcessHandlers();
 
-    // Setup startup timeout only when not using expectedUrl (caller verifies via polling)
-    if (!this.options.expectedUrl) {
+    // Setup startup timeout only when not using url+command (caller verifies via polling)
+    if (!(this.options.url && this.options.command)) {
       this.startupTimer = setTimeout(() => {
         this.handleStartupTimeout();
       }, this.options.startupTimeout);

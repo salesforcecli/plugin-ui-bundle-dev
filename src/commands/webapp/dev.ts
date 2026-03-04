@@ -273,10 +273,8 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
       // Priority: --url > dev.url > (dev.command or no-manifest or no dev config ? default localhost:5173 : throw)
       // Use default URL when: no manifest, no dev section, no dev.command, or dev.command is non-empty
       const hasExplicitCommand = Boolean(manifest?.dev?.command?.trim());
-      const hasDevCommand =
-        !selectedWebapp.hasManifest || !manifest?.dev?.command || hasExplicitCommand;
-      const resolvedUrl =
-        flags.url ?? manifest?.dev?.url ?? (hasDevCommand ? 'http://localhost:5173' : null);
+      const hasDevCommand = !selectedWebapp.hasManifest || !manifest?.dev?.command || hasExplicitCommand;
+      const resolvedUrl = flags.url ?? manifest?.dev?.url ?? (hasDevCommand ? 'http://localhost:5173' : null);
       if (!resolvedUrl) {
         throw new SfError(
           '❌ Unable to determine dev server URL. Specify --url or configure dev.url or dev.command in webapplication.json.',
@@ -292,14 +290,10 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
         this.logger.debug(`URL ${resolvedUrl} is reachable, skipping dev server startup`);
       } else if ((flags.url ?? manifest?.dev?.url) && !manifest?.dev?.command?.trim()) {
         // Explicit URL (--url or dev.url) but no dev.command - don't start (we can't control the port)
-        throw new SfError(
-          messages.getMessage('error.dev-url-unreachable', [resolvedUrl]),
-          'DevServerUrlError',
-          [
-            `Ensure your dev server is running at ${resolvedUrl}`,
-            'Or add dev.command to webapplication.json to start it automatically',
-          ]
-        );
+        throw new SfError(messages.getMessage('error.dev-url-unreachable', [resolvedUrl]), 'DevServerUrlError', [
+          `Ensure your dev server is running at ${resolvedUrl}`,
+          'Or add dev.command to webapplication.json to start it automatically',
+        ]);
       } else {
         // URL not reachable - we have dev.command (or defaults) to start
         const devCommand = manifest?.dev?.command ?? DEFAULT_DEV_COMMAND;
@@ -307,10 +301,10 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
           this.logger.debug(messages.getMessage('info.using-defaults', [devCommand]));
         }
 
-        this.logger.debug(`Starting dev server with command: ${devCommand}, expected URL: ${resolvedUrl}`);
+        this.logger.debug(`Starting dev server with command: ${devCommand}, url: ${resolvedUrl}`);
         this.devServerManager = new DevServerManager({
           command: devCommand,
-          expectedUrl: resolvedUrl,
+          url: resolvedUrl,
           cwd: webappDir,
           startupTimeout: 60_000,
         });
@@ -318,8 +312,15 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
         let lastDevServerError: (SfError | DevServerError) | null = null;
         this.devServerManager.on('error', (error: SfError | DevServerError) => {
           lastDevServerError = error;
-          const devError = 'devServerError' in error ? (error as SfError & { devServerError?: DevServerError }).devServerError : error;
-          if (devError && 'stderrLines' in devError && Array.isArray(devError.stderrLines) && 'title' in devError && 'type' in devError) {
+          const devError =
+            'devServerError' in error ? (error as SfError & { devServerError?: DevServerError }).devServerError : error;
+          if (
+            devError &&
+            'stderrLines' in devError &&
+            Array.isArray(devError.stderrLines) &&
+            'title' in devError &&
+            'type' in devError
+          ) {
             this.proxyServer?.setActiveDevServerError(devError);
           }
           this.logger?.debug(`Dev server error: ${error.message}`);
@@ -335,10 +336,11 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
         const pollPromise = WebappDev.pollUntilReachable(resolvedUrl, 60_000);
         const errorPromise = new Promise<boolean>((_, reject) => {
           this.devServerManager!.once('error', (error: SfError | DevServerError) => {
-            const devError = 'devServerError' in error ? (error as SfError & { devServerError?: DevServerError }).devServerError : null;
-            const suggestions: string[] = [
-              `Try running the command manually to see the error: ${devCommand}`,
-            ];
+            const devError =
+              'devServerError' in error
+                ? (error as SfError & { devServerError?: DevServerError }).devServerError
+                : null;
+            const suggestions: string[] = [`Try running the command manually to see the error: ${devCommand}`];
             if (devError) {
               suggestions.unshift(`Reason: ${devError.title} - ${devError.message}`);
               if (devError.suggestions.length > 0) suggestions.push(...devError.suggestions);
@@ -362,9 +364,10 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
             'Check if the dev server command is correct in webapplication.json',
             `Try running the command manually to see the error: ${devCommand}`,
           ];
-          const devError = lastDevServerError && 'devServerError' in lastDevServerError
-            ? (lastDevServerError as SfError & { devServerError?: DevServerError }).devServerError
-            : null;
+          const devError =
+            lastDevServerError && 'devServerError' in lastDevServerError
+              ? (lastDevServerError as SfError & { devServerError?: DevServerError }).devServerError
+              : null;
           if (devError) {
             suggestions.unshift(`Reason: ${devError.title} - ${devError.message}`);
             if (devError.suggestions.length > 0) suggestions.push(...devError.suggestions);
@@ -431,10 +434,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
             const err = error as NodeJS.ErrnoException;
             if (err.code === 'EADDRINUSE') {
               if (portExplicitlyConfigured) {
-                throw new SfError(
-                  messages.getMessage('error.port-in-use', [String(port)]),
-                  'PortInUseError'
-                );
+                throw new SfError(messages.getMessage('error.port-in-use', [String(port)]), 'PortInUseError');
               }
               if (attempt >= maxPortAttempts - 1) {
                 throw error;
@@ -492,9 +492,21 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
       const hasProxy = !!this.proxyServer;
       const hasDevServer = !!this.devServerManager;
       const targetKey =
-        hasProxy && hasDevServer ? 'info.stop-target-both' : hasProxy ? 'info.stop-target-proxy' : hasDevServer ? 'info.stop-target-dev' : null;
+        hasProxy && hasDevServer
+          ? 'info.stop-target-both'
+          : hasProxy
+          ? 'info.stop-target-proxy'
+          : hasDevServer
+          ? 'info.stop-target-dev'
+          : null;
       const runningTargetKey =
-        hasProxy && hasDevServer ? 'info.server-running-target-both' : hasProxy ? 'info.server-running-target-proxy' : hasDevServer ? 'info.server-running-target-dev' : null;
+        hasProxy && hasDevServer
+          ? 'info.server-running-target-both'
+          : hasProxy
+          ? 'info.server-running-target-proxy'
+          : hasDevServer
+          ? 'info.server-running-target-dev'
+          : null;
 
       if (process.stdout.isTTY) {
         if (targetKey) {
@@ -635,7 +647,11 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
 
     if (showShutdownLog) {
       const targetKey =
-        hasProxy && hasDevServer ? 'info.stop-target-both' : hasProxy ? 'info.stop-target-proxy' : 'info.stop-target-dev';
+        hasProxy && hasDevServer
+          ? 'info.stop-target-both'
+          : hasProxy
+          ? 'info.stop-target-proxy'
+          : 'info.stop-target-dev';
       this.log(messages.getMessage('info.stopped-target', [messages.getMessage(targetKey)]));
     }
     this.logger?.debug('Cleanup complete');
