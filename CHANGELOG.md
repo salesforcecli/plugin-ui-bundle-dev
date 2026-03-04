@@ -1,3 +1,9 @@
+## [1.1.5](https://github.com/salesforcecli/plugin-app-dev/compare/1.1.4...1.1.5) (2026-03-04)
+
+### Bug Fixes
+
+- fail immediately when --url is unreachable instead of 60s timeout @W-21331028@ ([#31](https://github.com/salesforcecli/plugin-app-dev/issues/31)) ([5dc12d6](https://github.com/salesforcecli/plugin-app-dev/commit/5dc12d686bac83f705c7d6ea8e1b0181600e8612))
+
 ## [1.1.4](https://github.com/salesforcecli/plugin-app-dev/compare/1.1.3...1.1.4) (2026-03-04)
 
 ### Bug Fixes
