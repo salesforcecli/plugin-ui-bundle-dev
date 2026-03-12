@@ -83,9 +83,9 @@
     "prepack": "sf-prepack",
     "prepare": "sf-install",
     "test": "wireit",
-    "test:nuts": "nyc mocha \"**/*.nut.ts\" --slow 4500 --timeout 600000 --parallel=false",
-    "test:nuts:local": "nyc mocha \"**/*.nut.ts\" --slow 4500 --timeout 600000 --parallel=false --require dotenv/config",
-    "test:nut:local": "nyc mocha --slow 4500 --timeout 600000 --require dotenv/config",
+    "test:nuts": "mocha \"**/*.nut.ts\" --slow 4500 --timeout 300000 --parallel=false",
+    "test:nuts:local": "node -r dotenv/config ./node_modules/.bin/nyc mocha \"**/*.nut.ts\" --slow 4500 --timeout 300000 --parallel=false",
+    "test:nut:local": "node -r dotenv/config ./node_modules/.bin/nyc mocha --slow 4500 --timeout 300000",
     "test:only": "wireit",
     "version": "oclif readme"
   },
