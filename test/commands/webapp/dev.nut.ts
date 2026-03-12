@@ -15,6 +15,8 @@
  */
 
 import { execSync } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { execCmd, TestSession } from '@salesforce/cli-plugins-testkit';
 import { expect } from 'chai';
 import {
@@ -210,5 +212,33 @@ describe('webapp dev NUTs — Tier 2 CLI validation', () => {
     });
 
     expect(result.jsonOutput?.name).to.equal('DevServerUrlError');
+  });
+
+  // ── Dev server startup errors ─────────────────────────────────
+
+  // Webapp created but npm install never run → dev server fails because
+  // dependencies (e.g. vite) are not installed. The command should exit
+  // with a meaningful error that suggests installing dependencies.
+  // This mirrors the real user flow: generate → dev (without install).
+  it('should suggest installing dependencies when dev server fails (no npm install)', () => {
+    const projectDir = createProjectWithWebapp(session, 'noInstall', 'myApp');
+    const appDir = webappPath(projectDir, 'myApp');
+
+    writeFileSync(
+      join(appDir, 'package.json'),
+      JSON.stringify({ name: 'test-webapp', scripts: { dev: 'vite' } })
+    );
+    writeManifest(projectDir, 'myApp', {
+      dev: { command: 'npm run dev' },
+    });
+
+    const result = execCmd(`webapp dev --name myApp --target-org ${targetOrg} --json`, {
+      ensureExitCode: 1,
+      cwd: projectDir,
+    });
+
+    expect(result.jsonOutput?.name).to.equal('DevServerError');
+    const output = JSON.stringify(result.jsonOutput ?? {});
+    expect(output).to.match(/npm install|yarn install|dependencies/i);
   });
 });
