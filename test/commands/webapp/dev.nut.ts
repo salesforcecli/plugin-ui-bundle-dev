@@ -14,22 +14,28 @@
  * limitations under the License.
  */
 
-import { writeFileSync, unlinkSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { execSync } from 'node:child_process';
 import { execCmd, TestSession } from '@salesforce/cli-plugins-testkit';
 import { expect } from 'chai';
+import {
+  createProject,
+  createProjectWithWebapp,
+  createEmptyWebappsDir,
+  createWebappDirWithoutMeta,
+  writeManifest,
+  webappPath,
+  ensureSfCli,
+  authOrgViaUrl,
+} from './helpers/webappProjectUtils.js';
 
-describe('webapp dev NUTs', () => {
+/* ------------------------------------------------------------------ *
+ *  Tier 1 — No Auth                                                   *
+ *                                                                     *
+ *  Validates flag-level parse errors that fire before any org or      *
+ *  filesystem interaction. No credentials needed; always runs.        *
+ * ------------------------------------------------------------------ */
+describe('webapp dev NUTs — Tier 1 (no auth)', () => {
   let session: TestSession;
-  const testWebappJson = {
-    name: 'testWebApp',
-    label: 'Test Web App',
-    version: '1.0.0',
-    outputDir: 'dist',
-    dev: {
-      url: 'http://localhost:5173',
-    },
-  };
 
   before(async () => {
     session = await TestSession.create({ devhubAuthStrategy: 'NONE' });
@@ -37,40 +43,172 @@ describe('webapp dev NUTs', () => {
 
   after(async () => {
     await session?.clean();
-    // Clean up any test webapplication.json files
-    const webappJsonPath = join(session?.dir ?? process.cwd(), 'webapplication.json');
-    if (existsSync(webappJsonPath)) {
-      unlinkSync(webappJsonPath);
-    }
   });
 
-  it('should fail without target-org flag', () => {
-    // Create webapplication.json for this test
-    const webappJsonPath = join(session.dir, 'webapplication.json');
-    writeFileSync(webappJsonPath, JSON.stringify(testWebappJson, null, 2));
-
-    const result = execCmd('webapp dev --name testWebApp --json', {
+  // --target-org is declared as Flags.requiredOrg(). Running without it
+  // must fail at parse time with NoDefaultEnvError before any other logic.
+  it('should require --target-org', () => {
+    const result = execCmd('webapp dev --json', {
       ensureExitCode: 1,
       cwd: session.dir,
     });
 
     expect(result.jsonOutput?.name).to.equal('NoDefaultEnvError');
     expect(result.jsonOutput?.message).to.include('target-org');
+  });
+});
 
-    // Clean up
-    unlinkSync(webappJsonPath);
+/* ------------------------------------------------------------------ *
+ *  Tier 2 — CLI Validation (with auth)                                *
+ *                                                                     *
+ *  Validates webapp discovery errors and URL resolution errors.       *
+ *  Auth is only needed so --target-org passes parsing; these tests    *
+ *  exercise local filesystem/network checks — no live org calls.      *
+ *                                                                     *
+ *  Requires TESTKIT_AUTH_URL. Fails when absent (tests are mandatory). *
+ * ------------------------------------------------------------------ */
+describe('webapp dev NUTs — Tier 2 CLI validation', () => {
+  let session: TestSession;
+  let targetOrg: string;
+
+  before(async function () {
+    if (!process.env.TESTKIT_AUTH_URL) {
+      throw new Error(
+        'TESTKIT_AUTH_URL is required for Tier 2 tests. Set it in .env (local) or CI secrets (GitHub Actions).'
+      );
+    }
+
+    session = await TestSession.create({ devhubAuthStrategy: 'NONE' });
+    ensureSfCli();
+    targetOrg = authOrgViaUrl();
   });
 
-  // Note: Additional error scenario tests (manifest validation, dev server config)
-  // require authenticated orgs, which may not be available in all CI/CD environments.
-  // These scenarios are covered by unit tests instead.
-  //
-  // Scenarios covered in unit tests:
-  // - Missing webapplication.json manifest (ManifestWatcher.test.ts)
-  // - Invalid webapplication.json schema (ManifestWatcher.test.ts)
-  // - Malformed JSON syntax (ManifestWatcher.test.ts)
-  // - Missing dev server config (DevServerManager.test.ts)
-  //
-  // For local testing with authenticated orgs, use manual validation scripts in:
-  // docs/manual-tests/test-webapp-dev-command.ts
+  after(async () => {
+    await session?.clean();
+  });
+
+  // ── Discovery errors ──────────────────────────────────────────
+
+  // Project has no webapplications folder at all → WebappNotFoundError.
+  it('should error when no webapp found (project only, no webapps)', () => {
+    const projectDir = createProject(session, 'noWebappProject');
+
+    const result = execCmd(`webapp dev --target-org ${targetOrg} --json`, {
+      ensureExitCode: 1,
+      cwd: projectDir,
+    });
+
+    expect(result.jsonOutput?.name).to.equal('WebappNotFoundError');
+  });
+
+  // Project has webapp "realApp" but --name asks for "NonExistent" → WebappNameNotFoundError.
+  it('should error when --name does not match any webapp', () => {
+    const projectDir = createProjectWithWebapp(session, 'nameNotFound', 'realApp');
+
+    const result = execCmd(`webapp dev --name NonExistent --target-org ${targetOrg} --json`, {
+      ensureExitCode: 1,
+      cwd: projectDir,
+    });
+
+    expect(result.jsonOutput?.name).to.equal('WebappNameNotFoundError');
+  });
+
+  // cwd is inside webapp "appA" but --name asks for "appB" → WebappNameConflictError.
+  // Discovery treats this as ambiguous intent and rejects it.
+  it('should error on --name conflict when inside a different webapp', () => {
+    const projectDir = createProjectWithWebapp(session, 'nameConflict', 'appA');
+    execSync('sf webapp generate --name appB', { cwd: projectDir, stdio: 'pipe' });
+
+    const cwdInsideAppA = webappPath(projectDir, 'appA');
+
+    const result = execCmd(`webapp dev --name appB --target-org ${targetOrg} --json`, {
+      ensureExitCode: 1,
+      cwd: cwdInsideAppA,
+    });
+
+    expect(result.jsonOutput?.name).to.equal('WebappNameConflictError');
+  });
+
+  // webapplications/ folder exists but is empty → WebappNotFoundError.
+  it('should error when webapplications folder is empty', () => {
+    const projectDir = createProject(session, 'emptyWebapps');
+    createEmptyWebappsDir(projectDir);
+
+    const result = execCmd(`webapp dev --target-org ${targetOrg} --json`, {
+      ensureExitCode: 1,
+      cwd: projectDir,
+    });
+
+    expect(result.jsonOutput?.name).to.equal('WebappNotFoundError');
+  });
+
+  // webapplications/orphanApp/ exists but has no .webapplication-meta.xml → not a valid webapp.
+  it('should error when webapp dir has no .webapplication-meta.xml', () => {
+    const projectDir = createProject(session, 'noMeta');
+    createWebappDirWithoutMeta(projectDir, 'orphanApp');
+
+    const result = execCmd(`webapp dev --target-org ${targetOrg} --json`, {
+      ensureExitCode: 1,
+      cwd: projectDir,
+    });
+
+    expect(result.jsonOutput?.name).to.equal('WebappNotFoundError');
+  });
+
+  // ── Auto-selection ────────────────────────────────────────────
+
+  // When cwd is inside webapplications/myApp/, discovery auto-selects that
+  // webapp without --name. The command proceeds past discovery and fails at
+  // URL resolution (no dev server running) — confirming auto-select worked.
+  it('should auto-select webapp when run from inside its directory', () => {
+    const projectDir = createProjectWithWebapp(session, 'autoSelect', 'myApp');
+
+    writeManifest(projectDir, 'myApp', {
+      dev: { url: 'http://localhost:5179' },
+    });
+
+    const cwdInsideApp = webappPath(projectDir, 'myApp');
+
+    // No --name flag; cwd is inside the webapp directory.
+    // Discovery auto-selects myApp, then the command fails at URL check
+    // (nothing running on 5179). DevServerUrlError proves discovery succeeded.
+    const result = execCmd(`webapp dev --target-org ${targetOrg} --json`, {
+      ensureExitCode: 1,
+      cwd: cwdInsideApp,
+    });
+
+    expect(result.jsonOutput?.name).to.equal('DevServerUrlError');
+  });
+
+  // ── URL / dev server errors ───────────────────────────────────
+
+  // --url explicitly provided but nothing is listening → DevServerUrlError.
+  // The command refuses to start a dev server when --url is given.
+  it('should error when --url is unreachable', () => {
+    const projectDir = createProjectWithWebapp(session, 'urlUnreachable', 'myApp');
+
+    const result = execCmd(`webapp dev --name myApp --url http://localhost:5179 --target-org ${targetOrg} --json`, {
+      ensureExitCode: 1,
+      cwd: projectDir,
+    });
+
+    expect(result.jsonOutput?.name).to.equal('DevServerUrlError');
+  });
+
+  // Manifest has dev.url but no dev.command → command can't start the server
+  // itself and the URL is unreachable → DevServerUrlError.
+  it('should error when dev.url is unreachable and no dev.command', () => {
+    const projectDir = createProjectWithWebapp(session, 'urlNoCmd', 'myApp');
+
+    writeManifest(projectDir, 'myApp', {
+      dev: { url: 'http://localhost:5179' },
+    });
+
+    const result = execCmd(`webapp dev --name myApp --target-org ${targetOrg} --json`, {
+      ensureExitCode: 1,
+      cwd: projectDir,
+    });
+
+    expect(result.jsonOutput?.name).to.equal('DevServerUrlError');
+  });
 });
