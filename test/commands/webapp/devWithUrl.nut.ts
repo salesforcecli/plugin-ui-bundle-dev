@@ -58,7 +58,7 @@ describe('webapp dev NUTs — Tier 2 URL/proxy integration', function () {
   let handle: WebappDevHandle | null = null;
   let externalServer: HttpServer | null = null;
 
-  before(async function () {
+  before(async () => {
     if (!process.env.TESTKIT_AUTH_URL) {
       throw new Error(
         'TESTKIT_AUTH_URL is required for Tier 2 tests. Set it in .env (local) or CI secrets (GitHub Actions).'

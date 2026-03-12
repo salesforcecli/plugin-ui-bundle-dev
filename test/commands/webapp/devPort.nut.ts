@@ -50,7 +50,7 @@ describe('webapp dev NUTs — Tier 2 port handling', function () {
   let blocker: Server | null = null;
   let handle: WebappDevHandle | null = null;
 
-  before(async function () {
+  before(async () => {
     if (!process.env.TESTKIT_AUTH_URL) {
       throw new Error(
         'TESTKIT_AUTH_URL is required for Tier 2 tests. Set it in .env (local) or CI secrets (GitHub Actions).'

@@ -117,7 +117,7 @@ export function spawnWebappDev(args: string[], options: { cwd: string; timeout?:
                   const forceKillTimeout = setTimeout(() => {
                     killProcessGroup('SIGKILL');
                     res();
-                  }, 5_000);
+                  }, 5000);
                   proc.once('close', () => {
                     clearTimeout(forceKillTimeout);
                     res();
