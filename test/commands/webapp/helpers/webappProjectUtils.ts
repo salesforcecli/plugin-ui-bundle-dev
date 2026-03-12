@@ -104,6 +104,25 @@ export function createProjectWithWebapp(session: TestSession, projectName: strin
 }
 
 /**
+ * Create a project with multiple webapps. Used to test selection flows when
+ * more than one webapp exists in a single SFDX project.
+ */
+export function createProjectWithMultipleWebapps(
+  session: TestSession,
+  projectName: string,
+  webAppNames: string[]
+): string {
+  const projectDir = createProject(session, projectName);
+  for (const name of webAppNames) {
+    execSync(`sf webapp generate --name ${name}`, {
+      cwd: projectDir,
+      stdio: 'pipe',
+    });
+  }
+  return projectDir;
+}
+
+/**
  * Create the `webapplications/` directory (empty — no webapps inside).
  * Used to test "empty webapplications folder" scenario.
  */
