@@ -108,6 +108,104 @@ export class ProxyServer extends EventEmitter {
     }
   }
 
+  /**
+   * Wraps the response to inject a route-change script into HTML pages.
+   * When the app is embedded in Live Preview iframe, this script notifies the parent
+   * when the route changes (e.g. "Go to Home" click) so the path input stays in sync.
+   * Injection only occurs when Content-Type is text/html and body contains </body>.
+   */
+  private static wrapResponseForRouteInjection(_req: IncomingMessage, res: ServerResponse): ServerResponse {
+    let statusCode = 200;
+    let headers: Record<string, string | string[] | number | undefined> = {};
+    const chunks: Buffer[] = [];
+
+    const routeScript =
+      '<script>(function(){if(window===window.top)return;function send(){try{var p=window.location.pathname||\'/\';window.parent.postMessage({command:\'routeChanged\',route:p,_source:\'webapps-proxy-injected-script\'},\'*\')}catch(e){}}send();window.addEventListener(\'popstate\',send);var _push=history.pushState;if(_push){history.pushState=function(){_push.apply(this,arguments);setTimeout(send,0)}}var _replace=history.replaceState;if(_replace){history.replaceState=function(){_replace.apply(this,arguments);setTimeout(send,0)}}if(typeof window.navigation!==\'undefined\'&&window.navigation.addEventListener){window.navigation.addEventListener(\'navigate\',function(){setTimeout(send,0)})}})();</script>';
+
+    const wrapped = Object.create(res, {
+      writeHead: {
+        value: (
+          code: number,
+          h?: Record<string, string | string[] | number | undefined>
+        ) => {
+          statusCode = code;
+          if (h) {
+            const merged: Record<string, string | string[] | number | undefined> = {
+              ...headers,
+              ...h
+            };
+            headers = merged;
+          }
+          return true;
+        }
+      },
+      write: {
+        value: (
+          chunk: Buffer | string,
+          encoding?: BufferEncoding | ((err?: Error) => void),
+          cb?: (err?: Error) => void
+        ) => {
+          let actualEncoding: BufferEncoding | undefined;
+          let actualCb: ((err?: Error) => void) | undefined;
+          if (typeof encoding === 'function') {
+            actualCb = encoding;
+            actualEncoding = undefined;
+          } else {
+            actualEncoding = encoding;
+            actualCb = cb;
+          }
+          chunks.push(
+            Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, actualEncoding as BufferEncoding)
+          );
+          if (actualCb) actualCb();
+          return true;
+        }
+      },
+      end: {
+        value: (
+          chunk?: Buffer | string | (() => void),
+          encoding?: BufferEncoding | (() => void),
+          cb?: () => void
+        ) => {
+          let actualChunk: Buffer | string | undefined;
+          let actualEncoding: BufferEncoding | undefined;
+          let actualCb: (() => void) | undefined;
+          if (typeof chunk === 'function') {
+            actualCb = chunk;
+            actualChunk = undefined;
+            actualEncoding = undefined;
+          } else if (typeof encoding === 'function') {
+            actualCb = encoding;
+            actualChunk = chunk;
+            actualEncoding = undefined;
+          } else {
+            actualChunk = chunk;
+            actualEncoding = encoding;
+            actualCb = cb;
+          }
+          if (actualChunk)
+            chunks.push(
+              Buffer.isBuffer(actualChunk)
+                ? actualChunk
+                : Buffer.from(actualChunk, actualEncoding as BufferEncoding)
+            );
+          const body = Buffer.concat(chunks);
+          const contentType = (headers['content-type'] ?? headers['Content-Type'] ?? '') as string;
+          if (contentType.includes('text/html') && body.includes('</body>')) {
+            const injected = body.toString().replace('</body>', `${routeScript}</body>`);
+            res.writeHead(statusCode, { ...headers, 'content-length': Buffer.byteLength(injected) });
+            res.end(injected, actualCb);
+          } else {
+            res.writeHead(statusCode, headers);
+            res.end(body, actualCb);
+          }
+        }
+      }
+    }) as ServerResponse;
+
+    return wrapped;
+  }
+
   // Public instance methods
   public clearActiveDevServerError(): void {
     if (this.activeDevServerError) {
@@ -359,8 +457,8 @@ export class ProxyServer extends EventEmitter {
     }
 
     if (this.proxyHandler) {
-      // Package handles all errors internally and returns proper HTTP responses
-      await this.proxyHandler(req, res);
+      const wrappedRes = ProxyServer.wrapResponseForRouteInjection(req, res);
+      await this.proxyHandler(req, wrappedRes);
     } else {
       this.logger.error('Proxy handler not initialized');
       res.writeHead(500, { 'Content-Type': 'application/json' });
