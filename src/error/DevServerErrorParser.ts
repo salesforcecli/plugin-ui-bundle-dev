@@ -132,11 +132,11 @@ const ERROR_PATTERNS: ErrorPattern[] = [
 
   // Command not found - dependencies not installed
   {
-    pattern: /command not found|not recognized as.*command/i,
+    pattern: /command not found|not recognized as.*command|:\s+not found/i,
     type: 'missing-module',
     title: 'Dependencies Not Installed',
     getMessage: (stderr): string => {
-      const cmdMatch = stderr.match(/(?:sh:|bash:)\s*(\S+):\s*command not found/i);
+      const cmdMatch = stderr.match(/(?:sh:|bash:)\s*(?:\d+:\s*)?(\S+):\s*(?:command )?not found/i);
       const command = cmdMatch?.[1] ?? 'required command';
       return `Command '${command}' not found. Project dependencies may not be installed.`;
     },

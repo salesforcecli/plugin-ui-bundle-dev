@@ -44,6 +44,9 @@ node_modules
 # --
 # put files here you don't want cleaned with sf-clean
 
+# local NUT credentials
+.env
+
 # os specific files
 .DS_Store
 .idea

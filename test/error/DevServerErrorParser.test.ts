@@ -121,6 +121,7 @@ sh: vite: command not found
         'sh: vite: command not found',
         'bash: npm: command not found',
         '/bin/sh: node: command not found',
+        'sh: 1: vite: not found',
       ];
 
       for (const stderr of stderrFormats) {
@@ -128,6 +129,23 @@ sh: vite: command not found
         expect(result.type).to.equal('missing-module');
         expect(result.title).to.equal('Dependencies Not Installed');
       }
+    });
+
+    it('should parse dash-style command not found (Ubuntu /bin/sh)', () => {
+      const stderr = `
+> my-app@1.0.0 dev
+> vite --mode development
+
+sh: 1: vite: not found
+      `;
+
+      const result = DevServerErrorParser.parseError(stderr, 127, null);
+
+      expect(result.type).to.equal('missing-module');
+      expect(result.title).to.equal('Dependencies Not Installed');
+      expect(result.message).to.include('vite');
+      expect(result.message).to.include('not found');
+      expect(result.suggestions.some((s) => s.includes('npm install'))).to.be.true;
     });
 
     it('should handle unknown errors with fallback', () => {

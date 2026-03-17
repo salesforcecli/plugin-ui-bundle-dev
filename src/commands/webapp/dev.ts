@@ -291,10 +291,14 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
       } else if (flags.url) {
         // User explicitly passed --url; assume server is already running at that URL
         // Fail immediately if unreachable (don't start dev server)
-        throw new SfError(messages.getMessage('error.dev-url-unreachable-with-flag', [resolvedUrl]), 'DevServerUrlError', [
-          `Ensure your dev server is running at ${resolvedUrl}`,
-          'Remove --url to use dev.command to start the server automatically',
-        ]);
+        throw new SfError(
+          messages.getMessage('error.dev-url-unreachable-with-flag', [resolvedUrl]),
+          'DevServerUrlError',
+          [
+            `Ensure your dev server is running at ${resolvedUrl}`,
+            'Remove --url to use dev.command to start the server automatically',
+          ]
+        );
       } else if (manifest?.dev?.url && !manifest?.dev?.command?.trim()) {
         // dev.url in manifest but no dev.command - don't start (we can't control the port)
         throw new SfError(messages.getMessage('error.dev-url-unreachable', [resolvedUrl]), 'DevServerUrlError', [
@@ -439,7 +443,9 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
             await this.proxyServer.start();
           } catch (error) {
             const err = error as NodeJS.ErrnoException;
-            if (err.code === 'EADDRINUSE') {
+            const isAddrInUse =
+              err.code === 'EADDRINUSE' || (error instanceof SfError && error.name === 'PortInUseError');
+            if (isAddrInUse) {
               if (portExplicitlyConfigured) {
                 throw new SfError(messages.getMessage('error.port-in-use', [String(port)]), 'PortInUseError');
               }

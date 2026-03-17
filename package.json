@@ -24,6 +24,7 @@
     "@salesforce/plugin-command-reference": "^3.1.77",
     "@types/http-proxy": "^1.17.14",
     "@types/micromatch": "^4.0.10",
+    "dotenv": "^17.3.1",
     "eslint-plugin-sf-plugin": "^1.20.33",
     "oclif": "^4.22.68",
     "ts-node": "^10.9.2",
@@ -82,7 +83,9 @@
     "prepack": "sf-prepack",
     "prepare": "sf-install",
     "test": "wireit",
-    "test:nuts": "nyc mocha \"**/*.nut.ts\" --slow 4500 --timeout 600000 --parallel",
+    "test:nuts": "mocha \"**/*.nut.ts\" --slow 4500 --timeout 300000 --parallel=false",
+    "test:nuts:local": "node -r dotenv/config ./node_modules/.bin/nyc mocha \"**/*.nut.ts\" --slow 4500 --timeout 300000 --parallel=false",
+    "test:nut:local": "node -r dotenv/config ./node_modules/.bin/nyc mocha --slow 4500 --timeout 300000",
     "test:only": "wireit",
     "version": "oclif readme"
   },
