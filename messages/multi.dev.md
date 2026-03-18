@@ -4,9 +4,9 @@ Preview a web app locally without needing to deploy
 
 # description
 
-Starts a local development server for a Web Application, using the local project files. This enables rapid development with hot reloading and immediate feedback.
+This command starts a local development server so you can preview a web application using the local metadata files in your DX project. Using a local preview helps you quickly develop web applications, because you don't have to continually deploy metadata to your org.
 
-The command launches a local proxy server that sits between your web application and Salesforce, automatically injecting authentication headers from the CLI's stored tokens. This allows your web app to make authenticated API calls to Salesforce without exposing credentials.
+The command also launches a local proxy server that sits between your web application and Salesforce, automatically injecting authentication headers from Salesforce CLI's stored tokens. The proxy allows your web app to make authenticated API calls to Salesforce without exposing credentials.
 
 # flags.name.summary
 
