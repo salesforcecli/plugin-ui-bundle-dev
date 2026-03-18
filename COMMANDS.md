@@ -2,43 +2,47 @@
 
 <!-- commands -->
 
-- [`sf webapp dev`](#sf-webapp-dev)
+- [`sf multi dev`](#sf-multi-dev)
 
-## `sf webapp dev`
+## `sf multi dev`
 
-Preview a web app locally without needing to deploy
+Start a local development proxy server for multi-framework webapp development with Salesforce authentication.
 
 ```
 USAGE
-  $ sf webapp dev -n <value> [--json] [--flags-dir <value>] [-t <value>] [-p <value>]
+  $ sf multi dev -n <value> -o <value> [--json] [--flags-dir <value>] [-u <value>] [-p <value>] [--open]
 
-FLAGS
-  -n, --name=<value>    (required) Identifies the Web Application
-  -p, --port=<value>    [default: 5173] Port for the dev server
-  -t, --target=<value>  Selects which Web Application target to use for the preview (e.g., Lightning App, Site)
+REQUIRED FLAGS
+  -n, --name=<value>         Name of the webapp (must match webapplication.json)
+  -o, --target-org=<value>   Salesforce org to authenticate against
+
+OPTIONAL FLAGS
+  -u, --url=<value>   Dev server URL. Command mode: override default 5173. URL-only: required (server must be running)
+  -p, --port=<value>  Proxy server port (default: 4545)
+  --open              Open browser automatically
 
 GLOBAL FLAGS
   --flags-dir=<value>  Import flag values from a directory.
   --json               Format output as json.
 
 DESCRIPTION
-  Preview a web app locally without needing to deploy
-
-  Starts a local development server for a Web Application, using the local project files. This enables rapid
-  development with hot reloading and immediate feedback.
+  Starts a local HTTP proxy that injects Salesforce authentication and routes
+  requests between your dev server and Salesforce APIs. In command mode,
+  spawns and monitors the dev server (default URL: localhost:5173). In
+  URL-only mode, connects to an already-running dev server.
 
 EXAMPLES
-  Start the development server:
+  Command mode (CLI starts dev server, default port 5173):
 
-    $ sf webapp dev --name myWebApp
+    $ sf multi dev --name myapp --target-org myorg --open
 
-  Start the development server with a specific target:
+  URL-only mode (dev server already running):
 
-    $ sf webapp dev --name myWebApp --target "LightningApp"
+    $ sf multi dev --name myapp --target-org myorg --url http://localhost:5173 --open
 
-  Start the development server on a custom port:
+  Custom proxy port:
 
-    $ sf webapp dev --name myWebApp --port 8080
+    $ sf multi dev --name myapp --target-org myorg --port 8080 --open
 ```
 
 <!-- commandsstop -->

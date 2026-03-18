@@ -50,7 +50,7 @@ const FULL_FLOW_PORT = 18_900;
 const PROXY_ONLY_PORT = 18_930;
 const VITE_PORT = 18_940;
 
-describe('webapp dev NUTs — Tier 2 URL/proxy integration', function () {
+describe('multi dev NUTs — Tier 2 URL/proxy integration', function () {
   this.timeout(SUITE_TIMEOUT);
 
   let session: TestSession;

@@ -16,9 +16,17 @@
 
 import { execSync } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { TestSession } from '@salesforce/cli-plugins-testkit';
+
+/**
+ * Real home directory captured at module load, before TestSession overrides process.env.HOME.
+ * Used when running `sf template generate multi` so the CLI finds linked plugin-templates
+ * (TestSession sets HOME to a temp dir, which hides linked plugins).
+ */
+export const REAL_HOME = homedir();
 
 /**
  * Relative path from project root to the webapplications folder.
@@ -91,14 +99,15 @@ export function createProject(session: TestSession, name: string): string {
 }
 
 /**
- * Run `sf project generate` then `sf webapp generate --name <webAppName>` inside
+ * Run `sf project generate` then `sf template generate multi --name <webAppName>` inside
  * the project. Returns the absolute path to the generated project root.
  */
 export function createProjectWithWebapp(session: TestSession, projectName: string, webAppName: string): string {
   const projectDir = createProject(session, projectName);
-  execSync(`sf webapp generate --name ${webAppName}`, {
+  execSync(`sf template generate multi --name ${webAppName}`, {
     cwd: projectDir,
     stdio: 'pipe',
+    env: { ...process.env, HOME: REAL_HOME, USERPROFILE: REAL_HOME },
   });
   return projectDir;
 }
@@ -114,9 +123,10 @@ export function createProjectWithMultipleWebapps(
 ): string {
   const projectDir = createProject(session, projectName);
   for (const name of webAppNames) {
-    execSync(`sf webapp generate --name ${name}`, {
+    execSync(`sf template generate multi --name ${name}`, {
       cwd: projectDir,
       stdio: 'pipe',
+      env: { ...process.env, HOME: REAL_HOME, USERPROFILE: REAL_HOME },
     });
   }
   return projectDir;

@@ -213,13 +213,13 @@ Select the webapp to run:
 
 No webapplication.json found. Using defaults: dev command=%s, proxy port=%s
 
-Tip: See "sf webapp dev --help" for configuration options.
+Tip: See "sf multi dev --help" for configuration options.
 
 # warning.empty-manifest
 
 No dev configuration in webapplication.json - using defaults (command: %s)
 
-Tip: See "sf webapp dev --help" for configuration options.
+Tip: See "sf multi dev --help" for configuration options.
 
 # info.using-defaults
 

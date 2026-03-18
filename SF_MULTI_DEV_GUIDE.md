@@ -1,4 +1,4 @@
-# Salesforce Webapp Dev Command Guide
+# Salesforce Multi Dev Command Guide
 
 > **Develop web applications with seamless Salesforce integration**
 
@@ -6,7 +6,7 @@
 
 ## Overview
 
-The `sf webapp dev` command enables local development of modern web applications (React, Vue, Angular, etc.) with automatic Salesforce authentication. It intelligently discovers your webapp configuration, handles proxy routing, injects authentication headers, and supports hot reload - so you can focus on building your app.
+The `sf multi dev` command enables local development of modern web applications (React, Vue, Angular, etc.) with automatic Salesforce authentication. It intelligently discovers your webapp configuration, handles proxy routing, injects authentication headers, and supports hot reload - so you can focus on building your app.
 
 ### Key Features
 
@@ -40,7 +40,7 @@ my-sfdx-project/
 ### 2. Run the command
 
 ```bash
-sf webapp dev --target-org myOrg --open
+sf multi dev --target-org myOrg --open
 ```
 
 ### 3. Start developing
@@ -60,7 +60,7 @@ Browser opens to `http://localhost:4545` with your app running and Salesforce au
 ## Command Syntax
 
 ```bash
-sf webapp dev [OPTIONS]
+sf multi dev [OPTIONS]
 ```
 
 ### Options
@@ -77,22 +77,22 @@ sf webapp dev [OPTIONS]
 
 ```bash
 # Simplest - auto-discovers webapplication.json
-sf webapp dev --target-org myOrg
+sf multi dev --target-org myOrg
 
 # With browser auto-open
-sf webapp dev --target-org myOrg --open
+sf multi dev --target-org myOrg --open
 
 # Specify webapp by name (when multiple exist)
-sf webapp dev --name myApp --target-org myOrg
+sf multi dev --name myApp --target-org myOrg
 
 # Custom port
-sf webapp dev --target-org myOrg --port 8080
+sf multi dev --target-org myOrg --port 8080
 
 # Explicit dev server URL (skip auto-detection)
-sf webapp dev --target-org myOrg --url http://localhost:5173
+sf multi dev --target-org myOrg --url http://localhost:5173
 
 # Debug mode
-SF_LOG_LEVEL=debug sf webapp dev --target-org myOrg
+SF_LOG_LEVEL=debug sf multi dev --target-org myOrg
 ```
 
 ---
@@ -105,7 +105,7 @@ The command discovers webapps using a simplified, deterministic algorithm. Webap
 
 ```mermaid
 flowchart TD
-    Start["sf webapp dev"] --> CheckInside{"Inside webapplications/<br/>webapp folder?"}
+    Start["sf multi dev"] --> CheckInside{"Inside webapplications/<br/>webapp folder?"}
 
     CheckInside -->|Yes| HasNameInside{"--name provided?"}
     HasNameInside -->|Yes, different| ErrorConflict["Error: --name conflicts<br/>with current directory"]
@@ -312,7 +312,7 @@ webapplications/
     └── src/
 ```
 
-Run: `sf webapp dev --target-org myOrg`
+Run: `sf multi dev --target-org myOrg`
 
 Console output:
 
@@ -409,7 +409,7 @@ npm run dev
 # Output: Local: http://localhost:5173/
 
 # Terminal 2: Connect proxy to your running server
-sf webapp dev --url http://localhost:5173 --target-org myOrg
+sf multi dev --url http://localhost:5173 --target-org myOrg
 ```
 
 **Output:**
@@ -425,7 +425,7 @@ sf webapp dev --url http://localhost:5173 --target-org myOrg
 When using `dev.command`, the default URL is `http://localhost:5173`. Override with `--url` if your dev server uses a different port:
 
 ```bash
-sf webapp dev --url http://localhost:3000 --target-org myOrg
+sf multi dev --url http://localhost:3000 --target-org myOrg
 ```
 
 If the URL is not reachable, the CLI starts the dev server and uses the actual URL (with a warning if it differs).
@@ -455,7 +455,7 @@ This error occurs when you're inside one webapp folder but try to run a differen
 ```bash
 # You're in FirstWebApp folder but trying to run SecondWebApp
 cd webapplications/FirstWebApp
-sf webapp dev --name SecondWebApp --target-org myOrg  # Error!
+sf multi dev --name SecondWebApp --target-org myOrg  # Error!
 ```
 
 **Solutions:**
@@ -470,7 +470,7 @@ The `--name` flag matches the folder name of the webapp.
 
 ```bash
 # This looks for webapp named "myApp"
-sf webapp dev --name myApp --target-org myOrg
+sf multi dev --name myApp --target-org myOrg
 ```
 
 ### "Dependencies Not Installed" / "command not found"
@@ -486,13 +486,13 @@ npm install
 
 1. Ensure dev server is running: `npm run dev`
 2. Verify URL in `webapplication.json` is correct
-3. Try explicit URL: `sf webapp dev --url http://localhost:5173 --target-org myOrg`
+3. Try explicit URL: `sf multi dev --url http://localhost:5173 --target-org myOrg`
 
 ### "Port 4545 already in use"
 
 ```bash
 # Use a different port
-sf webapp dev --port 8080 --target-org myOrg
+sf multi dev --port 8080 --target-org myOrg
 
 # Or find and kill the process using the port
 lsof -i :4545
@@ -524,7 +524,7 @@ tail -f ~/.sf/sf-$(date +%Y-%m-%d).log | grep --line-buffered WebappDev | jq -r 
 **Step 2: Run command in Terminal 2**
 
 ```bash
-SF_LOG_LEVEL=debug sf webapp dev --target-org myOrg
+SF_LOG_LEVEL=debug sf multi dev --target-org myOrg
 ```
 
 **Example debug output:**
@@ -548,7 +548,7 @@ The command integrates with the Salesforce VSCode UI Preview extension (`salesfo
 
 1. Extension detects `webapplication.json` in workspace
 2. User clicks "Preview" button on the file
-3. Extension executes: `sf webapp dev --target-org <org> --open`
+3. Extension executes: `sf multi dev --target-org <org> --open`
 4. If multiple webapps exist, uses `--name` to specify which one
 5. Browser opens with the app running
 
@@ -559,7 +559,7 @@ The command integrates with the Salesforce VSCode UI Preview extension (`salesfo
 For scripting and CI/CD, use the `--json` flag:
 
 ```bash
-sf webapp dev --target-org myOrg --json
+sf multi dev --target-org myOrg --json
 ```
 
 Output:
@@ -581,7 +581,7 @@ Output:
 ### Building the Plugin
 
 ```bash
-cd /path/to/plugin-app-dev
+cd /path/to/plugin-multiframework
 
 # Install dependencies
 yarn install
@@ -605,7 +605,7 @@ yarn build  # Rebuild - no re-linking needed
 ### Project Structure
 
 ```
-plugin-app-dev/
+plugin-multiframework/
 ├── src/
 │   ├── commands/webapp/
 │   │   └── dev.ts              # Main command implementation
@@ -649,4 +649,4 @@ plugin-app-dev/
 
 ---
 
-**Repository:** [github.com/salesforcecli/plugin-app-dev](https://github.com/salesforcecli/plugin-app-dev)
+**Repository:** [github.com/salesforcecli/plugin-multiframework](https://github.com/salesforcecli/plugin-multiframework)

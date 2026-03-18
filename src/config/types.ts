@@ -22,7 +22,7 @@ export type { ManifestChangeEvent } from './ManifestWatcher.js';
 
 /**
  * Command execution result
- * What the sf webapp dev command returns to the user
+ * What the sf multi dev command returns to the user
  */
 export type WebAppDevResult = {
   /** Proxy server URL (where user should open browser) */
