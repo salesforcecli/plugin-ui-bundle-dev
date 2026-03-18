@@ -1,3 +1,9 @@
+# [1.2.0](https://github.com/salesforcecli/plugin-app-dev/compare/1.1.5...1.2.0) (2026-03-17)
+
+### Features
+
+- add E2E NUT tests for webapp dev command @W-21111429@ ([#32](https://github.com/salesforcecli/plugin-app-dev/issues/32)) ([e24fb2b](https://github.com/salesforcecli/plugin-app-dev/commit/e24fb2bd4b4a05d5bb365f16a9094c02a0c5dc15))
+
 ## [1.1.5](https://github.com/salesforcecli/plugin-app-dev/compare/1.1.4...1.1.5) (2026-03-04)
 
 ### Bug Fixes
