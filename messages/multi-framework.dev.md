@@ -1,98 +1,106 @@
 # summary
 
-Preview a web app locally without needing to deploy
+Preview a web application locally and in real-time, without deploying it to your org.
 
 # description
 
-This command starts a local development server so you can preview a web application using the local metadata files in your DX project. Using a local preview helps you quickly develop web applications, because you don't have to continually deploy metadata to your org.
+This command starts a local development (dev) server so you can preview a web application using the local metadata files in your DX project. Using a local preview helps you quickly develop web applications, because you don't have to continually deploy metadata to your org.
 
 The command also launches a local proxy server that sits between your web application and Salesforce, automatically injecting authentication headers from Salesforce CLI's stored tokens. The proxy allows your web app to make authenticated API calls to Salesforce without exposing credentials.
 
+Even though you're previewing the web application locally and not deploying anything to an org, you're still required to authorize and specify an org to use this command.
+
+Salesforce web applications are represented by the WebApplication metadata type.
+
 # flags.name.summary
 
-Identifies the Web Application (optional)
+Name of the web application to preview.
 
 # flags.name.description
 
-The unique name of the web application as defined in webapplication.json. If not provided, the command will automatically discover webapplication.json files in the current directory and subdirectories. If only one webapplication.json is found, it will be used automatically. If multiple are found, you will be prompted to select one.
+The unique name of the web application, as defined by the "name" property in the webapplication.json runtime configuration file.  The webapplication.json file is located in the "multiframework" metadata directory of your DX project, such as force-app/main/default/multiframework/MyApp/webapplication.json.
+
+If you don't specify this flag, the command automatically discovers the webapplication.json files in the current directory and subdirectories. If the command finds only one webapplication.json, it automatically uses it. If it finds multiple files, the command prompts you to select one.
 
 # flags.url.summary
 
-Dev server origin to forward UI/HMR/static requests
+URL where your developer server runs, such as https://localhost:5173. All UI, static, and hot deployment requests are forwarded to this URL.
 
 # flags.url.description
 
-The URL where your dev server is running (e.g., http://localhost:5173). Required if webapplication.json does not contain a dev.command or dev.url configuration. All non-Salesforce API requests will be forwarded to this URL.
+You must specify this flag if the web application's webapplication.json file doesn't contain a value for either the "dev.command" or "dev.url" configuration properties. All non-Salesforce API requests are forwarded to this URL.
 
-Dev server URL precedence: --url flag > manifest dev.url > URL from dev server process (started via manifest dev.command or default npm run dev).
+If you specify this flag, it overrides the value in the webapplication.json file.
+
+This is the order of precedence that the dev server uses for the URL:  --url flag > manifest dev.url > URL from the dev server process (which was started using either manifest dev.command or default npm run dev).
 
 # flags.port.summary
 
-Local proxy port
+Local port where the proxy server listens.
 
 # flags.port.description
 
-The port on which the proxy server will listen. Your browser should connect to this port, not directly to the dev server. The proxy will forward authenticated requests to Salesforce and other requests to your dev server.
+Be sure your browser connects to this port, and not directly to the dev server. The proxy then forwards authenticated requests to Salesforce and other requests to your local dev server.
 
 # flags.open.summary
 
-Auto-open proxy URL in default browser
+Automatically open the proxy server URL in your default browser when the dev server is ready.
 
 # flags.open.description
 
-Automatically opens the proxy server URL in your default web browser when the server is ready. This saves you from manually copying and pasting the URL. The browser will open to the proxy URL (not the dev server URL directly), ensuring all requests are properly authenticated.
+This flag saves you from manually copying and pasting the URL. The browser opens to the proxy URL, and not the dev server URL directly, which ensures that all requests are property authenticated.
 
 # examples
 
-- Start the development server (auto-discovers webapplication.json):
+- Start the local development (dev) server by automatically discovering the web application's webapplication.json file; use the org with alias "myorg":
 
   <%= config.bin %> <%= command.id %> --target-org myorg
 
-- Start the development server with explicit webapp name:
+- Start the dev server by explicitly specifying the web application's name:
 
   <%= config.bin %> <%= command.id %> --name myWebApp --target-org myorg
 
-- Start the development server with explicit dev server URL:
+- Start at the specified dev server URL:
 
   <%= config.bin %> <%= command.id %> --name myWebApp --url http://localhost:5173 --target-org myorg
 
-- Start with custom port and auto-open browser:
+- Start with a custom proxy port and automatically open the proxy server URL in your browser:
 
   <%= config.bin %> <%= command.id %> --target-org myorg --port 4546 --open
 
-- Start with debug logging (using SF_LOG_LEVEL environment variable):
+- Start with debug logging enabled by specifing the SF_LOG_LEVEL environment variable before running the command:
 
   SF_LOG_LEVEL=debug <%= config.bin %> <%= command.id %> --target-org myorg
 
 # info.manifest-changed
 
-Manifest %s detected
+Manifest %s detected.
 
 # info.manifest-reloaded
 
-✓ Manifest reloaded successfully
+✓ Manifest reloaded successfully.
 
 # info.dev-url-changed
 
-Dev server URL updated to: %s
+Dev server URL updated to: %s.
 
 # info.dev-server-url
 
-Dev server URL: %s
+Dev server URL: %s.
 
 # info.proxy-url
 
-Proxy URL: %s (open this URL in your browser)
+Proxy URL: %s (open this URL in your browser).
 
 # info.ready-for-development
 
 ✅ Ready for development!
-  → %s (open this URL in your browser)
+  → %s (open this URL in your browser).
 
 # info.ready-for-development-vite
 
 ✅ Ready for development!
-  → %s (Vite proxy active - open this URL in your browser)
+  → %s (Vite proxy active - open this URL in your browser).
 
 # info.press-ctrl-c
 
@@ -136,27 +144,27 @@ Dev and proxy servers are running. Stop them by running "SFDX: Close Live Previe
 
 # info.dev-server-healthy
 
-✓ Dev server is responding at: %s
+✓ Dev server is responding at: %s.
 
 # info.dev-server-detected
 
-✅ Dev server detected at %s
+✅ Dev server detected at %s.
 
 # info.start-dev-server-hint
 
-Start your dev server to continue development
+Start your dev server to continue development.
 
 # warning.dev-server-not-responding
 
-⚠ Dev server returned status %s from: %s
+⚠ Dev server returned status %s from: %s.
 
 # warning.dev-server-unreachable
 
-⚠ Dev server is not responding at: %s
+⚠ Dev server is not responding at: %s.
 
 # warning.dev-server-unreachable-status
 
-⚠️ Dev server unreachable at %s
+⚠️  Dev server unreachable at %s.
 
 # warning.dev-server-start-hint
 
@@ -169,7 +177,7 @@ dev.command changed to "%s" - restart the command to apply this change.
 
 # error.manifest-watch-failed
 
-Failed to watch manifest: %s
+Failed to watch manifest: %s.
 
 # error.dev-url-unreachable
 
@@ -191,19 +199,19 @@ Port %s is already in use. Try specifying a different port with the --port flag 
 
 # info.multiple-webapps-found
 
-Found %s webapps in project
+Found %s webapps in project.
 
 # info.webapp-auto-selected
 
-Auto-selected webapp "%s" (running from inside its folder)
+Auto-selected webapp "%s" (running from inside its folder).
 
 # info.using-webapp
 
-✅ Using webapp: %s (%s)
+✅ Using webapp: %s (%s).
 
 # info.starting-webapp
 
-✅ Starting %s
+✅ Starting %s.
 
 # prompt.select-webapp
 
@@ -211,30 +219,30 @@ Select the webapp to run:
 
 # info.no-manifest-defaults
 
-No webapplication.json found. Using defaults: dev command=%s, proxy port=%s
+No webapplication.json found. Using defaults: dev command=%s, proxy port=%s.
 
 Tip: See "sf multi-framework dev --help" for configuration options.
 
 # warning.empty-manifest
 
-No dev configuration in webapplication.json - using defaults (command: %s)
+No dev configuration in webapplication.json - using defaults (command: %s).
 
 Tip: See "sf multi-framework dev --help" for configuration options.
 
 # info.using-defaults
 
-Using default dev command: %s
+Using default dev command: %s.
 
 # info.url-already-available
 
-✅ URL %s is already available, skipping dev server startup (proxy-only mode)
+✅ URL %s is already available, skipping dev server startup (proxy-only mode).
 
 # warning.url-mismatch
 
-⚠️ The --url flag (%s) does not match the actual dev server URL (%s).
+⚠️  The --url flag (%s) does not match the actual dev server URL (%s).
 The proxy will use the actual dev server URL.
 
 # info.vite-proxy-detected
 
-Vite WebApp proxy detected at %s - using Vite's built-in proxy (standalone proxy skipped)
+Vite WebApp proxy detected at %s - using Vite's built-in proxy (standalone proxy skipped).
 
