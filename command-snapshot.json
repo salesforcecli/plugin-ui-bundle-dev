@@ -1,10 +1,10 @@
 [
   {
     "alias": [],
-    "command": "multi:dev",
+    "command": "multi-framework:dev",
     "flagAliases": [],
     "flagChars": ["b", "n", "o", "p", "u"],
     "flags": ["flags-dir", "json", "name", "open", "port", "target-org", "url"],
-    "plugin": "@salesforce/plugin-multiframework"
+    "plugin": "@salesforce/plugin-multiframework-dev"
   }
 ]

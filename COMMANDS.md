@@ -2,15 +2,15 @@
 
 <!-- commands -->
 
-- [`sf multi dev`](#sf-multi-dev)
+- [`sf multi-framework dev`](#sf-multi-framework-dev)
 
-## `sf multi dev`
+## `sf multi-framework dev`
 
 Start a local development proxy server for multi-framework webapp development with Salesforce authentication.
 
 ```
 USAGE
-  $ sf multi dev -n <value> -o <value> [--json] [--flags-dir <value>] [-u <value>] [-p <value>] [--open]
+  $ sf multi-framework dev -n <value> -o <value> [--json] [--flags-dir <value>] [-u <value>] [-p <value>] [--open]
 
 REQUIRED FLAGS
   -n, --name=<value>         Name of the webapp (must match webapplication.json)
@@ -34,15 +34,15 @@ DESCRIPTION
 EXAMPLES
   Command mode (CLI starts dev server, default port 5173):
 
-    $ sf multi dev --name myapp --target-org myorg --open
+    $ sf multi-framework dev --name myapp --target-org myorg --open
 
   URL-only mode (dev server already running):
 
-    $ sf multi dev --name myapp --target-org myorg --url http://localhost:5173 --open
+    $ sf multi-framework dev --name myapp --target-org myorg --url http://localhost:5173 --open
 
   Custom proxy port:
 
-    $ sf multi dev --name myapp --target-org myorg --port 8080 --open
+    $ sf multi-framework dev --name myapp --target-org myorg --port 8080 --open
 ```
 
 <!-- commandsstop -->

@@ -1,5 +1,5 @@
 {
-  "name": "@salesforce/plugin-multiframework",
+  "name": "@salesforce/plugin-multiframework-dev",
   "description": "",
   "version": "1.2.0",
   "author": "Salesforce",
@@ -41,7 +41,7 @@
     "/oclif.manifest.json",
     "/schemas"
   ],
-  "homepage": "https://github.com/salesforcecli/plugin-multiframework",
+  "homepage": "https://github.com/salesforcecli/plugin-multiframework-dev",
   "keywords": [
     "force",
     "salesforce",
@@ -62,13 +62,13 @@
       "@salesforce/plugin-command-reference"
     ],
     "topics": {
-      "multi": {
+      "multi-framework": {
         "description": "Work with multi-framework apps"
       }
     },
     "flexibleTaxonomy": true
   },
-  "repository": "salesforcecli/plugin-multiframework",
+  "repository": "salesforcecli/plugin-multiframework-dev",
   "scripts": {
     "build": "wireit",
     "clean": "sf-clean",

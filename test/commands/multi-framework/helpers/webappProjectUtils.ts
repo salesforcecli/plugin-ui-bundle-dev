@@ -23,7 +23,7 @@ import type { TestSession } from '@salesforce/cli-plugins-testkit';
 
 /**
  * Real home directory captured at module load, before TestSession overrides process.env.HOME.
- * Used when running `sf template generate multi` so the CLI finds linked plugin-templates
+ * Used when running `sf template generate multi-framework` so the CLI finds linked plugin-templates
  * (TestSession sets HOME to a temp dir, which hides linked plugins).
  */
 export const REAL_HOME = homedir();
@@ -99,12 +99,12 @@ export function createProject(session: TestSession, name: string): string {
 }
 
 /**
- * Run `sf project generate` then `sf template generate multi --name <webAppName>` inside
+ * Run `sf project generate` then `sf template generate multi-framework --name <webAppName>` inside
  * the project. Returns the absolute path to the generated project root.
  */
 export function createProjectWithWebapp(session: TestSession, projectName: string, webAppName: string): string {
   const projectDir = createProject(session, projectName);
-  execSync(`sf template generate multi --name ${webAppName}`, {
+  execSync(`sf template generate multi-framework --name ${webAppName}`, {
     cwd: projectDir,
     stdio: 'pipe',
     env: { ...process.env, HOME: REAL_HOME, USERPROFILE: REAL_HOME },
@@ -123,7 +123,7 @@ export function createProjectWithMultipleWebapps(
 ): string {
   const projectDir = createProject(session, projectName);
   for (const name of webAppNames) {
-    execSync(`sf template generate multi --name ${name}`, {
+    execSync(`sf template generate multi-framework --name ${name}`, {
       cwd: projectDir,
       stdio: 'pipe',
       env: { ...process.env, HOME: REAL_HOME, USERPROFILE: REAL_HOME },

@@ -26,9 +26,9 @@ import { ProxyServer } from '../../proxy/ProxyServer.js';
 import { discoverWebapp, DEFAULT_DEV_COMMAND, type DiscoveredWebapp } from '../../config/webappDiscovery.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
-const messages = Messages.loadMessages('@salesforce/plugin-multiframework', 'multi.dev');
+const messages = Messages.loadMessages('@salesforce/plugin-multiframework-dev', 'multi-framework.dev');
 
-export default class MultiDev extends SfCommand<WebAppDevResult> {
+export default class MultiFrameworkDev extends SfCommand<WebAppDevResult> {
   public static readonly summary = messages.getMessage('summary');
   public static readonly description = messages.getMessage('description');
   public static readonly examples = messages.getMessages('examples');
@@ -133,14 +133,14 @@ export default class MultiDev extends SfCommand<WebAppDevResult> {
     intervalMs = 500,
     start = Date.now()
   ): Promise<boolean> {
-    if (await MultiDev.isUrlReachable(url)) {
+    if (await MultiFrameworkDev.isUrlReachable(url)) {
       return true;
     }
     if (Date.now() - start >= timeoutMs) {
       return false;
     }
     await new Promise((r) => setTimeout(r, intervalMs));
-    return MultiDev.pollUntilReachable(url, timeoutMs, intervalMs, start);
+    return MultiFrameworkDev.pollUntilReachable(url, timeoutMs, intervalMs, start);
   }
 
   /**
@@ -169,11 +169,11 @@ export default class MultiDev extends SfCommand<WebAppDevResult> {
 
   // eslint-disable-next-line complexity
   public async run(): Promise<WebAppDevResult> {
-    const { flags } = await this.parse(MultiDev);
+    const { flags } = await this.parse(MultiFrameworkDev);
 
     // Initialize logger from @salesforce/core for debug logging
     // Logger respects SF_LOG_LEVEL environment variable
-    this.logger = await Logger.child('MultiDev');
+    this.logger = await Logger.child('MultiFrameworkDev');
 
     // Declare variables outside try block for catch block access
     let manifest: WebAppManifest | null = null;
@@ -191,7 +191,7 @@ export default class MultiDev extends SfCommand<WebAppDevResult> {
       if (!discoveredWebapp) {
         this.log(messages.getMessage('info.multiple-webapps-found', [String(allWebapps.length)]));
 
-        selectedWebapp = await MultiDev.promptWebappSelection(allWebapps);
+        selectedWebapp = await MultiFrameworkDev.promptWebappSelection(allWebapps);
       } else {
         selectedWebapp = discoveredWebapp;
 
@@ -283,7 +283,7 @@ export default class MultiDev extends SfCommand<WebAppDevResult> {
       }
 
       // Check if URL is already reachable
-      const isReachable = await MultiDev.isUrlReachable(resolvedUrl);
+      const isReachable = await MultiFrameworkDev.isUrlReachable(resolvedUrl);
       if (isReachable) {
         devServerUrl = resolvedUrl;
         this.log(messages.getMessage('info.url-already-available', [resolvedUrl]));
@@ -344,7 +344,7 @@ export default class MultiDev extends SfCommand<WebAppDevResult> {
         this.devServerManager.start();
 
         // Poll until URL is reachable, or fail immediately on process error
-        const pollPromise = MultiDev.pollUntilReachable(resolvedUrl, 60_000);
+        const pollPromise = MultiFrameworkDev.pollUntilReachable(resolvedUrl, 60_000);
         const errorPromise = new Promise<boolean>((_, reject) => {
           this.devServerManager!.once('error', (error: SfError | DevServerError) => {
             const devError =
@@ -410,7 +410,7 @@ export default class MultiDev extends SfCommand<WebAppDevResult> {
 
       // Step 5: Check for Vite proxy and conditionally start standalone proxy
       this.logger.debug('Checking if Vite WebApp proxy is active...');
-      const viteProxyActive = await MultiDev.checkViteProxyActive(devServerUrl);
+      const viteProxyActive = await MultiFrameworkDev.checkViteProxyActive(devServerUrl);
 
       // Track the final URL to open in browser (either proxy or dev server)
       let finalUrl: string;
@@ -489,7 +489,7 @@ export default class MultiDev extends SfCommand<WebAppDevResult> {
       // Step 7: Open browser if requested
       if (flags.open) {
         this.logger.debug('Opening browser...');
-        await MultiDev.openBrowser(finalUrl);
+        await MultiFrameworkDev.openBrowser(finalUrl);
       }
 
       // Display usage instructions
@@ -577,7 +577,7 @@ export default class MultiDev extends SfCommand<WebAppDevResult> {
 
       // Wrap unknown errors
       const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new SfError(`❌ Failed to start multi dev command: ${errorMessage}`, 'UnexpectedError', [
+      throw new SfError(`❌ Failed to start multi-framework dev command: ${errorMessage}`, 'UnexpectedError', [
         'This is an unexpected error',
         'Please try again',
         'If the problem persists, check the command logs with SF_LOG_LEVEL=debug',

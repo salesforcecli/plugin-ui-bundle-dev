@@ -19,7 +19,7 @@ import sinon from 'sinon';
 import { TestContext } from '@salesforce/core/testSetup';
 import type { WebAppManifest, WebAppDevResult } from '../../../src/config/types.js';
 
-describe('webapp:dev command integration', () => {
+describe('multi-framework:dev command integration', () => {
   const $$ = new TestContext();
 
   afterEach(() => {

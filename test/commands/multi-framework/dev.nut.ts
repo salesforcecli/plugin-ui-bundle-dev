@@ -38,7 +38,7 @@ import {
  *  Validates flag-level parse errors that fire before any org or      *
  *  filesystem interaction. No credentials needed; always runs.        *
  * ------------------------------------------------------------------ */
-describe('multi dev NUTs — Tier 1 (no auth)', () => {
+describe('multi-framework dev NUTs — Tier 1 (no auth)', () => {
   let session: TestSession;
 
   before(async () => {
@@ -52,7 +52,7 @@ describe('multi dev NUTs — Tier 1 (no auth)', () => {
   // --target-org is declared as Flags.requiredOrg(). Running without it
   // must fail at parse time with NoDefaultEnvError before any other logic.
   it('should require --target-org', () => {
-    const result = execCmd('multi dev --json', {
+    const result = execCmd('multi-framework dev --json', {
       ensureExitCode: 1,
       cwd: session.dir,
     });
@@ -71,7 +71,7 @@ describe('multi dev NUTs — Tier 1 (no auth)', () => {
  *                                                                     *
  *  Requires TESTKIT_AUTH_URL. Fails when absent (tests are mandatory). *
  * ------------------------------------------------------------------ */
-describe('multi dev NUTs — Tier 2 CLI validation', () => {
+describe('multi-framework dev NUTs — Tier 2 CLI validation', () => {
   let session: TestSession;
   let targetOrg: string;
 
@@ -97,7 +97,7 @@ describe('multi dev NUTs — Tier 2 CLI validation', () => {
   it('should error when no webapp found (project only, no webapps)', () => {
     const projectDir = createProject(session, 'noWebappProject');
 
-    const result = execCmd(`multi dev --target-org ${targetOrg} --json`, {
+    const result = execCmd(`multi-framework dev --target-org ${targetOrg} --json`, {
       ensureExitCode: 1,
       cwd: projectDir,
     });
@@ -109,7 +109,7 @@ describe('multi dev NUTs — Tier 2 CLI validation', () => {
   it('should error when --name does not match any webapp', () => {
     const projectDir = createProjectWithWebapp(session, 'nameNotFound', 'realApp');
 
-    const result = execCmd(`multi dev --name NonExistent --target-org ${targetOrg} --json`, {
+    const result = execCmd(`multi-framework dev --name NonExistent --target-org ${targetOrg} --json`, {
       ensureExitCode: 1,
       cwd: projectDir,
     });
@@ -121,7 +121,7 @@ describe('multi dev NUTs — Tier 2 CLI validation', () => {
   // Discovery treats this as ambiguous intent and rejects it.
   it('should error on --name conflict when inside a different webapp', () => {
     const projectDir = createProjectWithWebapp(session, 'nameConflict', 'appA');
-    execSync('sf template generate multi --name appB', {
+    execSync('sf template generate multi-framework --name appB', {
       cwd: projectDir,
       stdio: 'pipe',
       env: { ...process.env, HOME: REAL_HOME, USERPROFILE: REAL_HOME },
@@ -129,7 +129,7 @@ describe('multi dev NUTs — Tier 2 CLI validation', () => {
 
     const cwdInsideAppA = webappPath(projectDir, 'appA');
 
-    const result = execCmd(`multi dev --name appB --target-org ${targetOrg} --json`, {
+    const result = execCmd(`multi-framework dev --name appB --target-org ${targetOrg} --json`, {
       ensureExitCode: 1,
       cwd: cwdInsideAppA,
     });
@@ -142,7 +142,7 @@ describe('multi dev NUTs — Tier 2 CLI validation', () => {
     const projectDir = createProject(session, 'emptyWebapps');
     createEmptyWebappsDir(projectDir);
 
-    const result = execCmd(`multi dev --target-org ${targetOrg} --json`, {
+    const result = execCmd(`multi-framework dev --target-org ${targetOrg} --json`, {
       ensureExitCode: 1,
       cwd: projectDir,
     });
@@ -155,7 +155,7 @@ describe('multi dev NUTs — Tier 2 CLI validation', () => {
     const projectDir = createProject(session, 'noMeta');
     createWebappDirWithoutMeta(projectDir, 'orphanApp');
 
-    const result = execCmd(`multi dev --target-org ${targetOrg} --json`, {
+    const result = execCmd(`multi-framework dev --target-org ${targetOrg} --json`, {
       ensureExitCode: 1,
       cwd: projectDir,
     });
@@ -178,7 +178,7 @@ describe('multi dev NUTs — Tier 2 CLI validation', () => {
       dev: { url: 'http://localhost:5181' },
     });
 
-    const result = execCmd(`multi dev --name appA --target-org ${targetOrg} --json`, {
+    const result = execCmd(`multi-framework dev --name appA --target-org ${targetOrg} --json`, {
       ensureExitCode: 1,
       cwd: projectDir,
     });
@@ -197,7 +197,7 @@ describe('multi dev NUTs — Tier 2 CLI validation', () => {
       dev: { url: 'http://localhost:5183' },
     });
 
-    const result = execCmd(`multi dev --name appB --target-org ${targetOrg} --json`, {
+    const result = execCmd(`multi-framework dev --name appB --target-org ${targetOrg} --json`, {
       ensureExitCode: 1,
       cwd: projectDir,
     });
@@ -222,7 +222,7 @@ describe('multi dev NUTs — Tier 2 CLI validation', () => {
     // No --name flag; cwd is inside the webapp directory.
     // Discovery auto-selects myApp, then the command fails at URL check
     // (nothing running on 5179). DevServerUrlError proves discovery succeeded.
-    const result = execCmd(`multi dev --target-org ${targetOrg} --json`, {
+    const result = execCmd(`multi-framework dev --target-org ${targetOrg} --json`, {
       ensureExitCode: 1,
       cwd: cwdInsideApp,
     });
@@ -245,7 +245,7 @@ describe('multi dev NUTs — Tier 2 CLI validation', () => {
 
     const cwdInsideAppA = webappPath(projectDir, 'appA');
 
-    const result = execCmd(`multi dev --target-org ${targetOrg} --json`, {
+    const result = execCmd(`multi-framework dev --target-org ${targetOrg} --json`, {
       ensureExitCode: 1,
       cwd: cwdInsideAppA,
     });
@@ -260,10 +260,13 @@ describe('multi dev NUTs — Tier 2 CLI validation', () => {
   it('should error when --url is unreachable', () => {
     const projectDir = createProjectWithWebapp(session, 'urlUnreachable', 'myApp');
 
-    const result = execCmd(`multi dev --name myApp --url http://localhost:5179 --target-org ${targetOrg} --json`, {
-      ensureExitCode: 1,
-      cwd: projectDir,
-    });
+    const result = execCmd(
+      `multi-framework dev --name myApp --url http://localhost:5179 --target-org ${targetOrg} --json`,
+      {
+        ensureExitCode: 1,
+        cwd: projectDir,
+      }
+    );
 
     expect(result.jsonOutput?.name).to.equal('DevServerUrlError');
   });
@@ -277,7 +280,7 @@ describe('multi dev NUTs — Tier 2 CLI validation', () => {
       dev: { url: 'http://localhost:5179' },
     });
 
-    const result = execCmd(`multi dev --name myApp --target-org ${targetOrg} --json`, {
+    const result = execCmd(`multi-framework dev --name myApp --target-org ${targetOrg} --json`, {
       ensureExitCode: 1,
       cwd: projectDir,
     });
@@ -295,15 +298,12 @@ describe('multi dev NUTs — Tier 2 CLI validation', () => {
     const projectDir = createProjectWithWebapp(session, 'noInstall', 'myApp');
     const appDir = webappPath(projectDir, 'myApp');
 
-    writeFileSync(
-      join(appDir, 'package.json'),
-      JSON.stringify({ name: 'test-webapp', scripts: { dev: 'vite' } })
-    );
+    writeFileSync(join(appDir, 'package.json'), JSON.stringify({ name: 'test-webapp', scripts: { dev: 'vite' } }));
     writeManifest(projectDir, 'myApp', {
       dev: { command: 'npm run dev' },
     });
 
-    const result = execCmd(`multi dev --name myApp --target-org ${targetOrg} --json`, {
+    const result = execCmd(`multi-framework dev --name myApp --target-org ${targetOrg} --json`, {
       ensureExitCode: 1,
       cwd: projectDir,
     });
