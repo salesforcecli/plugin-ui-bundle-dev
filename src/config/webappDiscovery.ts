@@ -27,10 +27,10 @@ const logger = Logger.childFromRoot('WebappDiscovery');
 export const DEFAULT_DEV_COMMAND = 'npm run dev';
 
 /**
- * Standard metadata path segment for webapplications (relative to package directory).
- * Consistent with other metadata types: packagePath/main/default/webapplications
+ * Standard metadata path segment for webui (relative to package directory).
+ * Consistent with other metadata types: packagePath/main/default/webui
  */
-const WEBAPPLICATIONS_RELATIVE_PATH = 'main/default/webapplications';
+const WEBAPPLICATIONS_RELATIVE_PATH = 'main/default/webui';
 
 /**
  * Pattern to match webapplication metadata XML files
@@ -58,7 +58,7 @@ export type DiscoveredWebapp = {
 };
 
 /**
- * Directories to exclude when processing webapplications folder.
+ * Directories to exclude when processing webui folder.
  * Note: Directories starting with '.' are excluded separately in shouldExcludeDirectory()
  */
 const EXCLUDED_DIRECTORIES = new Set(['node_modules', 'dist', 'build', 'out', 'coverage', '__pycache__', 'venv']);
@@ -70,11 +70,11 @@ function shouldExcludeDirectory(dirName: string): boolean {
   return EXCLUDED_DIRECTORIES.has(dirName) || dirName.startsWith('.');
 }
 
-/** Folder name for webapplications metadata */
-const WEBAPPLICATIONS_FOLDER = 'webapplications';
+/** Folder name for webui metadata */
+const WEBAPPLICATIONS_FOLDER = 'webui';
 
 /**
- * Check if a folder name is the standard webapplications folder
+ * Check if a folder name is the standard webui folder
  */
 function isWebapplicationsFolder(folderName: string): boolean {
   return folderName === WEBAPPLICATIONS_FOLDER;
@@ -174,11 +174,11 @@ async function tryResolveSfdxProjectRoot(cwd: string): Promise<string | null> {
 }
 
 /**
- * Get all webapplications folder paths from the project's package directories.
- * Consistent with other metadata types: each package can have main/default/webapplications.
+ * Get all webui folder paths from the project's package directories.
+ * Consistent with other metadata types: each package can have main/default/webui.
  *
  * @param projectRoot - Absolute path to project root (where sfdx-project.json lives)
- * @returns Array of absolute paths to webapplications folders that exist
+ * @returns Array of absolute paths to webui folders that exist
  */
 async function getWebapplicationsPathsFromProject(projectRoot: string): Promise<string[]> {
   try {
@@ -199,24 +199,24 @@ async function getWebapplicationsPathsFromProject(projectRoot: string): Promise<
 }
 
 /**
- * Check if we're inside a webapplications folder by traversing upward through parent directories.
+ * Check if we're inside a webui folder by traversing upward through parent directories.
  *
  * This handles cases where the user runs the command from inside a webapp folder:
  *
- * Example 1: Running from /project/force-app/main/default/webapplications/my-app/src/
- * Traverses: src -> my-app -> webapplications (found!)
- * Returns: { webappsFolder: "/project/.../webapplications", currentWebappName: "my-app" }
+ * Example 1: Running from /project/force-app/main/default/webui/my-app/src/
+ * Traverses: src -> my-app -> webui (found!)
+ * Returns: { webappsFolder: "/project/.../webui", currentWebappName: "my-app" }
  *
- * Example 2: Running from /project/force-app/main/default/webapplications/my-app/
- * Checks parent: webapplications (found!)
- * Returns: { webappsFolder: "/project/.../webapplications", currentWebappName: "my-app" }
+ * Example 2: Running from /project/force-app/main/default/webui/my-app/
+ * Checks parent: webui (found!)
+ * Returns: { webappsFolder: "/project/.../webui", currentWebappName: "my-app" }
  *
- * Example 3: Running from /project/force-app/main/default/webapplications/
- * Current dir is webapplications (found!)
- * Returns: { webappsFolder: "/project/.../webapplications", currentWebappName: null }
+ * Example 3: Running from /project/force-app/main/default/webui/
+ * Current dir is webui (found!)
+ * Returns: { webappsFolder: "/project/.../webui", currentWebappName: null }
  *
  * @param dir - Directory to start from
- * @returns Object with webapplications folder path and current webapp name, or null if not found
+ * @returns Object with webui folder path and current webapp name, or null if not found
  */
 function findWebapplicationsFolderUpward(
   dir: string
@@ -226,13 +226,13 @@ function findWebapplicationsFolderUpward(
   const maxUpwardDepth = 10;
   let depth = 0;
 
-  // Walk up the directory tree looking for "webapplications" folder
+  // Walk up the directory tree looking for "webui" folder
   while (depth < maxUpwardDepth) {
     const dirName = basename(currentDir);
     const parentDir = dirname(currentDir);
 
-    // Case: Current directory IS the webapplications folder
-    // e.g., cwd = /project/webapplications
+    // Case: Current directory IS the webui folder
+    // e.g., cwd = /project/webui
     if (isWebapplicationsFolder(dirName)) {
       return {
         webappsFolder: currentDir,
@@ -240,8 +240,8 @@ function findWebapplicationsFolderUpward(
       };
     }
 
-    // Case: Parent directory is the webapplications folder
-    // e.g., cwd = /project/webapplications/my-app (parent is webapplications)
+    // Case: Parent directory is the webui folder
+    // e.g., cwd = /project/webui/my-app (parent is webui)
     if (isWebapplicationsFolder(basename(parentDir))) {
       return {
         webappsFolder: parentDir,
@@ -260,16 +260,16 @@ function findWebapplicationsFolderUpward(
     depth++;
   }
 
-  // Not inside a webapplications folder
+  // Not inside a webui folder
   return null;
 }
 
 /**
- * Discover all webapps inside the webapplications folder.
+ * Discover all webapps inside the webui folder.
  * Only directories containing a {name}.webapplication-meta.xml file are considered valid webapps.
  * If a webapplication.json exists, use it for dev configuration.
  *
- * @param webappsFolderPath - Absolute path to the webapplications folder
+ * @param webappsFolderPath - Absolute path to the webui folder
  * @param cwd - Original working directory for relative path calculation
  * @returns Array of discovered webapps (only those with .webapplication-meta.xml)
  */
@@ -326,7 +326,7 @@ type FindAllWebappsResult = {
   webapps: DiscoveredWebapp[];
   /** Name of webapp user is currently inside (folder name), null if not inside any */
   currentWebappName: string | null;
-  /** Whether the webapplications folder was found (even if empty or no valid webapps) */
+  /** Whether the webui folder was found (even if empty or no valid webapps) */
   webappsFolderFound: boolean;
   /** Whether we're in an SFDX project context */
   inSfdxProject: boolean;
@@ -336,8 +336,8 @@ type FindAllWebappsResult = {
  * Find all webapps using simplified discovery algorithm.
  *
  * Discovery strategy (in order):
- * 1. Check if inside a webapplications/<webapp> directory (upward search)
- * 2. Check for SFDX project and search webapplications in all package directories
+ * 1. Check if inside a webui/<webapp> directory (upward search)
+ * 2. Check for SFDX project and search webui in all package directories
  * 3. If neither, check if current directory is a webapp (has .webapplication-meta.xml)
  *
  * @param cwd - Directory to search from (defaults to process.cwd())
@@ -348,15 +348,15 @@ async function findAllWebapps(cwd: string = process.cwd()): Promise<FindAllWebap
   let currentWebappName: string | null = null;
   let inSfdxProject = false;
 
-  // Step 1: Check if we're inside a webapplications folder (upward search)
-  // This handles: running from webapplications/<webapp> or webapplications/<webapp>/src/
+  // Step 1: Check if we're inside a webui folder (upward search)
+  // This handles: running from webui/<webapp> or webui/<webapp>/src/
   const upwardResult = findWebapplicationsFolderUpward(cwd);
 
   if (upwardResult) {
     webappsFolder = upwardResult.webappsFolder;
     currentWebappName = upwardResult.currentWebappName;
   } else {
-    // Step 2: Check for SFDX project and search webapplications in all package directories
+    // Step 2: Check for SFDX project and search webui in all package directories
     const projectRoot = await tryResolveSfdxProjectRoot(cwd);
 
     if (projectRoot) {
@@ -378,7 +378,7 @@ async function findAllWebapps(cwd: string = process.cwd()): Promise<FindAllWebap
     }
   }
 
-  // Step 3: If no webapplications folder found, check if current directory IS a webapp
+  // Step 3: If no webui folder found, check if current directory IS a webapp
   // (has a .webapplication-meta.xml file) - for running outside SFDX project context
   if (!webappsFolder) {
     const metaXmlName = await findWebappMetaXml(cwd);
@@ -443,11 +443,11 @@ export type DiscoverWebappResult = {
  * Get a single webapp, handling the various discovery scenarios.
  *
  * Discovery use cases:
- * 1. SFDX Project Root: Search webapplications in all package directories
+ * 1. SFDX Project Root: Search webui in all package directories
  * - Webapps identified by {name}.webapplication-meta.xml
  * - Always prompt for selection (even if only 1 webapp)
  *
- * 2. Inside webapplications/<webapp> directory:
+ * 2. Inside webui/<webapp> directory:
  * - Auto-select current webapp
  * - Error if --name conflicts with current directory
  *
@@ -470,21 +470,21 @@ export async function discoverWebapp(
     if (webappsFolderFound) {
       // Folder exists but no valid webapps (no .webapplication-meta.xml files)
       throw new SfError(
-        'Found "webapplications" folder but no valid webapps inside it.\n' +
+        'Found "webui" folder but no valid webapps inside it.\n' +
           'Each webapp must have a {name}.webapplication-meta.xml file.\n\n' +
           'Expected structure:\n' +
-          '  webapplications/\n' +
+          '  webui/\n' +
           '    └── my-app/\n' +
           '        ├── my-app.webapplication-meta.xml  (required)\n' +
           '        └── webapplication.json             (optional, for dev config)',
         'WebappNotFoundError'
       );
     } else if (inSfdxProject) {
-      // In SFDX project but webapplications folder doesn't exist
+      // In SFDX project but webui folder doesn't exist
       throw new SfError(
-        'No webapplications folder found in the SFDX project.\n\n' +
+        'No webui folder found in the SFDX project.\n\n' +
           'Create the folder structure in any package directory (e.g. force-app, packages/my-pkg):\n' +
-          '  <package-path>/main/default/webapplications/\n' +
+          '  <package-path>/main/default/webui/\n' +
           '    └── my-app/\n' +
           '        ├── my-app.webapplication-meta.xml  (required)\n' +
           '        └── webapplication.json             (optional, for dev config)',
@@ -495,8 +495,8 @@ export async function discoverWebapp(
       throw new SfError(
         'No webapp found.\n\n' +
           'To use this command, either:\n' +
-          '1. Run from an SFDX project with webapps in <package>/main/default/webapplications/\n' +
-          '2. Run from inside a webapplications/<webapp>/ directory\n' +
+          '1. Run from an SFDX project with webapps in <package>/main/default/webui/\n' +
+          '2. Run from inside a webui/<webapp>/ directory\n' +
           '3. Run from a directory containing a {name}.webapplication-meta.xml file',
         'WebappNotFoundError'
       );

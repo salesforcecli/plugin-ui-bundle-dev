@@ -120,24 +120,21 @@ export class ProxyServer extends EventEmitter {
     const chunks: Buffer[] = [];
 
     const routeScript =
-      '<script>(function(){if(window===window.top)return;function send(){try{var p=window.location.pathname||\'/\';window.parent.postMessage({command:\'routeChanged\',route:p,_source:\'webapps-proxy-injected-script\'},\'*\')}catch(e){}}send();window.addEventListener(\'popstate\',send);var _push=history.pushState;if(_push){history.pushState=function(){_push.apply(this,arguments);setTimeout(send,0)}}var _replace=history.replaceState;if(_replace){history.replaceState=function(){_replace.apply(this,arguments);setTimeout(send,0)}}if(typeof window.navigation!==\'undefined\'&&window.navigation.addEventListener){window.navigation.addEventListener(\'navigate\',function(){setTimeout(send,0)})}})();</script>';
+      "<script>(function(){if(window===window.top)return;function send(){try{var p=window.location.pathname||'/';window.parent.postMessage({command:'routeChanged',route:p,_source:'webapps-proxy-injected-script'},'*')}catch(e){}}send();window.addEventListener('popstate',send);var _push=history.pushState;if(_push){history.pushState=function(){_push.apply(this,arguments);setTimeout(send,0)}}var _replace=history.replaceState;if(_replace){history.replaceState=function(){_replace.apply(this,arguments);setTimeout(send,0)}}if(typeof window.navigation!=='undefined'&&window.navigation.addEventListener){window.navigation.addEventListener('navigate',function(){setTimeout(send,0)})}})();</script>";
 
     const wrapped = Object.create(res, {
       writeHead: {
-        value: (
-          code: number,
-          h?: Record<string, string | string[] | number | undefined>
-        ) => {
+        value: (code: number, h?: Record<string, string | string[] | number | undefined>) => {
           statusCode = code;
           if (h) {
             const merged: Record<string, string | string[] | number | undefined> = {
               ...headers,
-              ...h
+              ...h,
             };
             headers = merged;
           }
           return true;
-        }
+        },
       },
       write: {
         value: (
@@ -154,19 +151,13 @@ export class ProxyServer extends EventEmitter {
             actualEncoding = encoding;
             actualCb = cb;
           }
-          chunks.push(
-            Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, actualEncoding as BufferEncoding)
-          );
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, actualEncoding as BufferEncoding));
           if (actualCb) actualCb();
           return true;
-        }
+        },
       },
       end: {
-        value: (
-          chunk?: Buffer | string | (() => void),
-          encoding?: BufferEncoding | (() => void),
-          cb?: () => void
-        ) => {
+        value: (chunk?: Buffer | string | (() => void), encoding?: BufferEncoding | (() => void), cb?: () => void) => {
           let actualChunk: Buffer | string | undefined;
           let actualEncoding: BufferEncoding | undefined;
           let actualCb: (() => void) | undefined;
@@ -185,9 +176,7 @@ export class ProxyServer extends EventEmitter {
           }
           if (actualChunk)
             chunks.push(
-              Buffer.isBuffer(actualChunk)
-                ? actualChunk
-                : Buffer.from(actualChunk, actualEncoding as BufferEncoding)
+              Buffer.isBuffer(actualChunk) ? actualChunk : Buffer.from(actualChunk, actualEncoding as BufferEncoding)
             );
           const body = Buffer.concat(chunks);
           const contentType = (headers['content-type'] ?? headers['Content-Type'] ?? '') as string;
@@ -199,8 +188,8 @@ export class ProxyServer extends EventEmitter {
             res.writeHead(statusCode, headers);
             res.end(body, actualCb);
           }
-        }
-      }
+        },
+      },
     }) as ServerResponse;
 
     return wrapped;

@@ -16,7 +16,7 @@
       },
       "required": ["url", "devServerUrl"],
       "additionalProperties": false,
-      "description": "Command execution result What the sf webapp dev command returns to the user"
+      "description": "Command execution result What the sf webui dev command returns to the user"
     }
   }
 }

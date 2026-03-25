@@ -42,7 +42,7 @@ import {
 const DEV_PORT = 18_910;
 const PROXY_PORT = 18_920;
 
-describe('webapp dev NUTs — Tier 2 port handling', function () {
+describe('webui dev NUTs — Tier 2 port handling', function () {
   this.timeout(SUITE_TIMEOUT);
 
   let session: TestSession;

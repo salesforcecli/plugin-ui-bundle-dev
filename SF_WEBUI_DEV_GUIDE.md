@@ -1,4 +1,4 @@
-# Salesforce Webapp Dev Command Guide
+# Salesforce Multi-Framework Dev Command Guide
 
 > **Develop web applications with seamless Salesforce integration**
 
@@ -6,11 +6,11 @@
 
 ## Overview
 
-The `sf webapp dev` command enables local development of modern web applications (React, Vue, Angular, etc.) with automatic Salesforce authentication. It intelligently discovers your webapp configuration, handles proxy routing, injects authentication headers, and supports hot reload - so you can focus on building your app.
+The `sf webui dev` command enables local development of modern web applications (React, Vue, Angular, etc.) with automatic Salesforce authentication. It intelligently discovers your webapp configuration, handles proxy routing, injects authentication headers, and supports hot reload - so you can focus on building your app.
 
 ### Key Features
 
-- **Auto-Discovery**: Automatically finds webapps in `webapplications/` folder
+- **Auto-Discovery**: Automatically finds webapps in `webui/` folder
 - **Optional Manifest**: `webapplication.json` is optional - uses sensible defaults
 - **Auto-Selection**: Automatically selects webapp when running from inside its folder
 - **Interactive Selection**: Prompts with arrow-key navigation when multiple webapps exist
@@ -29,7 +29,7 @@ The `sf webapp dev` command enables local development of modern web applications
 ```
 my-sfdx-project/
 ├── sfdx-project.json
-└── force-app/main/default/webapplications/
+└── force-app/main/default/webui/
     └── my-app/
         ├── my-app.webapplication-meta.xml
         ├── package.json
@@ -40,7 +40,7 @@ my-sfdx-project/
 ### 2. Run the command
 
 ```bash
-sf webapp dev --target-org myOrg --open
+sf webui dev --target-org myOrg --open
 ```
 
 ### 3. Start developing
@@ -60,39 +60,39 @@ Browser opens to `http://localhost:4545` with your app running and Salesforce au
 ## Command Syntax
 
 ```bash
-sf webapp dev [OPTIONS]
+sf webui dev [OPTIONS]
 ```
 
 ### Options
 
-| Option         | Short | Description                                     | Default       |
-| -------------- | ----- | ----------------------------------------------- | ------------- |
-| `--target-org` | `-o`  | Salesforce org alias or username                | Required      |
-| `--name`       | `-n`  | Web application name (folder name)              | Auto-discover |
-| `--url`        | `-u`  | Explicit dev server URL                         | Auto-detect   |
-| `--port`       | `-p`  | Proxy server port                               | 4545          |
-| `--open`       | `-b`  | Open browser automatically                      | false         |
+| Option         | Short | Description                        | Default       |
+| -------------- | ----- | ---------------------------------- | ------------- |
+| `--target-org` | `-o`  | Salesforce org alias or username   | Required      |
+| `--name`       | `-n`  | Web application name (folder name) | Auto-discover |
+| `--url`        | `-u`  | Explicit dev server URL            | Auto-detect   |
+| `--port`       | `-p`  | Proxy server port                  | 4545          |
+| `--open`       | `-b`  | Open browser automatically         | false         |
 
 ### Examples
 
 ```bash
 # Simplest - auto-discovers webapplication.json
-sf webapp dev --target-org myOrg
+sf webui dev --target-org myOrg
 
 # With browser auto-open
-sf webapp dev --target-org myOrg --open
+sf webui dev --target-org myOrg --open
 
 # Specify webapp by name (when multiple exist)
-sf webapp dev --name myApp --target-org myOrg
+sf webui dev --name myApp --target-org myOrg
 
 # Custom port
-sf webapp dev --target-org myOrg --port 8080
+sf webui dev --target-org myOrg --port 8080
 
 # Explicit dev server URL (skip auto-detection)
-sf webapp dev --target-org myOrg --url http://localhost:5173
+sf webui dev --target-org myOrg --url http://localhost:5173
 
 # Debug mode
-SF_LOG_LEVEL=debug sf webapp dev --target-org myOrg
+SF_LOG_LEVEL=debug sf webui dev --target-org myOrg
 ```
 
 ---
@@ -105,7 +105,7 @@ The command discovers webapps using a simplified, deterministic algorithm. Webap
 
 ```mermaid
 flowchart TD
-    Start["sf webapp dev"] --> CheckInside{"Inside webapplications/<br/>webapp folder?"}
+    Start["sf webui dev"] --> CheckInside{"Inside webui/<br/>webapp folder?"}
 
     CheckInside -->|Yes| HasNameInside{"--name provided?"}
     HasNameInside -->|Yes, different| ErrorConflict["Error: --name conflicts<br/>with current directory"]
@@ -113,7 +113,7 @@ flowchart TD
 
     CheckInside -->|No| CheckSFDX{"In SFDX project?<br/>(sfdx-project.json)"}
 
-    CheckSFDX -->|Yes| CheckPath["Check force-app/main/<br/>default/webapplications/"]
+    CheckSFDX -->|Yes| CheckPath["Check force-app/main/<br/>default/webui/"]
     CheckPath --> HasName{"--name provided?"}
 
     CheckSFDX -->|No| CheckMetaXml{"Current dir has<br/>.webapplication-meta.xml?"}
@@ -148,7 +148,7 @@ flowchart TD
 my-sfdx-project/
 ├── sfdx-project.json                      # SFDX project marker
 └── force-app/main/default/
-    └── webapplications/                   # Standard SFDX location
+    └── webui/                   # Standard SFDX location
         ├── app-one/                       # Webapp 1 (with dev config)
         │   ├── app-one.webapplication-meta.xml  # Required: identifies as webapp
         │   ├── webapplication.json              # Optional: dev configuration
@@ -164,8 +164,8 @@ my-sfdx-project/
 
 The command uses a simplified, deterministic approach:
 
-1. **Inside webapp folder**: If running from `webapplications/<webapp>/` or deeper, auto-selects that webapp
-2. **SFDX project root**: Uses fixed path `force-app/main/default/webapplications/`
+1. **Inside webapp folder**: If running from `webui/<webapp>/` or deeper, auto-selects that webapp
+2. **SFDX project root**: Uses fixed path `force-app/main/default/webui/`
 3. **Standalone**: If current directory has a `.webapplication-meta.xml` file, uses it directly
 
 **Important**: Only directories containing a `{name}.webapplication-meta.xml` file are recognized as valid webapps.
@@ -177,9 +177,9 @@ When multiple webapps are found, you'll see an interactive prompt:
 ```
 Found 3 webapps in project
 ? Select the webapp to run: (Use arrow keys)
-❯ app-one (webapplications/app-one)
-  app-two (webapplications/app-two) [no manifest]
-  app-three (webapplications/app-three)
+❯ app-one (webui/app-one)
+  app-two (webui/app-two) [no manifest]
+  app-three (webui/app-three)
 ```
 
 Format:
@@ -238,10 +238,10 @@ Browser → Proxy → [Auth Headers Injected] → Salesforce → Response
 
 The command operates in two distinct modes based on configuration:
 
-| Mode | Configuration | Behavior |
-|------|---------------|----------|
-| **Command mode** | `dev.command` is set (or default `npm run dev`) | CLI starts the dev server. URL defaults to `http://localhost:5173`. Override with `dev.url` or `--url` if your dev server uses a different port. |
-| **URL-only mode** | `dev.url` or `--url` only (no `dev.command`) | CLI assumes the dev server is already running. Does **not** start the dev server. Starts proxy only and forwards to the given URL. |
+| Mode              | Configuration                                   | Behavior                                                                                                                                         |
+| ----------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Command mode**  | `dev.command` is set (or default `npm run dev`) | CLI starts the dev server. URL defaults to `http://localhost:5173`. Override with `dev.url` or `--url` if your dev server uses a different port. |
+| **URL-only mode** | `dev.url` or `--url` only (no `dev.command`)    | CLI assumes the dev server is already running. Does **not** start the dev server. Starts proxy only and forwards to the given URL.               |
 
 **URL precedence:** `--url` flag > `dev.url` in manifest > default `http://localhost:5173` (when command is used)
 
@@ -251,9 +251,9 @@ The `webapplication.json` file is **optional**. All fields are also optional - m
 
 #### Dev Configuration
 
-| Field         | Type   | Description | Default |
-| ------------- | ------ | ----------- | ------- |
-| `dev.command` | string | Command to start the dev server (e.g., `npm run dev`). When set, the CLI starts the dev server and uses default URL `http://localhost:5173` unless overridden. | `npm run dev` |
+| Field         | Type   | Description                                                                                                                                                                  | Default                 |
+| ------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| `dev.command` | string | Command to start the dev server (e.g., `npm run dev`). When set, the CLI starts the dev server and uses default URL `http://localhost:5173` unless overridden.               | `npm run dev`           |
 | `dev.url`     | string | Dev server URL. **Command mode**: Override the default 5173 port if needed. **URL-only mode**: Required—the CLI assumes the server is already running and does not start it. | `http://localhost:5173` |
 
 **Command mode (CLI starts dev server):**
@@ -306,13 +306,13 @@ The `webapplication.json` file is **optional**. All fields are also optional - m
 ### Example: Minimal (No Manifest)
 
 ```
-webapplications/
+webui/
 └── my-dashboard/
     ├── package.json     # Has "scripts": { "dev": "vite" }
     └── src/
 ```
 
-Run: `sf webapp dev --target-org myOrg`
+Run: `sf webui dev --target-org myOrg`
 
 Console output:
 
@@ -325,7 +325,7 @@ Warning: No webapplication.json found for webapp "my-dashboard"
     → Manifest watching: disabled
     💡 To customize, create a webapplication.json file in your webapp directory.
 
-✅ Using webapp: my-dashboard (webapplications/my-dashboard)
+✅ Using webapp: my-dashboard (webui/my-dashboard)
 
 ✅ Ready for development!
     → Proxy:      http://localhost:4545 (open this in your browser)
@@ -390,13 +390,13 @@ Automatically detects Salesforce Code Builder environment and binds to `0.0.0.0`
 
 The `--url` flag overrides the dev server URL. Behavior depends on whether you have a command configured:
 
-| Scenario | Command in manifest? | `--url` behavior |
-|----------|----------------------|------------------|
-| URL-only mode | No | Required. CLI assumes the server is already running and does not start it. Use when you run the dev server yourself. |
-| Command mode | Yes | Optional override. Default is `http://localhost:5173`. Use `--url` to point to a different port. |
-| URL reachable | Either | Proxy-only: skips starting dev server, starts proxy only |
-| URL not reachable | Yes (command) | Starts dev server and warns if actual URL differs from `--url` |
-| URL not reachable | No (URL-only) | Error: server must be running at the given URL |
+| Scenario          | Command in manifest? | `--url` behavior                                                                                                     |
+| ----------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| URL-only mode     | No                   | Required. CLI assumes the server is already running and does not start it. Use when you run the dev server yourself. |
+| Command mode      | Yes                  | Optional override. Default is `http://localhost:5173`. Use `--url` to point to a different port.                     |
+| URL reachable     | Either               | Proxy-only: skips starting dev server, starts proxy only                                                             |
+| URL not reachable | Yes (command)        | Starts dev server and warns if actual URL differs from `--url`                                                       |
+| URL not reachable | No (URL-only)        | Error: server must be running at the given URL                                                                       |
 
 ### Connect to Existing Dev Server (Proxy-Only Mode)
 
@@ -409,7 +409,7 @@ npm run dev
 # Output: Local: http://localhost:5173/
 
 # Terminal 2: Connect proxy to your running server
-sf webapp dev --url http://localhost:5173 --target-org myOrg
+sf webui dev --url http://localhost:5173 --target-org myOrg
 ```
 
 **Output:**
@@ -425,7 +425,7 @@ sf webapp dev --url http://localhost:5173 --target-org myOrg
 When using `dev.command`, the default URL is `http://localhost:5173`. Override with `--url` if your dev server uses a different port:
 
 ```bash
-sf webapp dev --url http://localhost:3000 --target-org myOrg
+sf webui dev --url http://localhost:3000 --target-org myOrg
 ```
 
 If the URL is not reachable, the CLI starts the dev server and uses the actual URL (with a warning if it differs).
@@ -439,7 +439,7 @@ If the URL is not reachable, the CLI starts the dev server and uses the actual U
 Ensure your webapp has the required `.webapplication-meta.xml` file:
 
 ```
-force-app/main/default/webapplications/
+force-app/main/default/webui/
 └── my-app/
     ├── my-app.webapplication-meta.xml   # Required!
     ├── package.json
@@ -454,8 +454,8 @@ This error occurs when you're inside one webapp folder but try to run a differen
 
 ```bash
 # You're in FirstWebApp folder but trying to run SecondWebApp
-cd webapplications/FirstWebApp
-sf webapp dev --name SecondWebApp --target-org myOrg  # Error!
+cd webui/FirstWebApp
+sf webui dev --name SecondWebApp --target-org myOrg  # Error!
 ```
 
 **Solutions:**
@@ -470,7 +470,7 @@ The `--name` flag matches the folder name of the webapp.
 
 ```bash
 # This looks for webapp named "myApp"
-sf webapp dev --name myApp --target-org myOrg
+sf webui dev --name myApp --target-org myOrg
 ```
 
 ### "Dependencies Not Installed" / "command not found"
@@ -478,7 +478,7 @@ sf webapp dev --name myApp --target-org myOrg
 Install dependencies in your webapp folder:
 
 ```bash
-cd webapplications/my-app
+cd webui/my-app
 npm install
 ```
 
@@ -486,13 +486,13 @@ npm install
 
 1. Ensure dev server is running: `npm run dev`
 2. Verify URL in `webapplication.json` is correct
-3. Try explicit URL: `sf webapp dev --url http://localhost:5173 --target-org myOrg`
+3. Try explicit URL: `sf webui dev --url http://localhost:5173 --target-org myOrg`
 
 ### "Port 4545 already in use"
 
 ```bash
 # Use a different port
-sf webapp dev --port 8080 --target-org myOrg
+sf webui dev --port 8080 --target-org myOrg
 
 # Or find and kill the process using the port
 lsof -i :4545
@@ -524,14 +524,14 @@ tail -f ~/.sf/sf-$(date +%Y-%m-%d).log | grep --line-buffered WebappDev | jq -r 
 **Step 2: Run command in Terminal 2**
 
 ```bash
-SF_LOG_LEVEL=debug sf webapp dev --target-org myOrg
+SF_LOG_LEVEL=debug sf webui dev --target-org myOrg
 ```
 
 **Example debug output:**
 
 ```
 Discovering webapplication.json manifest(s)...
-Using webapp: myApp at webapplications/my-app
+Using webapp: myApp at webui/my-app
 Manifest loaded: myApp
 Starting dev server with command: npm run dev
 Dev server ready at: http://localhost:5173/
@@ -548,7 +548,7 @@ The command integrates with the Salesforce VSCode UI Preview extension (`salesfo
 
 1. Extension detects `webapplication.json` in workspace
 2. User clicks "Preview" button on the file
-3. Extension executes: `sf webapp dev --target-org <org> --open`
+3. Extension executes: `sf webui dev --target-org <org> --open`
 4. If multiple webapps exist, uses `--name` to specify which one
 5. Browser opens with the app running
 
@@ -559,7 +559,7 @@ The command integrates with the Salesforce VSCode UI Preview extension (`salesfo
 For scripting and CI/CD, use the `--json` flag:
 
 ```bash
-sf webapp dev --target-org myOrg --json
+sf webui dev --target-org myOrg --json
 ```
 
 Output:
@@ -581,7 +581,7 @@ Output:
 ### Building the Plugin
 
 ```bash
-cd /path/to/plugin-app-dev
+cd /path/to/plugin-webui-dev
 
 # Install dependencies
 yarn install
@@ -605,7 +605,7 @@ yarn build  # Rebuild - no re-linking needed
 ### Project Structure
 
 ```
-plugin-app-dev/
+plugin-webui-dev/
 ├── src/
 │   ├── commands/webapp/
 │   │   └── dev.ts              # Main command implementation
@@ -649,4 +649,4 @@ plugin-app-dev/
 
 ---
 
-**Repository:** [github.com/salesforcecli/plugin-app-dev](https://github.com/salesforcecli/plugin-app-dev)
+**Repository:** [github.com/salesforcecli/plugin-webui-dev](https://github.com/salesforcecli/plugin-webui-dev)

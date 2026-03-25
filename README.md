@@ -1,6 +1,6 @@
-# plugin-app-dev
+# plugin-webui-dev
 
-[![NPM](https://img.shields.io/npm/v/@salesforce/plugin-app-dev.svg?label=@salesforce/plugin-app-dev)](https://www.npmjs.com/package/@salesforce/plugin-app-dev) [![Downloads/week](https://img.shields.io/npm/dw/@salesforce/plugin-app-dev.svg)](https://npmjs.org/package/@salesforce/plugin-app-dev) [![License](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/license/apache-2-0)
+[![NPM](https://img.shields.io/npm/v/@salesforce/plugin-webui-dev.svg?label=@salesforce/plugin-webui-dev)](https://www.npmjs.com/package/@salesforce/plugin-webui-dev) [![Downloads/week](https://img.shields.io/npm/dw/@salesforce/plugin-webui-dev.svg)](https://npmjs.org/package/@salesforce/plugin-webui-dev) [![License](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/license/apache-2-0)
 
 # Salesforce CLI App Dev Plugin
 
@@ -24,7 +24,7 @@ We always recommend using the latest version of these commands bundled with the 
 1. **Install the plugin:**
 
    ```bash
-   sf plugins install @salesforce/plugin-app-dev
+   sf plugins install @salesforce/plugin-webui-dev
    ```
 
 2. **Authenticate with Salesforce:**
@@ -50,12 +50,12 @@ We always recommend using the latest version of these commands bundled with the 
 
 4. **Start development:**
    ```bash
-   sf webapp dev --name myapp --target-org myorg --open
+   sf webui dev --name myapp --target-org myorg --open
    ```
 
 ## Documentation
 
-📚 **[Complete Guide](SF_WEBAPP_DEV_GUIDE.md)** - Comprehensive documentation covering:
+📚 **[Complete Guide](SF_WEBUI_DEV_GUIDE.md)** - Comprehensive documentation covering:
 
 - Overview and architecture
 - Getting started (5-minute quick start)
@@ -69,7 +69,7 @@ We always recommend using the latest version of these commands bundled with the 
 ## Install
 
 ```bash
-sf plugins install @salesforce/plugin-app-dev@x.y.z
+sf plugins install @salesforce/plugin-webui-dev@x.y.z
 ```
 
 ## Issues
@@ -101,7 +101,7 @@ To build the plugin locally, make sure to have yarn installed and run the follow
 
 ```bash
 # Clone the repository
-git clone git@github.com:salesforcecli/plugin-app-dev
+git clone git@github.com:salesforcecli/plugin-webui-dev
 
 # Install the dependencies and compile
 yarn && yarn build
@@ -125,7 +125,7 @@ sf plugins
 
 ## Commands
 
-### `sf webapp dev`
+### `sf webui dev`
 
 Start a local development proxy server for webapp development with Salesforce authentication.
 
@@ -136,7 +136,7 @@ Start a local development proxy server for webapp development with Salesforce au
 
 ```bash
 USAGE
-  $ sf webapp dev --name <webapp-name> --target-org <org-alias> [options]
+  $ sf webui dev --name <webapp-name> --target-org <org-alias> [options]
 
 REQUIRED FLAGS
   -n, --name=<value>         Name of the webapp (must match webapplication.json)
@@ -156,18 +156,18 @@ DESCRIPTION
 EXAMPLES
   Command mode (CLI starts dev server, default port 5173):
 
-    $ sf webapp dev --name myapp --target-org myorg --open
+    $ sf webui dev --name myapp --target-org myorg --open
 
   URL-only mode (dev server already running):
 
-    $ sf webapp dev --name myapp --target-org myorg --url http://localhost:5173 --open
+    $ sf webui dev --name myapp --target-org myorg --url http://localhost:5173 --open
 
   Custom proxy port:
 
-    $ sf webapp dev --name myapp --target-org myorg --port 8080 --open
+    $ sf webui dev --name myapp --target-org myorg --port 8080 --open
 
 SEE ALSO
-  - Complete Guide: SF_WEBAPP_DEV_GUIDE.md
+  - Complete Guide: SF_WEBUI_DEV_GUIDE.md
 ```
 
 <!-- commandsstop -->
