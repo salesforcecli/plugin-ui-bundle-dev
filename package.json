@@ -1,6 +1,6 @@
 {
   "name": "@salesforce/plugin-app-dev",
-  "description": "",
+  "description": "A CLI plugin for building UI that integrates with Salesforce",
   "version": "1.2.0",
   "author": "Salesforce",
   "bugs": "https://github.com/forcedotcom/cli/issues",
