@@ -16,19 +16,26 @@
 
 import { execSync } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import type { TestSession } from '@salesforce/cli-plugins-testkit';
+import { UI_BUNDLES_FOLDER } from '../../../../src/config/webappDiscovery.js';
 
 /**
- * Relative path from project root to the webapplications folder.
- * Mirrors WEBAPPLICATIONS_RELATIVE_PATH in src/config/webappDiscovery.ts.
+ * Real home directory captured at module load, before TestSession overrides process.env.HOME.
+ * Used when running `sf ui-bundle generate` so the CLI finds linked plugin-templates
+ * (TestSession sets HOME to a temp dir, which hides linked plugins).
  */
-const WEBAPPS_PATH = join('force-app', 'main', 'default', 'webapplications');
+export const REAL_HOME = homedir();
 
 /**
- * Resolve the absolute path to a webapp directory within a project.
- * If `webAppName` is omitted, returns the webapplications folder itself.
+ * Relative path from project root to the uiBundles folder.
+ */
+const WEBAPPS_PATH = join('force-app', 'main', 'default', UI_BUNDLES_FOLDER);
+
+/**
+ * Resolve the absolute path to a UI bundle directory within a project.
+ * If `webAppName` is omitted, returns the uiBundles folder itself.
  */
 export function webappPath(projectDir: string, webAppName?: string): string {
   return webAppName ? join(projectDir, WEBAPPS_PATH, webAppName) : join(projectDir, WEBAPPS_PATH);
@@ -91,21 +98,22 @@ export function createProject(session: TestSession, name: string): string {
 }
 
 /**
- * Run `sf project generate` then `sf webapp generate --name <webAppName>` inside
+ * Run `sf project generate` then `sf ui-bundle generate --name <webAppName>` inside
  * the project. Returns the absolute path to the generated project root.
  */
 export function createProjectWithWebapp(session: TestSession, projectName: string, webAppName: string): string {
   const projectDir = createProject(session, projectName);
-  execSync(`sf webapp generate --name ${webAppName}`, {
+  execSync(`sf ui-bundle generate --name ${webAppName}`, {
     cwd: projectDir,
     stdio: 'pipe',
+    env: { ...process.env, HOME: REAL_HOME, USERPROFILE: REAL_HOME },
   });
   return projectDir;
 }
 
 /**
- * Create a project with multiple webapps. Used to test selection flows when
- * more than one webapp exists in a single SFDX project.
+ * Create a project with multiple UI bundles. Used to test selection flows when
+ * more than one UI bundle exists in a single SFDX project.
  */
 export function createProjectWithMultipleWebapps(
   session: TestSession,
@@ -114,24 +122,25 @@ export function createProjectWithMultipleWebapps(
 ): string {
   const projectDir = createProject(session, projectName);
   for (const name of webAppNames) {
-    execSync(`sf webapp generate --name ${name}`, {
+    execSync(`sf ui-bundle generate --name ${name}`, {
       cwd: projectDir,
       stdio: 'pipe',
+      env: { ...process.env, HOME: REAL_HOME, USERPROFILE: REAL_HOME },
     });
   }
   return projectDir;
 }
 
 /**
- * Create the `webapplications/` directory (empty — no webapps inside).
- * Used to test "empty webapplications folder" scenario.
+ * Create the `uiBundles/` directory (empty — no UI bundles inside).
+ * Used to test "empty uiBundles folder" scenario.
  */
 export function createEmptyWebappsDir(projectDir: string): void {
   mkdirSync(webappPath(projectDir), { recursive: true });
 }
 
 /**
- * Create a webapp directory without the required `.webapplication-meta.xml`.
+ * Create a UI bundle directory without the required `.webapplication-meta.xml`.
  * Used to test "no metadata file" scenario.
  */
 export function createWebappDirWithoutMeta(projectDir: string, name: string): void {
@@ -139,14 +148,14 @@ export function createWebappDirWithoutMeta(projectDir: string, name: string): vo
 }
 
 /**
- * Overwrite the `webapplication.json` manifest for a given webapp.
+ * Overwrite the `webapplication.json` manifest for a given UI bundle.
  */
 export function writeManifest(projectDir: string, webAppName: string, manifest: Record<string, unknown>): void {
   writeFileSync(join(webappPath(projectDir, webAppName), 'webapplication.json'), JSON.stringify(manifest, null, 2));
 }
 
 /**
- * Write a tiny Node.js HTTP server script into the webapp directory.
+ * Write a tiny Node.js HTTP server script into the UI bundle directory.
  * Returns the command string suitable for `dev.command` in the manifest.
  *
  * The script is CommonJS (.cjs) to avoid ESM/shell quoting issues.
@@ -167,7 +176,7 @@ export function createDevServerScript(webappDir: string, port: number): string {
 }
 
 /**
- * Convenience: create a project with a webapp whose manifest includes a
+ * Convenience: create a project with a UI bundle whose manifest includes a
  * `dev.command` that starts a tiny HTTP server on `devPort`, and
  * `dev.url` pointing to that port. Optionally sets `dev.port` (proxy port).
  *

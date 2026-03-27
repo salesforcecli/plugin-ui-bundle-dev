@@ -18,13 +18,13 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect } from 'chai';
 import { SfError, SfProject } from '@salesforce/core';
-import { DEFAULT_DEV_COMMAND, discoverWebapp } from '../../src/config/webappDiscovery.js';
+import { DEFAULT_DEV_COMMAND, discoverWebapp, UI_BUNDLES_FOLDER } from '../../src/config/webappDiscovery.js';
 
 describe('webappDiscovery', () => {
   const testDir = join(process.cwd(), '.test-webapp-discovery');
 
-  // Standard SFDX webapplications path
-  const sfdxWebappsPath = join(testDir, 'force-app', 'main', 'default', 'webapplications');
+  // Standard SFDX uiBundles path
+  const sfdxWebappsPath = join(testDir, 'force-app', 'main', 'default', UI_BUNDLES_FOLDER);
 
   // Store original resolveProjectPath
   let originalResolveProjectPath: typeof SfProject.resolveProjectPath;
@@ -120,7 +120,7 @@ describe('webappDiscovery', () => {
       } catch (error) {
         expect(error).to.be.instanceOf(SfError);
         expect((error as SfError).name).to.equal('WebappNotFoundError');
-        expect((error as SfError).message).to.include('No webapplications folder found in the SFDX project');
+        expect((error as SfError).message).to.include('No uiBundles folder found in the SFDX project');
       }
     });
 
@@ -167,7 +167,7 @@ describe('webappDiscovery', () => {
     });
 
     it('should auto-select webapp when inside its folder', async () => {
-      const webappsPath = join(testDir, 'webapplications');
+      const webappsPath = join(testDir, UI_BUNDLES_FOLDER);
       mkdirSync(webappsPath, { recursive: true });
       const myAppPath = createWebapp(webappsPath, 'my-app');
       createWebapp(webappsPath, 'other-app');
@@ -179,7 +179,7 @@ describe('webappDiscovery', () => {
     });
 
     it('should auto-select webapp when inside subfolder', async () => {
-      const webappsPath = join(testDir, 'webapplications');
+      const webappsPath = join(testDir, UI_BUNDLES_FOLDER);
       mkdirSync(webappsPath, { recursive: true });
       const myAppPath = createWebapp(webappsPath, 'my-app');
       const srcPath = join(myAppPath, 'src');
@@ -193,7 +193,7 @@ describe('webappDiscovery', () => {
     });
 
     it('should use meta.xml name (manifest.name is not used)', async () => {
-      const webappsPath = join(testDir, 'webapplications');
+      const webappsPath = join(testDir, UI_BUNDLES_FOLDER);
       mkdirSync(webappsPath, { recursive: true });
       const myAppPath = createWebapp(webappsPath, 'folder-name', { name: 'ManifestName' });
       createWebapp(webappsPath, 'other-app');
@@ -230,7 +230,7 @@ describe('webappDiscovery', () => {
     });
 
     it('should throw error when --name conflicts with current webapp directory', async () => {
-      const webappsPath = join(testDir, 'webapplications');
+      const webappsPath = join(testDir, UI_BUNDLES_FOLDER);
       mkdirSync(webappsPath, { recursive: true });
       const currentAppPath = createWebapp(webappsPath, 'current-app');
       createWebapp(webappsPath, 'other-app');
@@ -248,7 +248,7 @@ describe('webappDiscovery', () => {
     });
 
     it('should allow --name matching current webapp directory', async () => {
-      const webappsPath = join(testDir, 'webapplications');
+      const webappsPath = join(testDir, UI_BUNDLES_FOLDER);
       mkdirSync(webappsPath, { recursive: true });
       const currentAppPath = createWebapp(webappsPath, 'current-app');
       createWebapp(webappsPath, 'other-app');
@@ -296,7 +296,7 @@ describe('webappDiscovery', () => {
 
     it('should discover webapps from multiple package directories', async () => {
       // Create project with two packages: force-app and packages/einstein
-      const einsteinWebappsPath = join(testDir, 'packages', 'einstein', 'main', 'default', 'webapplications');
+      const einsteinWebappsPath = join(testDir, 'packages', 'einstein', 'main', 'default', UI_BUNDLES_FOLDER);
       mkdirSync(einsteinWebappsPath, { recursive: true });
       setupSfdxProject([
         { path: 'force-app', default: true },

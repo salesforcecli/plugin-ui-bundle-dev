@@ -26,9 +26,9 @@ import { ProxyServer } from '../../proxy/ProxyServer.js';
 import { discoverWebapp, DEFAULT_DEV_COMMAND, type DiscoveredWebapp } from '../../config/webappDiscovery.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
-const messages = Messages.loadMessages('@salesforce/plugin-app-dev', 'webapp.dev');
+const messages = Messages.loadMessages('@salesforce/plugin-ui-bundle-dev', 'ui-bundle.dev');
 
-export default class WebappDev extends SfCommand<WebAppDevResult> {
+export default class UiBundleDev extends SfCommand<WebAppDevResult> {
   public static readonly summary = messages.getMessage('summary');
   public static readonly description = messages.getMessage('description');
   public static readonly examples = messages.getMessages('examples');
@@ -77,7 +77,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
    * Prompt user to select a webapp from multiple discovered webapps
    * Uses interactive arrow-key selection (standard SF CLI pattern)
    */
-  private static async promptWebappSelection(webapps: DiscoveredWebapp[]): Promise<DiscoveredWebapp> {
+  private static async promptUiBundleSelection(webapps: DiscoveredWebapp[]): Promise<DiscoveredWebapp> {
     const WARNING = '\u26A0\uFE0F'; // ⚠️
 
     const choices = webapps.map((webapp) => {
@@ -133,14 +133,14 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
     intervalMs = 500,
     start = Date.now()
   ): Promise<boolean> {
-    if (await WebappDev.isUrlReachable(url)) {
+      if (await UiBundleDev.isUrlReachable(url)) {
       return true;
     }
     if (Date.now() - start >= timeoutMs) {
       return false;
     }
     await new Promise((r) => setTimeout(r, intervalMs));
-    return WebappDev.pollUntilReachable(url, timeoutMs, intervalMs, start);
+    return UiBundleDev.pollUntilReachable(url, timeoutMs, intervalMs, start);
   }
 
   /**
@@ -169,11 +169,11 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
 
   // eslint-disable-next-line complexity
   public async run(): Promise<WebAppDevResult> {
-    const { flags } = await this.parse(WebappDev);
+    const { flags } = await this.parse(UiBundleDev);
 
     // Initialize logger from @salesforce/core for debug logging
     // Logger respects SF_LOG_LEVEL environment variable
-    this.logger = await Logger.child('WebappDev');
+    this.logger = await Logger.child('UiBundleDev');
 
     // Declare variables outside try block for catch block access
     let manifest: WebAppManifest | null = null;
@@ -191,7 +191,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
       if (!discoveredWebapp) {
         this.log(messages.getMessage('info.multiple-webapps-found', [String(allWebapps.length)]));
 
-        selectedWebapp = await WebappDev.promptWebappSelection(allWebapps);
+        selectedWebapp = await UiBundleDev.promptUiBundleSelection(allWebapps);
       } else {
         selectedWebapp = discoveredWebapp;
 
@@ -283,7 +283,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
       }
 
       // Check if URL is already reachable
-      const isReachable = await WebappDev.isUrlReachable(resolvedUrl);
+      const isReachable = await UiBundleDev.isUrlReachable(resolvedUrl);
       if (isReachable) {
         devServerUrl = resolvedUrl;
         this.log(messages.getMessage('info.url-already-available', [resolvedUrl]));
@@ -344,7 +344,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
         this.devServerManager.start();
 
         // Poll until URL is reachable, or fail immediately on process error
-        const pollPromise = WebappDev.pollUntilReachable(resolvedUrl, 60_000);
+        const pollPromise = UiBundleDev.pollUntilReachable(resolvedUrl, 60_000);
         const errorPromise = new Promise<boolean>((_, reject) => {
           this.devServerManager!.once('error', (error: SfError | DevServerError) => {
             const devError =
@@ -410,7 +410,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
 
       // Step 5: Check for Vite proxy and conditionally start standalone proxy
       this.logger.debug('Checking if Vite WebApp proxy is active...');
-      const viteProxyActive = await WebappDev.checkViteProxyActive(devServerUrl);
+      const viteProxyActive = await UiBundleDev.checkViteProxyActive(devServerUrl);
 
       // Track the final URL to open in browser (either proxy or dev server)
       let finalUrl: string;
@@ -489,7 +489,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
       // Step 7: Open browser if requested
       if (flags.open) {
         this.logger.debug('Opening browser...');
-        await WebappDev.openBrowser(finalUrl);
+        await UiBundleDev.openBrowser(finalUrl);
       }
 
       // Display usage instructions
@@ -577,7 +577,7 @@ export default class WebappDev extends SfCommand<WebAppDevResult> {
 
       // Wrap unknown errors
       const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new SfError(`❌ Failed to start webapp dev command: ${errorMessage}`, 'UnexpectedError', [
+      throw new SfError(`❌ Failed to start ui-bundle dev command: ${errorMessage}`, 'UnexpectedError', [
         'This is an unexpected error',
         'Please try again',
         'If the problem persists, check the command logs with SF_LOG_LEVEL=debug',

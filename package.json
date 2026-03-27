@@ -1,5 +1,5 @@
 {
-  "name": "@salesforce/plugin-app-dev",
+  "name": "@salesforce/plugin-ui-bundle-dev",
   "description": "A CLI plugin for building UI that integrates with Salesforce",
   "version": "1.2.0",
   "author": "Salesforce",
@@ -41,7 +41,7 @@
     "/oclif.manifest.json",
     "/schemas"
   ],
-  "homepage": "https://github.com/salesforcecli/plugin-app-dev",
+  "homepage": "https://github.com/salesforcecli/plugin-ui-bundle-dev",
   "keywords": [
     "force",
     "salesforce",
@@ -62,13 +62,13 @@
       "@salesforce/plugin-command-reference"
     ],
     "topics": {
-      "webapp": {
-        "description": "Work with Salesforce Web Apps"
+      "ui-bundle": {
+        "description": "Work with UI bundles"
       }
     },
     "flexibleTaxonomy": true
   },
-  "repository": "salesforcecli/plugin-app-dev",
+  "repository": "salesforcecli/plugin-ui-bundle-dev",
   "scripts": {
     "build": "wireit",
     "clean": "sf-clean",

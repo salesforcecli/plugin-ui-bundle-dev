@@ -50,7 +50,7 @@ const FULL_FLOW_PORT = 18_900;
 const PROXY_ONLY_PORT = 18_930;
 const VITE_PORT = 18_940;
 
-describe('webapp dev NUTs — Tier 2 URL/proxy integration', function () {
+describe('ui-bundle dev NUTs — Tier 2 URL/proxy integration', function () {
   this.timeout(SUITE_TIMEOUT);
 
   let session: TestSession;
@@ -237,10 +237,14 @@ describe('webapp dev NUTs — Tier 2 URL/proxy integration', function () {
 
       handle = await spawnWebappDev(
         [
-          '--name', 'myApp',
-          '--url', `http://localhost:${PROXY_ONLY_PORT + 3}`,
-          '--port', String(customProxyPort),
-          '--target-org', targetOrg,
+          '--name',
+          'myApp',
+          '--url',
+          `http://localhost:${PROXY_ONLY_PORT + 3}`,
+          '--port',
+          String(customProxyPort),
+          '--target-org',
+          targetOrg,
         ],
         { cwd: projectDir, timeout: SPAWN_TIMEOUT }
       );

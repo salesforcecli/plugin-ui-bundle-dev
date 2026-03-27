@@ -50,7 +50,7 @@ export type WebappDevHandle = {
 };
 
 /**
- * Spawn `sf webapp dev` asynchronously and wait for the JSON URL line on stderr.
+ * Spawn `sf ui-bundle dev` asynchronously and wait for the JSON URL line on stderr.
  *
  * Uses `bin/dev.js` (same binary that `execCmd` uses) so we test the
  * local plugin code, not whatever is installed globally.
@@ -59,7 +59,7 @@ export function spawnWebappDev(args: string[], options: { cwd: string; timeout?:
   const binDev = join(process.cwd(), 'bin', 'dev.js');
   const proc = spawn(
     process.execPath,
-    ['--loader', 'ts-node/esm', '--no-warnings=ExperimentalWarning', binDev, 'webapp', 'dev', ...args],
+    ['--loader', 'ts-node/esm', '--no-warnings=ExperimentalWarning', binDev, 'ui-bundle', 'dev', ...args],
     {
       cwd: options.cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -140,7 +140,7 @@ export function spawnWebappDev(args: string[], options: { cwd: string; timeout?:
     proc.on('close', (code) => {
       clearTimeout(timeoutId);
       if (code !== null && code !== 0) {
-        reject(new Error(`webapp dev exited with code ${code}.\nstderr:\n${stderrData}`));
+        reject(new Error(`ui-bundle dev exited with code ${code}.\nstderr:\n${stderrData}`));
       }
     });
   });
