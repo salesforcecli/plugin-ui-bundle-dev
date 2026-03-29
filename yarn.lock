@@ -1751,19 +1751,19 @@
   resolved "https://registry.npmjs.org/@salesforce/prettier-config/-/prettier-config-0.0.3.tgz"
   integrity sha512-hYOhoPTCSYMDYn+U1rlEk16PoBeAJPkrdg4/UtAzupM1mRRJOwEPMG1d7U8DxJFKuXW3DMEYWr2MwAIBDaHmFg==
 
-"@salesforce/sdk-core@^1.117.0":
-  version "1.117.0"
-  resolved "https://registry.yarnpkg.com/@salesforce/sdk-core/-/sdk-core-1.117.0.tgz#362ac95bee4d4a8f46a2bb28fe8f43b42416344d"
-  integrity sha512-k1/i0XAfiPpHQQtSEmJRv9x26dFMmjnWIlX3/T8sUuN0qZ3E+dnxeqGIvZ6VL3biWsZwwCD7bZ5PN5iSwEhtZg==
+"@salesforce/sdk-core@^1.117.2":
+  version "1.117.2"
+  resolved "https://registry.yarnpkg.com/@salesforce/sdk-core/-/sdk-core-1.117.2.tgz#95d136c95f8d13b692f9dffba0c921a59ca1486a"
+  integrity sha512-vT1K0DJM3Wk3jsgBLqCIh/zgv8GUUZJ3Ef9AqLp0F344XZOAEdDh6ierdA7VQx5bf8ApTb/V4TLt70Qu/P0zYA==
 
-"@salesforce/sdk-data@^1.112.7":
-  version "1.117.0"
-  resolved "https://registry.yarnpkg.com/@salesforce/sdk-data/-/sdk-data-1.117.0.tgz#c98494741d66fb19a8d853f17264b29d9563b383"
-  integrity sha512-AkKPMkAxfZMLos5ozUZSE+Jvor+f4mBw4GOa1AIbXUEsdHT/FeA1MUyo++TKw2AGkgnbWFeQkSDd07KWomhaww==
+"@salesforce/sdk-data@^1.117.2":
+  version "1.117.2"
+  resolved "https://registry.yarnpkg.com/@salesforce/sdk-data/-/sdk-data-1.117.2.tgz#38c860b92e54ad8618d56112742e0e330512f389"
+  integrity sha512-4cJKqz05ge7L0ILoBu1AdlbOBwYaSfrORrdY63q3UUBH0vLRsCav86ICox5PzNZGJMCM2TR2/1rwk7MxqZ3Xrg==
   dependencies:
     "@conduit-client/service-fetch-network" "3.17.0"
     "@conduit-client/utils" "3.17.0"
-    "@salesforce/sdk-core" "^1.117.0"
+    "@salesforce/sdk-core" "^1.117.2"
 
 "@salesforce/sf-plugins-core@^11.3.12":
   version "11.3.12"
@@ -1804,9 +1804,16 @@
   resolved "https://registry.npmjs.org/@salesforce/ts-types/-/ts-types-2.0.12.tgz"
   integrity sha512-BIJyduJC18Kc8z+arUm5AZ9VkPRyw1KKAm+Tk+9LT99eOzhNilyfKzhZ4t+tG2lIGgnJpmytZfVDZ0e2kFul8g==
 
-"@salesforce/ui-bundle@link:../webapps/packages/webapps":
-  version "0.0.0"
-  uid ""
+"@salesforce/ui-bundle@^1.117.2":
+  version "1.117.2"
+  resolved "https://registry.yarnpkg.com/@salesforce/ui-bundle/-/ui-bundle-1.117.2.tgz#88e97df0fba24e8a9d2da8adaf34f545e6525540"
+  integrity sha512-tYQtEdONbrISSgTU3TIrUvhc5f+/ioQA+N23LvROQKqLurWndMKQIME/g6FKxMvHmlEHsimodPgHuuvgRsgsKg==
+  dependencies:
+    "@salesforce/core" "^8.23.4"
+    "@salesforce/sdk-data" "^1.117.2"
+    axios "^1.7.7"
+    micromatch "^4.0.8"
+    path-to-regexp "^8.3.0"
 
 "@shikijs/core@1.29.2":
   version "1.29.2"
