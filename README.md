@@ -1,6 +1,6 @@
-# plugin-app-dev
+# plugin-ui-bundle-dev
 
-[![NPM](https://img.shields.io/npm/v/@salesforce/plugin-app-dev.svg?label=@salesforce/plugin-app-dev)](https://www.npmjs.com/package/@salesforce/plugin-app-dev) [![Downloads/week](https://img.shields.io/npm/dw/@salesforce/plugin-app-dev.svg)](https://npmjs.org/package/@salesforce/plugin-app-dev) [![License](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/license/apache-2-0)
+[![NPM](https://img.shields.io/npm/v/@salesforce/plugin-ui-bundle-dev.svg?label=@salesforce/plugin-ui-bundle-dev)](https://www.npmjs.com/package/@salesforce/plugin-ui-bundle-dev) [![Downloads/week](https://img.shields.io/npm/dw/@salesforce/plugin-ui-bundle-dev.svg)](https://npmjs.org/package/@salesforce/plugin-ui-bundle-dev) [![License](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/license/apache-2-0)
 
 # Salesforce CLI UI Bundle Dev Plugin
 
@@ -23,7 +23,7 @@ We always recommend using the latest version of these commands bundled with the 
 1. **Install the plugin:**
 
    ```bash
-   sf plugins install @salesforce/plugin-app-dev
+   sf plugins install @salesforce/plugin-ui-bundle-dev
    ```
 
 2. **Authenticate with Salesforce:**
@@ -68,7 +68,7 @@ We always recommend using the latest version of these commands bundled with the 
 ## Install
 
 ```bash
-sf plugins install @salesforce/plugin-app-dev@x.y.z
+sf plugins install @salesforce/plugin-ui-bundle-dev@x.y.z
 ```
 
 ## Issues
@@ -100,7 +100,7 @@ To build the plugin locally, make sure to have yarn installed and run the follow
 
 ```bash
 # Clone the repository
-git clone git@github.com:salesforcecli/plugin-app-dev
+git clone git@github.com:salesforcecli/plugin-ui-bundle-dev
 
 # Install the dependencies and compile
 yarn && yarn build
