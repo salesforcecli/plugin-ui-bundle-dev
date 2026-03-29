@@ -18,7 +18,7 @@ Name of the UI bundle to preview.
 
 # flags.name.description
 
-The unique name of the UI bundle, as defined by the "name" property in the ui-bundle.json runtime configuration file.  The ui-bundle.json file is located in the "uiBundles" metadata directory of your DX project, such as force-app/main/default/uiBundles/MyApp/ui-bundle.json.
+The unique name of the UI bundle, as defined by the "name" property in the ui-bundle.json runtime configuration file.  The ui-bundle.json file is located in the "uiBundles" metadata directory of your DX project, such as force-app/main/default/uiBundles/MyBundle/ui-bundle.json.
 
 If you don't specify this flag, the command automatically discovers the ui-bundle.json files in the current directory and subdirectories. If the command finds only one ui-bundle.json, it automatically uses it. If it finds multiple files, the command prompts you to select one.
 
@@ -58,11 +58,11 @@ This flag saves you from manually copying and pasting the URL. The browser opens
 
 - Start the dev server by explicitly specifying the UI bundle's name:
 
-  <%= config.bin %> <%= command.id %> --name myUiBundle --target-org myorg
+  <%= config.bin %> <%= command.id %> --name myBundle --target-org myorg
 
 - Start at the specified dev server URL:
 
-  <%= config.bin %> <%= command.id %> --name myUiBundle --url http://localhost:5173 --target-org myorg
+  <%= config.bin %> <%= command.id %> --name myBundle --url http://localhost:5173 --target-org myorg
 
 - Start with a custom proxy port and automatically open the proxy server URL in your browser:
 
