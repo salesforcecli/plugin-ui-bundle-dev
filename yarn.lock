@@ -1751,19 +1751,19 @@
   resolved "https://registry.npmjs.org/@salesforce/prettier-config/-/prettier-config-0.0.3.tgz"
   integrity sha512-hYOhoPTCSYMDYn+U1rlEk16PoBeAJPkrdg4/UtAzupM1mRRJOwEPMG1d7U8DxJFKuXW3DMEYWr2MwAIBDaHmFg==
 
-"@salesforce/sdk-core@^1.117.2":
-  version "1.117.2"
-  resolved "https://registry.yarnpkg.com/@salesforce/sdk-core/-/sdk-core-1.117.2.tgz#95d136c95f8d13b692f9dffba0c921a59ca1486a"
-  integrity sha512-vT1K0DJM3Wk3jsgBLqCIh/zgv8GUUZJ3Ef9AqLp0F344XZOAEdDh6ierdA7VQx5bf8ApTb/V4TLt70Qu/P0zYA==
+"@salesforce/sdk-core@^1.117.3":
+  version "1.117.3"
+  resolved "https://registry.yarnpkg.com/@salesforce/sdk-core/-/sdk-core-1.117.3.tgz#63a9d284373e017e13a462f9b6099a2c26257eeb"
+  integrity sha512-vz029He3j5BNaTWOAtK9Yxb3xj5CwKIZjxUG61T2cf/hCGxidrEftrDl2I0SNJaX4+t4M5QT+0ba6MOI4w8QDw==
 
-"@salesforce/sdk-data@^1.117.2":
-  version "1.117.2"
-  resolved "https://registry.yarnpkg.com/@salesforce/sdk-data/-/sdk-data-1.117.2.tgz#38c860b92e54ad8618d56112742e0e330512f389"
-  integrity sha512-4cJKqz05ge7L0ILoBu1AdlbOBwYaSfrORrdY63q3UUBH0vLRsCav86ICox5PzNZGJMCM2TR2/1rwk7MxqZ3Xrg==
+"@salesforce/sdk-data@^1.117.3":
+  version "1.117.3"
+  resolved "https://registry.yarnpkg.com/@salesforce/sdk-data/-/sdk-data-1.117.3.tgz#6effdb11787033168ce73ab9e3110ac7d9694d09"
+  integrity sha512-Tx/dy4Sb0toM036nutxr3j0TNKECpJZIi+FHrvO/apGd5fmyvNk9jlaAaC+IDw53vgiWrly+zwuH8EpxA9ssLw==
   dependencies:
     "@conduit-client/service-fetch-network" "3.17.0"
     "@conduit-client/utils" "3.17.0"
-    "@salesforce/sdk-core" "^1.117.2"
+    "@salesforce/sdk-core" "^1.117.3"
 
 "@salesforce/sf-plugins-core@^11.3.12":
   version "11.3.12"
@@ -1804,13 +1804,13 @@
   resolved "https://registry.npmjs.org/@salesforce/ts-types/-/ts-types-2.0.12.tgz"
   integrity sha512-BIJyduJC18Kc8z+arUm5AZ9VkPRyw1KKAm+Tk+9LT99eOzhNilyfKzhZ4t+tG2lIGgnJpmytZfVDZ0e2kFul8g==
 
-"@salesforce/ui-bundle@^1.117.2":
-  version "1.117.2"
-  resolved "https://registry.yarnpkg.com/@salesforce/ui-bundle/-/ui-bundle-1.117.2.tgz#88e97df0fba24e8a9d2da8adaf34f545e6525540"
-  integrity sha512-tYQtEdONbrISSgTU3TIrUvhc5f+/ioQA+N23LvROQKqLurWndMKQIME/g6FKxMvHmlEHsimodPgHuuvgRsgsKg==
+"@salesforce/ui-bundle@^1.117.3":
+  version "1.117.3"
+  resolved "https://registry.yarnpkg.com/@salesforce/ui-bundle/-/ui-bundle-1.117.3.tgz#20182e653ba3757367ce81cc0b5e04d1eae63da1"
+  integrity sha512-Vr52rmDV4vYDNpsGHzsZju8KnrQz/isWBZdi8WYEXqbjM8cUaw1qIb+TycbmJ1lFM/lQYsv+zUSy8z70maDCIQ==
   dependencies:
     "@salesforce/core" "^8.23.4"
-    "@salesforce/sdk-data" "^1.117.2"
+    "@salesforce/sdk-data" "^1.117.3"
     axios "^1.7.7"
     micromatch "^4.0.8"
     path-to-regexp "^8.3.0"
