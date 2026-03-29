@@ -16,7 +16,7 @@
       },
       "required": ["url", "devServerUrl"],
       "additionalProperties": false,
-      "description": "Command execution result"
+      "description": "Command execution result What the sf ui-bundle dev command returns to the user"
     }
   }
 }
