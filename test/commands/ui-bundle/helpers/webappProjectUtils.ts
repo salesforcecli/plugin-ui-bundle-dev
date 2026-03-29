@@ -31,14 +31,14 @@ export const REAL_HOME = homedir();
 /**
  * Relative path from project root to the uiBundles folder.
  */
-const WEBAPPS_PATH = join('force-app', 'main', 'default', UI_BUNDLES_FOLDER);
+const UI_BUNDLES_PATH = join('force-app', 'main', 'default', UI_BUNDLES_FOLDER);
 
 /**
  * Resolve the absolute path to a UI bundle directory within a project.
- * If `webAppName` is omitted, returns the uiBundles folder itself.
+ * If `uiBundleName` is omitted, returns the uiBundles folder itself.
  */
-export function webappPath(projectDir: string, webAppName?: string): string {
-  return webAppName ? join(projectDir, WEBAPPS_PATH, webAppName) : join(projectDir, WEBAPPS_PATH);
+export function uiBundlePath(projectDir: string, uiBundleName?: string): string {
+  return uiBundleName ? join(projectDir, UI_BUNDLES_PATH, uiBundleName) : join(projectDir, UI_BUNDLES_PATH);
 }
 
 /**
@@ -98,12 +98,12 @@ export function createProject(session: TestSession, name: string): string {
 }
 
 /**
- * Run `sf project generate` then `sf ui-bundle generate --name <webAppName>` inside
+ * Run `sf project generate` then `sf ui-bundle generate --name <uiBundleName>` inside
  * the project. Returns the absolute path to the generated project root.
  */
-export function createProjectWithWebapp(session: TestSession, projectName: string, webAppName: string): string {
+export function createProjectWithUiBundle(session: TestSession, projectName: string, uiBundleName: string): string {
   const projectDir = createProject(session, projectName);
-  execSync(`sf ui-bundle generate --name ${webAppName}`, {
+  execSync(`sf ui-bundle generate --name ${uiBundleName}`, {
     cwd: projectDir,
     stdio: 'pipe',
     env: { ...process.env, HOME: REAL_HOME, USERPROFILE: REAL_HOME },
@@ -115,7 +115,7 @@ export function createProjectWithWebapp(session: TestSession, projectName: strin
  * Create a project with multiple UI bundles. Used to test selection flows when
  * more than one UI bundle exists in a single SFDX project.
  */
-export function createProjectWithMultipleWebapps(
+export function createProjectWithMultipleUiBundles(
   session: TestSession,
   projectName: string,
   webAppNames: string[]
@@ -135,23 +135,23 @@ export function createProjectWithMultipleWebapps(
  * Create the `uiBundles/` directory (empty — no UI bundles inside).
  * Used to test "empty uiBundles folder" scenario.
  */
-export function createEmptyWebappsDir(projectDir: string): void {
-  mkdirSync(webappPath(projectDir), { recursive: true });
+export function createEmptyUiBundlesDir(projectDir: string): void {
+  mkdirSync(uiBundlePath(projectDir), { recursive: true });
 }
 
 /**
- * Create a UI bundle directory without the required `.webapplication-meta.xml`.
+ * Create a UI bundle directory without the required `.uibundle-meta.xml`.
  * Used to test "no metadata file" scenario.
  */
-export function createWebappDirWithoutMeta(projectDir: string, name: string): void {
-  mkdirSync(webappPath(projectDir, name), { recursive: true });
+export function createUiBundleDirWithoutMeta(projectDir: string, name: string): void {
+  mkdirSync(uiBundlePath(projectDir, name), { recursive: true });
 }
 
 /**
- * Overwrite the `webapplication.json` manifest for a given UI bundle.
+ * Overwrite the `ui-bundle.json` manifest for a given UI bundle.
  */
-export function writeManifest(projectDir: string, webAppName: string, manifest: Record<string, unknown>): void {
-  writeFileSync(join(webappPath(projectDir, webAppName), 'webapplication.json'), JSON.stringify(manifest, null, 2));
+export function writeManifest(projectDir: string, uiBundleName: string, manifest: Record<string, unknown>): void {
+  writeFileSync(join(uiBundlePath(projectDir, uiBundleName), 'ui-bundle.json'), JSON.stringify(manifest, null, 2));
 }
 
 /**
@@ -160,7 +160,7 @@ export function writeManifest(projectDir: string, webAppName: string, manifest: 
  *
  * The script is CommonJS (.cjs) to avoid ESM/shell quoting issues.
  */
-export function createDevServerScript(webappDir: string, port: number): string {
+export function createDevServerScript(uiBundleDir: string, port: number): string {
   const script = [
     "const http = require('http');",
     'const server = http.createServer((_, res) => {',
@@ -171,7 +171,7 @@ export function createDevServerScript(webappDir: string, port: number): string {
     `  console.log('listening on port ${port}');`,
     '});',
   ].join('\n');
-  writeFileSync(join(webappDir, 'dev-server.cjs'), script);
+  writeFileSync(join(uiBundleDir, 'dev-server.cjs'), script);
   return 'node dev-server.cjs';
 }
 
@@ -180,19 +180,19 @@ export function createDevServerScript(webappDir: string, port: number): string {
  * `dev.command` that starts a tiny HTTP server on `devPort`, and
  * `dev.url` pointing to that port. Optionally sets `dev.port` (proxy port).
  *
- * Returns `{ projectDir, webappDir }`.
+ * Returns `{ projectDir, uiBundleDir }`.
  */
 export function createProjectWithDevServer(
   session: TestSession,
   projectName: string,
-  webAppName: string,
+  uiBundleName: string,
   devPort: number,
   proxyPort?: number
-): { projectDir: string; webappDir: string } {
-  const projectDir = createProjectWithWebapp(session, projectName, webAppName);
-  const webappDir = webappPath(projectDir, webAppName);
+): { projectDir: string; uiBundleDir: string } {
+  const projectDir = createProjectWithUiBundle(session, projectName, uiBundleName);
+  const uiBundleDir = uiBundlePath(projectDir, uiBundleName);
 
-  const devCommand = createDevServerScript(webappDir, devPort);
+  const devCommand = createDevServerScript(uiBundleDir, devPort);
   const dev: Record<string, unknown> = {
     url: `http://localhost:${devPort}`,
     command: devCommand,
@@ -200,7 +200,7 @@ export function createProjectWithDevServer(
   if (proxyPort !== undefined) {
     dev.port = proxyPort;
   }
-  writeManifest(projectDir, webAppName, { dev });
+  writeManifest(projectDir, uiBundleName, { dev });
 
-  return { projectDir, webappDir };
+  return { projectDir, uiBundleDir };
 }

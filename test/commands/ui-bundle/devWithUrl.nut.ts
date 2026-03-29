@@ -19,19 +19,19 @@ import { TestSession } from '@salesforce/cli-plugins-testkit';
 import { expect } from 'chai';
 import {
   createProjectWithDevServer,
-  createProjectWithWebapp,
+  createProjectWithUiBundle,
   writeManifest,
   ensureSfCli,
   authOrgViaUrl,
 } from './helpers/webappProjectUtils.js';
 import {
-  spawnWebappDev,
+  spawnUiBundleDev,
   startTestHttpServer,
   startViteProxyServer,
   closeServer,
   SUITE_TIMEOUT,
   SPAWN_TIMEOUT,
-  type WebappDevHandle,
+  type UiBundleDevHandle,
 } from './helpers/devServerUtils.js';
 
 /* ------------------------------------------------------------------ *
@@ -55,7 +55,7 @@ describe('ui-bundle dev NUTs — Tier 2 URL/proxy integration', function () {
 
   let session: TestSession;
   let targetOrg: string;
-  let handle: WebappDevHandle | null = null;
+  let handle: UiBundleDevHandle | null = null;
   let externalServer: HttpServer | null = null;
 
   before(async () => {
@@ -93,7 +93,7 @@ describe('ui-bundle dev NUTs — Tier 2 URL/proxy integration', function () {
     it('should start proxy when dev.command starts a dev server', async () => {
       const { projectDir } = createProjectWithDevServer(session, 'fullFlow', 'myApp', FULL_FLOW_PORT);
 
-      handle = await spawnWebappDev(['--name', 'myApp', '--target-org', targetOrg], {
+      handle = await spawnUiBundleDev(['--name', 'myApp', '--target-org', targetOrg], {
         cwd: projectDir,
         timeout: SPAWN_TIMEOUT,
       });
@@ -107,7 +107,7 @@ describe('ui-bundle dev NUTs — Tier 2 URL/proxy integration', function () {
     it('should serve proxied content from the dev server', async () => {
       const { projectDir } = createProjectWithDevServer(session, 'proxyContent', 'myApp', FULL_FLOW_PORT + 1);
 
-      handle = await spawnWebappDev(['--name', 'myApp', '--target-org', targetOrg], {
+      handle = await spawnUiBundleDev(['--name', 'myApp', '--target-org', targetOrg], {
         cwd: projectDir,
         timeout: SPAWN_TIMEOUT,
       });
@@ -124,7 +124,7 @@ describe('ui-bundle dev NUTs — Tier 2 URL/proxy integration', function () {
     it('should emit JSON with proxy URL on stderr', async () => {
       const { projectDir } = createProjectWithDevServer(session, 'jsonOutput', 'myApp', FULL_FLOW_PORT + 2);
 
-      handle = await spawnWebappDev(['--name', 'myApp', '--target-org', targetOrg], {
+      handle = await spawnUiBundleDev(['--name', 'myApp', '--target-org', targetOrg], {
         cwd: projectDir,
         timeout: SPAWN_TIMEOUT,
       });
@@ -149,10 +149,10 @@ describe('ui-bundle dev NUTs — Tier 2 URL/proxy integration', function () {
       const defaultDevPort = 5173;
       externalServer = await startTestHttpServer(defaultDevPort);
 
-      const projectDir = createProjectWithWebapp(session, 'emptyManifest', 'myApp');
+      const projectDir = createProjectWithUiBundle(session, 'emptyManifest', 'myApp');
       writeManifest(projectDir, 'myApp', {});
 
-      handle = await spawnWebappDev(['--name', 'myApp', '--target-org', targetOrg], {
+      handle = await spawnUiBundleDev(['--name', 'myApp', '--target-org', targetOrg], {
         cwd: projectDir,
         timeout: SPAWN_TIMEOUT,
       });
@@ -172,9 +172,9 @@ describe('ui-bundle dev NUTs — Tier 2 URL/proxy integration', function () {
     it('should start proxy when --url points to an already-running server', async () => {
       externalServer = await startTestHttpServer(PROXY_ONLY_PORT);
 
-      const projectDir = createProjectWithWebapp(session, 'proxyOnly', 'myApp');
+      const projectDir = createProjectWithUiBundle(session, 'proxyOnly', 'myApp');
 
-      handle = await spawnWebappDev(
+      handle = await spawnUiBundleDev(
         ['--name', 'myApp', '--url', `http://localhost:${PROXY_ONLY_PORT}`, '--target-org', targetOrg],
         { cwd: projectDir, timeout: SPAWN_TIMEOUT }
       );
@@ -189,9 +189,9 @@ describe('ui-bundle dev NUTs — Tier 2 URL/proxy integration', function () {
     it('should serve proxied content from the external server via --url', async () => {
       externalServer = await startTestHttpServer(PROXY_ONLY_PORT + 1);
 
-      const projectDir = createProjectWithWebapp(session, 'proxyOnlyContent', 'myApp');
+      const projectDir = createProjectWithUiBundle(session, 'proxyOnlyContent', 'myApp');
 
-      handle = await spawnWebappDev(
+      handle = await spawnUiBundleDev(
         ['--name', 'myApp', '--url', `http://localhost:${PROXY_ONLY_PORT + 1}`, '--target-org', targetOrg],
         { cwd: projectDir, timeout: SPAWN_TIMEOUT }
       );
@@ -208,12 +208,12 @@ describe('ui-bundle dev NUTs — Tier 2 URL/proxy integration', function () {
     it('should start proxy when dev.url in manifest is already reachable (no dev.command needed)', async () => {
       externalServer = await startTestHttpServer(PROXY_ONLY_PORT + 2);
 
-      const projectDir = createProjectWithWebapp(session, 'proxyOnlyManifest', 'myApp');
+      const projectDir = createProjectWithUiBundle(session, 'proxyOnlyManifest', 'myApp');
       writeManifest(projectDir, 'myApp', {
         dev: { url: `http://localhost:${PROXY_ONLY_PORT + 2}` },
       });
 
-      handle = await spawnWebappDev(['--name', 'myApp', '--target-org', targetOrg], {
+      handle = await spawnUiBundleDev(['--name', 'myApp', '--target-org', targetOrg], {
         cwd: projectDir,
         timeout: SPAWN_TIMEOUT,
       });
@@ -233,9 +233,9 @@ describe('ui-bundle dev NUTs — Tier 2 URL/proxy integration', function () {
       const customProxyPort = PROXY_ONLY_PORT + 10;
       externalServer = await startTestHttpServer(PROXY_ONLY_PORT + 3);
 
-      const projectDir = createProjectWithWebapp(session, 'proxyOnlyPort', 'myApp');
+      const projectDir = createProjectWithUiBundle(session, 'proxyOnlyPort', 'myApp');
 
-      handle = await spawnWebappDev(
+      handle = await spawnUiBundleDev(
         [
           '--name',
           'myApp',
@@ -258,7 +258,7 @@ describe('ui-bundle dev NUTs — Tier 2 URL/proxy integration', function () {
 
   // ── Vite proxy mode (dev server has built-in proxy) ──────────────
   // When the dev server responds to ?sfProxyHealthCheck=true with the
-  // X-Salesforce-WebApp-Proxy header, the command skips the standalone
+  // X-Salesforce-UiBundle-Proxy header, the command skips the standalone
   // proxy and uses the dev server URL directly.
 
   describe('Vite proxy mode', () => {
@@ -267,12 +267,12 @@ describe('ui-bundle dev NUTs — Tier 2 URL/proxy integration', function () {
     it('should skip standalone proxy when Vite proxy is detected', async () => {
       externalServer = await startViteProxyServer(VITE_PORT);
 
-      const projectDir = createProjectWithWebapp(session, 'viteProxy', 'myApp');
+      const projectDir = createProjectWithUiBundle(session, 'viteProxy', 'myApp');
       writeManifest(projectDir, 'myApp', {
         dev: { url: `http://localhost:${VITE_PORT}` },
       });
 
-      handle = await spawnWebappDev(['--name', 'myApp', '--target-org', targetOrg], {
+      handle = await spawnUiBundleDev(['--name', 'myApp', '--target-org', targetOrg], {
         cwd: projectDir,
         timeout: SPAWN_TIMEOUT,
       });
@@ -284,12 +284,12 @@ describe('ui-bundle dev NUTs — Tier 2 URL/proxy integration', function () {
     it('should serve content directly from Vite server (no standalone proxy)', async () => {
       externalServer = await startViteProxyServer(VITE_PORT + 1);
 
-      const projectDir = createProjectWithWebapp(session, 'viteContent', 'myApp');
+      const projectDir = createProjectWithUiBundle(session, 'viteContent', 'myApp');
       writeManifest(projectDir, 'myApp', {
         dev: { url: `http://localhost:${VITE_PORT + 1}` },
       });
 
-      handle = await spawnWebappDev(['--name', 'myApp', '--target-org', targetOrg], {
+      handle = await spawnUiBundleDev(['--name', 'myApp', '--target-org', targetOrg], {
         cwd: projectDir,
         timeout: SPAWN_TIMEOUT,
       });
@@ -301,17 +301,17 @@ describe('ui-bundle dev NUTs — Tier 2 URL/proxy integration', function () {
       expect(body).to.include('Vite Dev Server');
     });
 
-    // Server responds to health check but WITHOUT the X-Salesforce-WebApp-Proxy
+    // Server responds to health check but WITHOUT the X-Salesforce-UiBundle-Proxy
     // header → standalone proxy starts as usual (fallback path).
     it('should start standalone proxy when server lacks Vite proxy header', async () => {
       externalServer = await startTestHttpServer(VITE_PORT + 2);
 
-      const projectDir = createProjectWithWebapp(session, 'noViteProxy', 'myApp');
+      const projectDir = createProjectWithUiBundle(session, 'noViteProxy', 'myApp');
       writeManifest(projectDir, 'myApp', {
         dev: { url: `http://localhost:${VITE_PORT + 2}` },
       });
 
-      handle = await spawnWebappDev(['--name', 'myApp', '--target-org', targetOrg], {
+      handle = await spawnUiBundleDev(['--name', 'myApp', '--target-org', targetOrg], {
         cwd: projectDir,
         timeout: SPAWN_TIMEOUT,
       });

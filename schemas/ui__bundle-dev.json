@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$ref": "#/definitions/WebAppDevResult",
+  "$ref": "#/definitions/UiBundleDevResult",
   "definitions": {
-    "WebAppDevResult": {
+    "UiBundleDevResult": {
       "type": "object",
       "properties": {
         "url": {
@@ -14,10 +14,7 @@
           "description": "Dev server URL being proxied"
         }
       },
-      "required": [
-        "url",
-        "devServerUrl"
-      ],
+      "required": ["url", "devServerUrl"],
       "additionalProperties": false,
       "description": "Command execution result What the sf ui-bundle dev command returns to the user"
     }

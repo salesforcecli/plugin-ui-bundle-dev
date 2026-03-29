@@ -14,20 +14,20 @@
  * limitations under the License.
  */
 
-// Re-export base types from @salesforce/webapp-experimental package
+// Re-export base types from @salesforce/ui-bundle package
 export type {
-  WebAppManifest as BaseWebAppManifest,
+  UiBundleManifest as BaseUiBundleManifest,
   RoutingConfig,
   RewriteRule,
   RedirectRule,
-} from '@salesforce/webapp-experimental/app';
+} from '@salesforce/ui-bundle/app';
 
 // Import for local use
-import type { WebAppManifest as BaseWebAppManifest } from '@salesforce/webapp-experimental/app';
+import type { UiBundleManifest as BaseUiBundleManifest } from '@salesforce/ui-bundle/app';
 
 /**
  * Development configuration (plugin-specific extension)
- * NOT in @salesforce/webapp-experimental package
+ * NOT in @salesforce/ui-bundle package
  */
 export type DevConfig = {
   /** Command to run the dev server (e.g., "npm run dev") */
@@ -39,10 +39,10 @@ export type DevConfig = {
 };
 
 /**
- * WebApp manifest configuration - defines the structure of webapplication.json file
- * Extended from @salesforce/webapp-experimental with plugin-specific fields
+ * UI bundle manifest configuration - defines the structure of ui-bundle.json file
+ * Extended from @salesforce/ui-bundle with plugin-specific fields
  */
-export type WebAppManifest = BaseWebAppManifest & {
+export type UiBundleManifest = BaseUiBundleManifest & {
   /** Development configuration (plugin-specific) */
   dev?: DevConfig;
 };

@@ -15,11 +15,11 @@
  */
 
 import { expect } from 'chai';
-import { WebAppManifest, RoutingConfig } from '../../src/config/types.js';
+import { UiBundleManifest, RoutingConfig } from '../../src/config/types.js';
 
 describe('TypeScript Types', () => {
-  it('should allow valid WebAppManifest', () => {
-    const manifest: WebAppManifest = {
+  it('should allow valid UiBundleManifest', () => {
+    const manifest: UiBundleManifest = {
       name: 'testApp',
       outputDir: 'dist',
     };
@@ -28,8 +28,8 @@ describe('TypeScript Types', () => {
     expect(manifest.outputDir).to.equal('dist');
   });
 
-  it('should allow WebAppManifest with dev config', () => {
-    const manifest: WebAppManifest = {
+  it('should allow UiBundleManifest with dev config', () => {
+    const manifest: UiBundleManifest = {
       name: 'testApp',
       outputDir: 'dist',
       dev: {
@@ -42,7 +42,7 @@ describe('TypeScript Types', () => {
     expect(manifest.dev?.url).to.equal('http://localhost:5173');
   });
 
-  it('should allow WebAppManifest with routing config', () => {
+  it('should allow UiBundleManifest with routing config', () => {
     const routing: RoutingConfig = {
       rewrites: [{ route: '/api/:id', target: 'api/handler' }],
       redirects: [{ route: '/old', target: '/new', statusCode: 301 }],
@@ -50,7 +50,7 @@ describe('TypeScript Types', () => {
       fallback: 'index.html',
     };
 
-    const manifest: WebAppManifest = {
+    const manifest: UiBundleManifest = {
       name: 'testApp',
       outputDir: 'dist',
       routing,

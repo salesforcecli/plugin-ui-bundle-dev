@@ -1,26 +1,26 @@
 # summary
 
-Preview a web application locally and in real-time, without deploying it to your org.
+Preview a UI bundle locally and in real-time, without deploying it to your org.
 
 # description
 
-This command starts a local development (dev) server so you can preview a web application using the local metadata files in your DX project. Using a local preview helps you quickly develop web applications, because you don't have to continually deploy metadata to your org.
+This command starts a local development (dev) server so you can preview a UI bundle using the local metadata files in your DX project. Using a local preview helps you quickly develop UI bundles, because you don't have to continually deploy metadata to your org.
 
-The command also launches a local proxy server that sits between your web application and Salesforce, automatically injecting authentication headers from Salesforce CLI's stored tokens. The proxy allows your web app to make authenticated API calls to Salesforce without exposing credentials.
+The command also launches a local proxy server that sits between your UI bundle and Salesforce, automatically injecting authentication headers from Salesforce CLI's stored tokens. The proxy allows your UI bundle to make authenticated API calls to Salesforce without exposing credentials.
 
-Even though you're previewing the web application locally and not deploying anything to an org, you're still required to authorize and specify an org to use this command.
+Even though you're previewing the UI bundle locally and not deploying anything to an org, you're still required to authorize and specify an org to use this command.
 
-Salesforce web applications are represented by the WebApplication metadata type.
+Salesforce UI bundles are represented by the UiBundle metadata type.
 
 # flags.name.summary
 
-Name of the web application to preview.
+Name of the UI bundle to preview.
 
 # flags.name.description
 
-The unique name of the web application, as defined by the "name" property in the webapplication.json runtime configuration file.  The webapplication.json file is located in the "uiBundles" metadata directory of your DX project, such as force-app/main/default/uiBundles/MyApp/webapplication.json.
+The unique name of the UI bundle, as defined by the "name" property in the ui-bundle.json runtime configuration file.  The ui-bundle.json file is located in the "uiBundles" metadata directory of your DX project, such as force-app/main/default/uiBundles/MyApp/ui-bundle.json.
 
-If you don't specify this flag, the command automatically discovers the webapplication.json files in the current directory and subdirectories. If the command finds only one webapplication.json, it automatically uses it. If it finds multiple files, the command prompts you to select one.
+If you don't specify this flag, the command automatically discovers the ui-bundle.json files in the current directory and subdirectories. If the command finds only one ui-bundle.json, it automatically uses it. If it finds multiple files, the command prompts you to select one.
 
 # flags.url.summary
 
@@ -28,9 +28,9 @@ URL where your developer server runs, such as https://localhost:5173. All UI, st
 
 # flags.url.description
 
-You must specify this flag if the web application's webapplication.json file doesn't contain a value for either the "dev.command" or "dev.url" configuration properties. All non-Salesforce API requests are forwarded to this URL.
+You must specify this flag if the UI bundle's ui-bundle.json file doesn't contain a value for either the "dev.command" or "dev.url" configuration properties. All non-Salesforce API requests are forwarded to this URL.
 
-If you specify this flag, it overrides the value in the webapplication.json file.
+If you specify this flag, it overrides the value in the ui-bundle.json file.
 
 This is the order of precedence that the dev server uses for the URL:  --url flag > manifest dev.url > URL from the dev server process (which was started using either manifest dev.command or default npm run dev).
 
@@ -52,17 +52,17 @@ This flag saves you from manually copying and pasting the URL. The browser opens
 
 # examples
 
-- Start the local development (dev) server by automatically discovering the web application's webapplication.json file; use the org with alias "myorg":
+- Start the local development (dev) server by automatically discovering the UI bundle's ui-bundle.json file; use the org with alias "myorg":
 
   <%= config.bin %> <%= command.id %> --target-org myorg
 
-- Start the dev server by explicitly specifying the web application's name:
+- Start the dev server by explicitly specifying the UI bundle's name:
 
-  <%= config.bin %> <%= command.id %> --name myWebApp --target-org myorg
+  <%= config.bin %> <%= command.id %> --name myUiBundle --target-org myorg
 
 - Start at the specified dev server URL:
 
-  <%= config.bin %> <%= command.id %> --name myWebApp --url http://localhost:5173 --target-org myorg
+  <%= config.bin %> <%= command.id %> --name myUiBundle --url http://localhost:5173 --target-org myorg
 
 - Start with a custom proxy port and automatically open the proxy server URL in your browser:
 
@@ -182,7 +182,7 @@ Failed to watch manifest: %s.
 # error.dev-url-unreachable
 
 Dev server unreachable at %s.
-Start your dev server manually at that URL, or add dev.command to webapplication.json to start it automatically.
+Start your dev server manually at that URL, or add dev.command to ui-bundle.json to start it automatically.
 
 # error.dev-url-unreachable-with-flag
 
@@ -197,35 +197,35 @@ Port %s is already in use. Try specifying a different port with the --port flag 
 
 %s
 
-# info.multiple-webapps-found
+# info.multiple-uiBundles-found
 
-Found %s webapps in project.
+Found %s UI bundles in project.
 
-# info.webapp-auto-selected
+# info.uiBundle-auto-selected
 
-Auto-selected webapp "%s" (running from inside its folder).
+Auto-selected UI bundle "%s" (running from inside its folder).
 
-# info.using-webapp
+# info.using-uiBundle
 
-✅ Using webapp: %s (%s).
+✅ Using UI bundle: %s (%s).
 
-# info.starting-webapp
+# info.starting-uiBundle
 
 ✅ Starting %s.
 
-# prompt.select-webapp
+# prompt.select-uiBundle
 
-Select the webapp to run:
+Select the UI bundle to run:
 
 # info.no-manifest-defaults
 
-No webapplication.json found. Using defaults: dev command=%s, proxy port=%s.
+No ui-bundle.json found. Using defaults: dev command=%s, proxy port=%s.
 
 Tip: See "sf ui-bundle dev --help" for configuration options.
 
 # warning.empty-manifest
 
-No dev configuration in webapplication.json - using defaults (command: %s).
+No dev configuration in ui-bundle.json - using defaults (command: %s).
 
 Tip: See "sf ui-bundle dev --help" for configuration options.
 
@@ -244,4 +244,4 @@ The proxy will use the actual dev server URL.
 
 # info.vite-proxy-detected
 
-Vite WebApp proxy detected at %s - using Vite's built-in proxy (standalone proxy skipped).
+Vite UI bundle proxy detected at %s - using Vite's built-in proxy (standalone proxy skipped).

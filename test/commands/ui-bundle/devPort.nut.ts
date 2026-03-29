@@ -20,12 +20,12 @@ import { expect } from 'chai';
 import { createProjectWithDevServer, ensureSfCli, authOrgViaUrl } from './helpers/webappProjectUtils.js';
 import {
   occupyPort,
-  spawnWebappDev,
+  spawnUiBundleDev,
   closeServer,
   SUITE_TIMEOUT,
   SPAWN_TIMEOUT,
   SPAWN_FAIL_TIMEOUT,
-  type WebappDevHandle,
+  type UiBundleDevHandle,
 } from './helpers/devServerUtils.js';
 
 /* ------------------------------------------------------------------ *
@@ -48,7 +48,7 @@ describe('ui-bundle dev NUTs — Tier 2 port handling', function () {
   let session: TestSession;
   let targetOrg: string;
   let blocker: Server | null = null;
-  let handle: WebappDevHandle | null = null;
+  let handle: UiBundleDevHandle | null = null;
 
   before(async () => {
     if (!process.env.TESTKIT_AUTH_URL) {
@@ -83,7 +83,7 @@ describe('ui-bundle dev NUTs — Tier 2 port handling', function () {
     const { projectDir } = createProjectWithDevServer(session, 'portConflict', 'myApp', DEV_PORT);
 
     try {
-      handle = await spawnWebappDev(['--name', 'myApp', '--port', String(PROXY_PORT), '--target-org', targetOrg], {
+      handle = await spawnUiBundleDev(['--name', 'myApp', '--port', String(PROXY_PORT), '--target-org', targetOrg], {
         cwd: projectDir,
         timeout: SPAWN_FAIL_TIMEOUT,
       });
@@ -101,7 +101,7 @@ describe('ui-bundle dev NUTs — Tier 2 port handling', function () {
     blocker = await occupyPort(PROXY_PORT + 1);
 
     try {
-      handle = await spawnWebappDev(['--name', 'myApp', '--target-org', targetOrg], {
+      handle = await spawnUiBundleDev(['--name', 'myApp', '--target-org', targetOrg], {
         cwd: projectDir,
         timeout: SPAWN_FAIL_TIMEOUT,
       });
@@ -118,7 +118,7 @@ describe('ui-bundle dev NUTs — Tier 2 port handling', function () {
 
     const { projectDir } = createProjectWithDevServer(session, 'portAutoInc', 'myApp', DEV_PORT + 2);
 
-    handle = await spawnWebappDev(['--name', 'myApp', '--target-org', targetOrg], {
+    handle = await spawnUiBundleDev(['--name', 'myApp', '--target-org', targetOrg], {
       cwd: projectDir,
       timeout: SPAWN_TIMEOUT,
     });
@@ -133,7 +133,7 @@ describe('ui-bundle dev NUTs — Tier 2 port handling', function () {
 
     const { projectDir } = createProjectWithDevServer(session, 'customPort', 'myApp', DEV_PORT + 3);
 
-    handle = await spawnWebappDev(['--name', 'myApp', '--port', String(customPort), '--target-org', targetOrg], {
+    handle = await spawnUiBundleDev(['--name', 'myApp', '--port', String(customPort), '--target-org', targetOrg], {
       cwd: projectDir,
       timeout: SPAWN_TIMEOUT,
     });
@@ -148,7 +148,7 @@ describe('ui-bundle dev NUTs — Tier 2 port handling', function () {
 
     const { projectDir } = createProjectWithDevServer(session, 'manifestPortOk', 'myApp', DEV_PORT + 4, manifestPort);
 
-    handle = await spawnWebappDev(['--name', 'myApp', '--target-org', targetOrg], {
+    handle = await spawnUiBundleDev(['--name', 'myApp', '--target-org', targetOrg], {
       cwd: projectDir,
       timeout: SPAWN_TIMEOUT,
     });

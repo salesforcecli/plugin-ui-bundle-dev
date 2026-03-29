@@ -2,47 +2,43 @@
 
 <!-- commands -->
 
-- [`sf ui-bundle dev`](#sf-webui-dev)
+- [`sf webapp dev`](#sf-webapp-dev)
 
-## `sf ui-bundle dev`
+## `sf webapp dev`
 
-Start a local development proxy server for webui ui-bundle development with Salesforce authentication.
+Preview a web app locally without needing to deploy
 
 ```
 USAGE
-  $ sf ui-bundle dev -n <value> -o <value> [--json] [--flags-dir <value>] [-u <value>] [-p <value>] [--open]
+  $ sf webapp dev -n <value> [--json] [--flags-dir <value>] [-t <value>] [-p <value>]
 
-REQUIRED FLAGS
-  -n, --name=<value>         Name of the webapp (must match webapplication.json)
-  -o, --target-org=<value>   Salesforce org to authenticate against
-
-OPTIONAL FLAGS
-  -u, --url=<value>   Dev server URL. Command mode: override default 5173. URL-only: required (server must be running)
-  -p, --port=<value>  Proxy server port (default: 4545)
-  --open              Open browser automatically
+FLAGS
+  -n, --name=<value>    (required) Identifies the Web Application
+  -p, --port=<value>    [default: 5173] Port for the dev server
+  -t, --target=<value>  Selects which Web Application target to use for the preview (e.g., Lightning App, Site)
 
 GLOBAL FLAGS
   --flags-dir=<value>  Import flag values from a directory.
   --json               Format output as json.
 
 DESCRIPTION
-  Starts a local HTTP proxy that injects Salesforce authentication and routes
-  requests between your dev server and Salesforce APIs. In command mode,
-  spawns and monitors the dev server (default URL: localhost:5173). In
-  URL-only mode, connects to an already-running dev server.
+  Preview a web app locally without needing to deploy
+
+  Starts a local development server for a Web Application, using the local project files. This enables rapid
+  development with hot reloading and immediate feedback.
 
 EXAMPLES
-  Command mode (CLI starts dev server, default port 5173):
+  Start the development server:
 
-    $ sf ui-bundle dev --name myapp --target-org myorg --open
+    $ sf webapp dev --name myWebApp
 
-  URL-only mode (dev server already running):
+  Start the development server with a specific target:
 
-    $ sf ui-bundle dev --name myapp --target-org myorg --url http://localhost:5173 --open
+    $ sf webapp dev --name myWebApp --target "LightningApp"
 
-  Custom proxy port:
+  Start the development server on a custom port:
 
-    $ sf ui-bundle dev --name myapp --target-org myorg --port 8080 --open
+    $ sf webapp dev --name myWebApp --port 8080
 ```
 
 <!-- commandsstop -->

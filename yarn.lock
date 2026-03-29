@@ -1018,40 +1018,33 @@
   dependencies:
     chalk "^4.1.0"
 
-"@conduit-client/jwt-manager@3.7.1":
-  version "3.7.1"
-  resolved "https://registry.npmjs.org/@conduit-client/jwt-manager/-/jwt-manager-3.7.1.tgz"
-  integrity sha512-9x+5ck9SfGpdO991KK6PeC41YapWQNAy2Ya89x771W6r4+1dyvrLbhQtWkI5Irl3vm/5B1Ml7aqMmfLUmwK9pw==
+"@conduit-client/jwt-manager@3.17.0":
+  version "3.17.0"
+  resolved "https://registry.yarnpkg.com/@conduit-client/jwt-manager/-/jwt-manager-3.17.0.tgz#76e45e76ebeb19de5e014a21aaab0cb777dcb65b"
+  integrity sha512-u+NgdadxOqfKy7ak7z0zCrcAL4A66mOIuekob6pjogswi8cgebvtvFRO4Mag53n6pSCmRZ4DNlXIe5eylpXo3g==
   dependencies:
     jwt-decode "~3.1.2"
 
-"@conduit-client/salesforce-lightning-service-worker@^3.7.0":
-  version "3.7.1"
-  resolved "https://registry.npmjs.org/@conduit-client/salesforce-lightning-service-worker/-/salesforce-lightning-service-worker-3.7.1.tgz"
-  integrity sha512-XrlbIsqpwG8AMG/jHkOG0j3WlmG+GkLr9oTvaRkBGLqlld9gAE2QtQDdCptcG7SGFUIIDIUlckKhrC1zwKfbZQ==
+"@conduit-client/service-fetch-network@3.17.0":
+  version "3.17.0"
+  resolved "https://registry.yarnpkg.com/@conduit-client/service-fetch-network/-/service-fetch-network-3.17.0.tgz#1f25157a5d6c55a7b10f26b7f5d5cf5833b33c63"
+  integrity sha512-K+KuFWU2N4kF+k/fsS4PSOM0eGdsTGfEtAuoG+/cuRPaQz2KkW33Gyk/KZGQyF+7ikBh0kGATXX1DDF+8XFopQ==
   dependencies:
-    "@conduit-client/service-fetch-network" "3.7.1"
+    "@conduit-client/jwt-manager" "3.17.0"
+    "@conduit-client/service-retry" "3.17.0"
+    "@conduit-client/utils" "3.17.0"
 
-"@conduit-client/service-fetch-network@3.7.1":
-  version "3.7.1"
-  resolved "https://registry.npmjs.org/@conduit-client/service-fetch-network/-/service-fetch-network-3.7.1.tgz"
-  integrity sha512-80Bju0iTYeggVWngkuQgXFG49DOAbsGS+Wt2u25nTwDKCQBKOjjEjDXqj7HbEWgnGGayWm27qVmwG7syOUDAMw==
+"@conduit-client/service-retry@3.17.0":
+  version "3.17.0"
+  resolved "https://registry.yarnpkg.com/@conduit-client/service-retry/-/service-retry-3.17.0.tgz#901d25827b6a71f317a112baec28b341d2dc7d56"
+  integrity sha512-IrjXZUltgx7P47/cniQfvQF6H2jMlsOCOUcNGm4B1fRQpi8dyv2/Rh7VQUbIRSfYsIIJA1x/yf/BdY8Mo4Q8Jw==
   dependencies:
-    "@conduit-client/jwt-manager" "3.7.1"
-    "@conduit-client/service-retry" "3.7.1"
-    "@conduit-client/utils" "3.7.1"
+    "@conduit-client/utils" "3.17.0"
 
-"@conduit-client/service-retry@3.7.1":
-  version "3.7.1"
-  resolved "https://registry.npmjs.org/@conduit-client/service-retry/-/service-retry-3.7.1.tgz"
-  integrity sha512-eVffwWEWa2HddbXdqMeFSzUEDoJoQyGD4f0hZdCfEI3+pHEBD1v5Sv6APIXgnYWEvF8dPcioo+v598Vy2gctEw==
-  dependencies:
-    "@conduit-client/utils" "3.7.1"
-
-"@conduit-client/utils@3.7.1":
-  version "3.7.1"
-  resolved "https://registry.npmjs.org/@conduit-client/utils/-/utils-3.7.1.tgz"
-  integrity sha512-LBqGQJpa3lUIAmjbyU1+M4g7uk66VQTg5qvQZt/DYD4PAkWD1mELiPIo2wUyxskaT4hxYTZIRbMnS8zgRcHEvg==
+"@conduit-client/utils@3.17.0":
+  version "3.17.0"
+  resolved "https://registry.yarnpkg.com/@conduit-client/utils/-/utils-3.17.0.tgz#0575499db0dd92dc31e6d2588fe71fad76b05bf5"
+  integrity sha512-jeq1b3I/Bxe9XHQ2CjBZcc+mkY1TxUtjuowmF8iw9A6PZYG5Sl2TMxyCtbZySHxbHMdWWc3JDJuVwc/m7do0eg==
 
 "@cspotcode/source-map-support@^0.8.0":
   version "0.8.1"
@@ -1758,18 +1751,19 @@
   resolved "https://registry.npmjs.org/@salesforce/prettier-config/-/prettier-config-0.0.3.tgz"
   integrity sha512-hYOhoPTCSYMDYn+U1rlEk16PoBeAJPkrdg4/UtAzupM1mRRJOwEPMG1d7U8DxJFKuXW3DMEYWr2MwAIBDaHmFg==
 
-"@salesforce/sdk-core@^1.29.1":
-  version "1.29.1"
-  resolved "https://registry.yarnpkg.com/@salesforce/sdk-core/-/sdk-core-1.29.1.tgz#4679e9e2cc8c34fafb302610312f1f8eb249349e"
-  integrity sha512-Xc2Hh1yzV+vMj8+Ot4SjBIJgqU8OZJ51H3Hg6clKlzlzcuBzSTprHB4Cw252NWOGJ7UtG0rLGG8Q6F3qEg2SMQ==
+"@salesforce/sdk-core@^1.117.0":
+  version "1.117.0"
+  resolved "https://registry.yarnpkg.com/@salesforce/sdk-core/-/sdk-core-1.117.0.tgz#362ac95bee4d4a8f46a2bb28fe8f43b42416344d"
+  integrity sha512-k1/i0XAfiPpHQQtSEmJRv9x26dFMmjnWIlX3/T8sUuN0qZ3E+dnxeqGIvZ6VL3biWsZwwCD7bZ5PN5iSwEhtZg==
 
-"@salesforce/sdk-data@^1.29.1":
-  version "1.29.1"
-  resolved "https://registry.yarnpkg.com/@salesforce/sdk-data/-/sdk-data-1.29.1.tgz#4a1ad906d597d9e0ffca4e8c2991e2e54b90db7d"
-  integrity sha512-8TjrB8GiEgMEnVveQahYFd+8ak5Dr5xJgj0DoIDgIkToc1t6UzPVZAP4D/XO+aydPnzYO1ZXSPbemYOa3ar+uA==
+"@salesforce/sdk-data@^1.112.7":
+  version "1.117.0"
+  resolved "https://registry.yarnpkg.com/@salesforce/sdk-data/-/sdk-data-1.117.0.tgz#c98494741d66fb19a8d853f17264b29d9563b383"
+  integrity sha512-AkKPMkAxfZMLos5ozUZSE+Jvor+f4mBw4GOa1AIbXUEsdHT/FeA1MUyo++TKw2AGkgnbWFeQkSDd07KWomhaww==
   dependencies:
-    "@conduit-client/salesforce-lightning-service-worker" "^3.7.0"
-    "@salesforce/sdk-core" "^1.29.1"
+    "@conduit-client/service-fetch-network" "3.17.0"
+    "@conduit-client/utils" "3.17.0"
+    "@salesforce/sdk-core" "^1.117.0"
 
 "@salesforce/sf-plugins-core@^11.3.12":
   version "11.3.12"
@@ -1810,16 +1804,9 @@
   resolved "https://registry.npmjs.org/@salesforce/ts-types/-/ts-types-2.0.12.tgz"
   integrity sha512-BIJyduJC18Kc8z+arUm5AZ9VkPRyw1KKAm+Tk+9LT99eOzhNilyfKzhZ4t+tG2lIGgnJpmytZfVDZ0e2kFul8g==
 
-"@salesforce/webapp-experimental@^1.23.0":
-  version "1.29.1"
-  resolved "https://registry.yarnpkg.com/@salesforce/webapp-experimental/-/webapp-experimental-1.29.1.tgz#98648cc166b34c1b479f9545e87d10b61dd76adc"
-  integrity sha512-i5ZzGs7hrjv3Fbrvmm7v8OTVoJRewWvqzXIB5JRW5l2mcz1HxK2DXriBbLHHOmYRcVSrNdN/VS8PW7YwcTuHZw==
-  dependencies:
-    "@salesforce/core" "^8.23.4"
-    "@salesforce/sdk-data" "^1.29.1"
-    axios "^1.7.7"
-    micromatch "^4.0.8"
-    path-to-regexp "^8.3.0"
+"@salesforce/ui-bundle@link:../webapps/packages/webapps":
+  version "0.0.0"
+  uid ""
 
 "@shikijs/core@1.29.2":
   version "1.29.2"

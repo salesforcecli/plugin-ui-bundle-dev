@@ -18,17 +18,17 @@ import open from 'open';
 import select from '@inquirer/select';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Logger, Messages, SfError } from '@salesforce/core';
-import type { WebAppDevResult, DevServerError } from '../../config/types.js';
-import type { WebAppManifest } from '../../config/manifest.js';
+import type { UiBundleDevResult, DevServerError } from '../../config/types.js';
+import type { UiBundleManifest } from '../../config/manifest.js';
 import { ManifestWatcher } from '../../config/ManifestWatcher.js';
 import { DevServerManager } from '../../server/DevServerManager.js';
 import { ProxyServer } from '../../proxy/ProxyServer.js';
-import { discoverWebapp, DEFAULT_DEV_COMMAND, type DiscoveredWebapp } from '../../config/webappDiscovery.js';
+import { discoverUiBundle, DEFAULT_DEV_COMMAND, type DiscoveredUiBundle } from '../../config/webappDiscovery.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@salesforce/plugin-ui-bundle-dev', 'ui-bundle.dev');
 
-export default class UiBundleDev extends SfCommand<WebAppDevResult> {
+export default class UiBundleDev extends SfCommand<UiBundleDevResult> {
   public static readonly summary = messages.getMessage('summary');
   public static readonly description = messages.getMessage('description');
   public static readonly examples = messages.getMessages('examples');
@@ -74,30 +74,30 @@ export default class UiBundleDev extends SfCommand<WebAppDevResult> {
   }
 
   /**
-   * Prompt user to select a webapp from multiple discovered webapps
+   * Prompt user to select a uiBundle from multiple discovered uiBundles
    * Uses interactive arrow-key selection (standard SF CLI pattern)
    */
-  private static async promptUiBundleSelection(webapps: DiscoveredWebapp[]): Promise<DiscoveredWebapp> {
+  private static async promptUiBundleSelection(uiBundles: DiscoveredUiBundle[]): Promise<DiscoveredUiBundle> {
     const WARNING = '\u26A0\uFE0F'; // ⚠️
 
-    const choices = webapps.map((webapp) => {
-      if (webapp.hasManifest) {
+    const choices = uiBundles.map((uiBundle) => {
+      if (uiBundle.hasManifest) {
         // Has manifest - show name only
         return {
-          name: webapp.name,
-          value: webapp,
+          name: uiBundle.name,
+          value: uiBundle,
         };
       } else {
         // No manifest - show warning symbol
         return {
-          name: `${webapp.name} - ${WARNING} No Manifest`,
-          value: webapp,
+          name: `${uiBundle.name} - ${WARNING} No Manifest`,
+          value: uiBundle,
         };
       }
     });
 
     return select({
-      message: messages.getMessage('prompt.select-webapp'),
+      message: messages.getMessage('prompt.select-uiBundle'),
       choices,
     });
   }
@@ -133,7 +133,7 @@ export default class UiBundleDev extends SfCommand<WebAppDevResult> {
     intervalMs = 500,
     start = Date.now()
   ): Promise<boolean> {
-      if (await UiBundleDev.isUrlReachable(url)) {
+    if (await UiBundleDev.isUrlReachable(url)) {
       return true;
     }
     if (Date.now() - start >= timeoutMs) {
@@ -144,7 +144,7 @@ export default class UiBundleDev extends SfCommand<WebAppDevResult> {
   }
 
   /**
-   * Check if Vite's WebAppProxyHandler is active at the dev server URL.
+   * Check if Vite's UiBundleProxyHandler is active at the dev server URL.
    * The Vite plugin responds to a health check query parameter with a custom header
    * when the proxy middleware is active.
    *
@@ -160,7 +160,7 @@ export default class UiBundleDev extends SfCommand<WebAppDevResult> {
         method: 'GET',
         signal: AbortSignal.timeout(3000), // 3 second timeout
       });
-      return response.headers.get('X-Salesforce-WebApp-Proxy') === 'true';
+      return response.headers.get('X-Salesforce-UiBundle-Proxy') === 'true';
     } catch {
       // Health check failed - Vite proxy not active
       return false;
@@ -168,7 +168,7 @@ export default class UiBundleDev extends SfCommand<WebAppDevResult> {
   }
 
   // eslint-disable-next-line complexity
-  public async run(): Promise<WebAppDevResult> {
+  public async run(): Promise<UiBundleDevResult> {
     const { flags } = await this.parse(UiBundleDev);
 
     // Initialize logger from @salesforce/core for debug logging
@@ -176,41 +176,41 @@ export default class UiBundleDev extends SfCommand<WebAppDevResult> {
     this.logger = await Logger.child('UiBundleDev');
 
     // Declare variables outside try block for catch block access
-    let manifest: WebAppManifest | null = null;
+    let manifest: UiBundleManifest | null = null;
     let devServerUrl: string | null = null;
     let orgUsername = '';
 
     try {
-      // Step 1: Discover and select webapp
-      this.logger.debug('Discovering webapplication.json manifest(s)...');
+      // Step 1: Discover and select uiBundle
+      this.logger.debug('Discovering ui-bundle.json manifest(s)...');
 
-      const { webapp: discoveredWebapp, allWebapps, autoSelected } = await discoverWebapp(flags.name);
+      const { uiBundle: discoveredUiBundle, allUiBundles, autoSelected } = await discoverUiBundle(flags.name);
 
-      // Handle multiple webapps case - prompt user to select
-      let selectedWebapp: DiscoveredWebapp;
-      if (!discoveredWebapp) {
-        this.log(messages.getMessage('info.multiple-webapps-found', [String(allWebapps.length)]));
+      // Handle multiple uiBundles case - prompt user to select
+      let selectedUiBundle: DiscoveredUiBundle;
+      if (!discoveredUiBundle) {
+        this.log(messages.getMessage('info.multiple-uiBundles-found', [String(allUiBundles.length)]));
 
-        selectedWebapp = await UiBundleDev.promptUiBundleSelection(allWebapps);
+        selectedUiBundle = await UiBundleDev.promptUiBundleSelection(allUiBundles);
       } else {
-        selectedWebapp = discoveredWebapp;
+        selectedUiBundle = discoveredUiBundle;
 
-        // Show info message if webapp was auto-selected because user is inside its folder
+        // Show info message if uiBundle was auto-selected because user is inside its folder
         if (autoSelected) {
-          this.log(messages.getMessage('info.webapp-auto-selected', [selectedWebapp.name]));
+          this.log(messages.getMessage('info.uiBundle-auto-selected', [selectedUiBundle.name]));
         }
       }
 
-      // The webapp directory path (where the webapp lives)
-      const webappDir = selectedWebapp.path;
+      // The uiBundle directory path (where the uiBundle lives)
+      const uiBundleDir = selectedUiBundle.path;
 
-      this.logger.debug(`Using webapp: ${selectedWebapp.name} at ${selectedWebapp.relativePath}`);
+      this.logger.debug(`Using uiBundle: ${selectedUiBundle.name} at ${selectedUiBundle.relativePath}`);
 
-      // Step 2: Handle manifest-based vs no-manifest webapps
-      if (selectedWebapp.hasManifest && selectedWebapp.manifestPath) {
-        // Webapp has manifest - load and watch it
+      // Step 2: Handle manifest-based vs no-manifest uiBundles
+      if (selectedUiBundle.hasManifest && selectedUiBundle.manifestPath) {
+        // UI bundle has manifest - load and watch it
         this.manifestWatcher = new ManifestWatcher({
-          manifestPath: selectedWebapp.manifestPath,
+          manifestPath: selectedUiBundle.manifestPath,
           watch: true,
         });
 
@@ -227,8 +227,8 @@ export default class UiBundleDev extends SfCommand<WebAppDevResult> {
 
         // Show starting message
         this.log('');
-        this.log(messages.getMessage('info.starting-webapp', [selectedWebapp.name]));
-        this.logger.debug(`Manifest loaded: ${selectedWebapp.name}`);
+        this.log(messages.getMessage('info.starting-uiBundle', [selectedUiBundle.name]));
+        this.logger.debug(`Manifest loaded: ${selectedUiBundle.name}`);
 
         // Setup manifest change handler
         this.manifestWatcher.on('change', (event) => {
@@ -266,18 +266,18 @@ export default class UiBundleDev extends SfCommand<WebAppDevResult> {
         const defaultPort = flags.port ?? 4545;
         this.log(messages.getMessage('info.no-manifest-defaults', [DEFAULT_DEV_COMMAND, String(defaultPort)]));
         this.log('');
-        this.log(messages.getMessage('info.starting-webapp', [selectedWebapp.name]));
+        this.log(messages.getMessage('info.starting-uiBundle', [selectedUiBundle.name]));
       }
 
       // Step 3: Resolve dev server URL (config-driven, no stdout parsing)
       // Priority: --url > dev.url > (dev.command or no-manifest or no dev config ? default localhost:5173 : throw)
       // Use default URL when: no manifest, no dev section, no dev.command, or dev.command is non-empty
       const hasExplicitCommand = Boolean(manifest?.dev?.command?.trim());
-      const hasDevCommand = !selectedWebapp.hasManifest || !manifest?.dev?.command || hasExplicitCommand;
+      const hasDevCommand = !selectedUiBundle.hasManifest || !manifest?.dev?.command || hasExplicitCommand;
       const resolvedUrl = flags.url ?? manifest?.dev?.url ?? (hasDevCommand ? 'http://localhost:5173' : null);
       if (!resolvedUrl) {
         throw new SfError(
-          '❌ Unable to determine dev server URL. Specify --url or configure dev.url or dev.command in webapplication.json.',
+          '❌ Unable to determine dev server URL. Specify --url or configure dev.url or dev.command in ui-bundle.json.',
           'DevServerUrlError'
         );
       }
@@ -303,12 +303,12 @@ export default class UiBundleDev extends SfCommand<WebAppDevResult> {
         // dev.url in manifest but no dev.command - don't start (we can't control the port)
         throw new SfError(messages.getMessage('error.dev-url-unreachable', [resolvedUrl]), 'DevServerUrlError', [
           `Ensure your dev server is running at ${resolvedUrl}`,
-          'Or add dev.command to webapplication.json to start it automatically',
+          'Or add dev.command to ui-bundle.json to start it automatically',
         ]);
       } else {
         // URL not reachable - we have dev.command (or defaults) to start
         const devCommand = manifest?.dev?.command ?? DEFAULT_DEV_COMMAND;
-        if (!selectedWebapp.hasManifest) {
+        if (!selectedUiBundle.hasManifest) {
           this.logger.debug(messages.getMessage('info.using-defaults', [devCommand]));
         }
 
@@ -316,7 +316,7 @@ export default class UiBundleDev extends SfCommand<WebAppDevResult> {
         this.devServerManager = new DevServerManager({
           command: devCommand,
           url: resolvedUrl,
-          cwd: webappDir,
+          cwd: uiBundleDir,
           startupTimeout: 60_000,
         });
 
@@ -372,7 +372,7 @@ export default class UiBundleDev extends SfCommand<WebAppDevResult> {
 
           const suggestions: string[] = [
             'The dev server may be taking longer than expected to start',
-            'Check if the dev server command is correct in webapplication.json',
+            'Check if the dev server command is correct in ui-bundle.json',
             `Try running the command manually to see the error: ${devCommand}`,
           ];
           const devError =
@@ -403,20 +403,20 @@ export default class UiBundleDev extends SfCommand<WebAppDevResult> {
       // Ensure devServerUrl is set (should always be set by step 3)
       if (!devServerUrl) {
         throw new SfError(
-          '❌ Unable to determine dev server URL. Please specify --url or configure dev.url in webapplication.json.',
+          '❌ Unable to determine dev server URL. Please specify --url or configure dev.url in ui-bundle.json.',
           'DevServerUrlError'
         );
       }
 
       // Step 5: Check for Vite proxy and conditionally start standalone proxy
-      this.logger.debug('Checking if Vite WebApp proxy is active...');
+      this.logger.debug('Checking if Vite UI bundle proxy is active...');
       const viteProxyActive = await UiBundleDev.checkViteProxyActive(devServerUrl);
 
       // Track the final URL to open in browser (either proxy or dev server)
       let finalUrl: string;
 
       if (viteProxyActive) {
-        // Vite's WebAppProxyHandler is handling the proxy - skip standalone proxy
+        // Vite's UiBundleProxyHandler is handling the proxy - skip standalone proxy
         this.log(messages.getMessage('info.vite-proxy-detected', [devServerUrl]));
         this.logger.debug('Vite proxy detected, skipping standalone proxy server');
         finalUrl = devServerUrl;
