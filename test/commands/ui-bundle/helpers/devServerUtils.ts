@@ -179,7 +179,7 @@ export function startTestHttpServer(port: number): Promise<HttpServer> {
 /**
  * Start an HTTP server that mimics a Vite dev server with the
  * WebAppProxyHandler plugin active. Responds to health check requests
- * (`?sfProxyHealthCheck=true`) with `X-Salesforce-WebApp-Proxy: true`.
+ * (`?sfProxyHealthCheck=true`) with `X-Salesforce-UiBundle-Proxy: true`.
  */
 export function startViteProxyServer(port: number): Promise<HttpServer> {
   return new Promise((resolve, reject) => {
@@ -188,7 +188,7 @@ export function startViteProxyServer(port: number): Promise<HttpServer> {
       if (url.searchParams.get('sfProxyHealthCheck') === 'true') {
         res.writeHead(200, {
           'Content-Type': 'text/plain',
-          'X-Salesforce-WebApp-Proxy': 'true',
+          'X-Salesforce-UiBundle-Proxy': 'true',
         });
         res.end('OK');
         return;
