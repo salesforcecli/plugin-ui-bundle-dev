@@ -16,14 +16,14 @@
 
 // Re-export base types from @salesforce/ui-bundle package
 export type {
-  UiBundleManifest as BaseUiBundleManifest,
+  UIBundleManifest as BaseUiBundleManifest,
   RoutingConfig,
   RewriteRule,
   RedirectRule,
 } from '@salesforce/ui-bundle/app';
 
 // Import for local use
-import type { UiBundleManifest as BaseUiBundleManifest } from '@salesforce/ui-bundle/app';
+import type { UIBundleManifest as BaseUiBundleManifest } from '@salesforce/ui-bundle/app';
 
 /**
  * Development configuration (plugin-specific extension)
