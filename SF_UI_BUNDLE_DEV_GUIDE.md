@@ -1,19 +1,19 @@
-# Salesforce Multi-Framework Dev Command Guide
+# Salesforce UI Bundle Dev Command Guide
 
-> **Develop web applications with seamless Salesforce integration**
+> **Develop UI bundles with seamless Salesforce integration**
 
 ---
 
 ## Overview
 
-The `sf ui-bundle dev` command enables local development of modern web applications (React, Vue, Angular, etc.) with automatic Salesforce authentication. It intelligently discovers your webapp configuration, handles proxy routing, injects authentication headers, and supports hot reload - so you can focus on building your app.
+The `sf ui-bundle dev` command enables local development of modern web applications (React, Vue, Angular, etc.) with automatic Salesforce authentication. It intelligently discovers your UI bundle configuration, handles proxy routing, injects authentication headers, and supports hot reload - so you can focus on building your UI bundle.
 
 ### Key Features
 
-- **Auto-Discovery**: Automatically finds webapps in `webui/` folder
-- **Optional Manifest**: `webapplication.json` is optional - uses sensible defaults
-- **Auto-Selection**: Automatically selects webapp when running from inside its folder
-- **Interactive Selection**: Prompts with arrow-key navigation when multiple webapps exist
+- **Auto-Discovery**: Automatically finds UI bundles in `uiBundles/` folder
+- **Optional Manifest**: `ui-bundle.json` is optional - uses sensible defaults
+- **Auto-Selection**: Automatically selects UI bundle when running from inside its folder
+- **Interactive Selection**: Prompts with arrow-key navigation when multiple UI bundles exist
 - **Authentication Injection**: Automatically adds Salesforce auth headers to API calls
 - **Intelligent Routing**: Routes requests to dev server or Salesforce based on URL patterns
 - **Hot Module Replacement**: Full HMR support for Vite, Webpack, and other bundlers
@@ -24,17 +24,17 @@ The `sf ui-bundle dev` command enables local development of modern web applicati
 
 ## Quick Start
 
-### 1. Create your webapp in the SFDX project structure
+### 1. Create your UI bundle in the SFDX project structure
 
 ```
 my-sfdx-project/
 ├── sfdx-project.json
-└── force-app/main/default/webui/
-    └── my-app/
-        ├── my-app.webapplication-meta.xml
+└── force-app/main/default/uiBundles/
+    └── my-bundle/
+        ├── my-bundle.uibundle-meta.xml
         ├── package.json
         ├── src/
-        └── webapplication.json
+        └── ui-bundle.json
 ```
 
 ### 2. Run the command
@@ -45,12 +45,12 @@ sf ui-bundle dev --target-org myOrg --open
 
 ### 3. Start developing
 
-Browser opens to `http://localhost:4545` with your app running and Salesforce authentication ready.
+Browser opens to `http://localhost:4545` with your UI bundle running and Salesforce authentication ready.
 
 > **Note**:
 >
-> - `{name}.webapplication-meta.xml` is **required** to identify a valid webapp
-> - `webapplication.json` is optional for dev configuration. If not present, defaults to:
+> - `{name}.uibundle-meta.xml` is **required** to identify a valid UI bundle
+> - `ui-bundle.json` is optional for dev configuration. If not present, defaults to:
 >   - **Name**: From meta.xml filename or folder name
 >   - **Dev command**: `npm run dev`
 >   - **Manifest watching**: Disabled
@@ -65,25 +65,25 @@ sf ui-bundle dev [OPTIONS]
 
 ### Options
 
-| Option         | Short | Description                        | Default       |
-| -------------- | ----- | ---------------------------------- | ------------- |
-| `--target-org` | `-o`  | Salesforce org alias or username   | Required      |
-| `--name`       | `-n`  | Web application name (folder name) | Auto-discover |
-| `--url`        | `-u`  | Explicit dev server URL            | Auto-detect   |
-| `--port`       | `-p`  | Proxy server port                  | 4545          |
-| `--open`       | `-b`  | Open browser automatically         | false         |
+| Option         | Short | Description                      | Default       |
+| -------------- | ----- | -------------------------------- | ------------- |
+| `--target-org` | `-o`  | Salesforce org alias or username | Required      |
+| `--name`       | `-n`  | UI bundle name (folder name)     | Auto-discover |
+| `--url`        | `-u`  | Explicit dev server URL          | Auto-detect   |
+| `--port`       | `-p`  | Proxy server port                | 4545          |
+| `--open`       | `-b`  | Open browser automatically       | false         |
 
 ### Examples
 
 ```bash
-# Simplest - auto-discovers webapplication.json
+# Simplest - auto-discovers ui-bundle.json
 sf ui-bundle dev --target-org myOrg
 
 # With browser auto-open
 sf ui-bundle dev --target-org myOrg --open
 
-# Specify webapp by name (when multiple exist)
-sf ui-bundle dev --name myApp --target-org myOrg
+# Specify UI bundle by name (when multiple exist)
+sf ui-bundle dev --name myBundle --target-org myOrg
 
 # Custom port
 sf ui-bundle dev --target-org myOrg --port 8080
@@ -97,50 +97,50 @@ SF_LOG_LEVEL=debug sf ui-bundle dev --target-org myOrg
 
 ---
 
-## Webapp Discovery
+## UI Bundle Discovery
 
-The command discovers webapps using a simplified, deterministic algorithm. Webapps are identified by the presence of a `{name}.webapplication-meta.xml` file (SFDX metadata format). The optional `webapplication.json` file provides dev configuration.
+The command discovers UI bundles using a simplified, deterministic algorithm. UI bundles are identified by the presence of a `{name}.uibundle-meta.xml` file (SFDX metadata format). The optional `ui-bundle.json` file provides dev configuration.
 
 ### How Discovery Works
 
 ```mermaid
 flowchart TD
-    Start["sf ui-bundle dev"] --> CheckInside{"Inside webui/<br/>webapp folder?"}
+    Start["sf ui-bundle dev"] --> CheckInside{"Inside uiBundles/<br/>ui bundle folder?"}
 
     CheckInside -->|Yes| HasNameInside{"--name provided?"}
     HasNameInside -->|Yes, different| ErrorConflict["Error: --name conflicts<br/>with current directory"]
-    HasNameInside -->|No or same| AutoSelect["Auto-select current webapp"]
+    HasNameInside -->|No or same| AutoSelect["Auto-select current UI bundle"]
 
     CheckInside -->|No| CheckSFDX{"In SFDX project?<br/>(sfdx-project.json)"}
 
-    CheckSFDX -->|Yes| CheckPath["Check force-app/main/<br/>default/webui/"]
+    CheckSFDX -->|Yes| CheckPath["Check force-app/main/<br/>default/uiBundles/"]
     CheckPath --> HasName{"--name provided?"}
 
-    CheckSFDX -->|No| CheckMetaXml{"Current dir has<br/>.webapplication-meta.xml?"}
-    CheckMetaXml -->|Yes| UseStandalone["Use current dir as webapp"]
-    CheckMetaXml -->|No| ErrorNone["Error: No webapp found"]
+    CheckSFDX -->|No| CheckMetaXml{"Current dir has<br/>.uibundle-meta.xml?"}
+    CheckMetaXml -->|Yes| UseStandalone["Use current dir as UI bundle"]
+    CheckMetaXml -->|No| ErrorNone["Error: No UI bundle found"]
 
-    HasName -->|Yes| SearchByName["Find webapp by name"]
-    HasName -->|No| Prompt["Interactive selection prompt<br/>(always, even if 1 webapp)"]
+    HasName -->|Yes| SearchByName["Find UI bundle by name"]
+    HasName -->|No| Prompt["Interactive selection prompt<br/>(always, even if 1 UI bundle)"]
 
-    SearchByName --> UseWebapp["Use webapp"]
-    AutoSelect --> UseWebapp
-    UseStandalone --> UseWebapp
-    Prompt --> UseWebapp
+    SearchByName --> UseBundle["Use UI bundle"]
+    AutoSelect --> UseBundle
+    UseStandalone --> UseBundle
+    Prompt --> UseBundle
 
-    UseWebapp --> StartDev["Start dev server and proxy"]
+    UseBundle --> StartDev["Start dev server and proxy"]
 ```
 
 ### Discovery Behavior
 
-| Scenario                            | Behavior                                                  |
-| ----------------------------------- | --------------------------------------------------------- |
-| `--name myApp` provided             | Finds webapp by name, starts dev server                   |
-| Running from inside webapp folder   | Auto-selects that webapp                                  |
-| `--name` conflicts with current dir | Error: must match current webapp or run from project root |
-| At SFDX project root                | **Always prompts** for webapp selection                   |
-| Outside SFDX project with meta.xml  | Uses current directory as standalone webapp               |
-| No webapp found                     | Shows error with helpful message                          |
+| Scenario                             | Behavior                                                     |
+| ------------------------------------ | ------------------------------------------------------------ |
+| `--name myBundle` provided           | Finds UI bundle by name, starts dev server                   |
+| Running from inside UI bundle folder | Auto-selects that UI bundle                                  |
+| `--name` conflicts with current dir  | Error: must match current UI bundle or run from project root |
+| At SFDX project root                 | **Always prompts** for UI bundle selection                   |
+| Outside SFDX project with meta.xml   | Uses current directory as standalone UI bundle               |
+| No UI bundle found                   | Shows error with helpful message                             |
 
 ### Folder Structure (SFDX Project)
 
@@ -148,14 +148,14 @@ flowchart TD
 my-sfdx-project/
 ├── sfdx-project.json                      # SFDX project marker
 └── force-app/main/default/
-    └── webui/                   # Standard SFDX location
-        ├── app-one/                       # Webapp 1 (with dev config)
-        │   ├── app-one.webapplication-meta.xml  # Required: identifies as webapp
-        │   ├── webapplication.json              # Optional: dev configuration
+    └── uiBundles/                         # Standard SFDX location
+        ├── bundle-one/                       # UI Bundle 1 (with dev config)
+        │   ├── bundle-one.uibundle-meta.xml  # Required: identifies as UI bundle
+        │   ├── ui-bundle.json                # Optional: dev configuration
         │   ├── package.json
         │   └── src/
-        └── app-two/                       # Webapp 2 (no dev config)
-            ├── app-two.webapplication-meta.xml  # Required
+        └── bundle-two/                       # UI Bundle 2 (no dev config)
+            ├── bundle-two.uibundle-meta.xml  # Required
             ├── package.json
             └── src/
 ```
@@ -164,22 +164,22 @@ my-sfdx-project/
 
 The command uses a simplified, deterministic approach:
 
-1. **Inside webapp folder**: If running from `webui/<webapp>/` or deeper, auto-selects that webapp
-2. **SFDX project root**: Uses fixed path `force-app/main/default/webui/`
-3. **Standalone**: If current directory has a `.webapplication-meta.xml` file, uses it directly
+1. **Inside UI bundle folder**: If running from `uiBundles/<bundle>/` or deeper, auto-selects that UI bundle
+2. **SFDX project root**: Uses fixed path `force-app/main/default/uiBundles/`
+3. **Standalone**: If current directory has a `.uibundle-meta.xml` file, uses it directly
 
-**Important**: Only directories containing a `{name}.webapplication-meta.xml` file are recognized as valid webapps.
+**Important**: Only directories containing a `{name}.uibundle-meta.xml` file are recognized as valid UI bundles.
 
 ### Interactive Selection
 
-When multiple webapps are found, you'll see an interactive prompt:
+When multiple UI bundles are found, you'll see an interactive prompt:
 
 ```
-Found 3 webapps in project
-? Select the webapp to run: (Use arrow keys)
-❯ app-one (webui/app-one)
-  app-two (webui/app-two) [no manifest]
-  app-three (webui/app-three)
+Found 3 UI bundles in project
+? Select the UI bundle to run: (Use arrow keys)
+❯ bundle-one (uiBundles/bundle-one)
+  bundle-two (uiBundles/bundle-two) [no manifest]
+  bundle-three (uiBundles/bundle-three)
 ```
 
 Format:
@@ -245,9 +245,9 @@ The command operates in two distinct modes based on configuration:
 
 **URL precedence:** `--url` flag > `dev.url` in manifest > default `http://localhost:5173` (when command is used)
 
-### webapplication.json Schema
+### ui-bundle.json Schema
 
-The `webapplication.json` file is **optional**. All fields are also optional - missing fields use defaults.
+The `ui-bundle.json` file is **optional**. All fields are also optional - missing fields use defaults.
 
 #### Dev Configuration
 
@@ -306,8 +306,8 @@ The `webapplication.json` file is **optional**. All fields are also optional - m
 ### Example: Minimal (No Manifest)
 
 ```
-webui/
-└── my-dashboard/
+uiBundles/
+└── my-bundle/
     ├── package.json     # Has "scripts": { "dev": "vite" }
     └── src/
 ```
@@ -317,15 +317,15 @@ Run: `sf ui-bundle dev --target-org myOrg`
 Console output:
 
 ```
-Warning: No webapplication.json found for webapp "my-dashboard"
-    Location: my-dashboard
+Warning: No ui-bundle.json found for UI bundle "my-bundle"
+    Location: my-bundle
     Using defaults:
-    → Name: "my-dashboard" (derived from folder)
+    → Name: "my-bundle" (derived from folder)
     → Command: "npm run dev"
     → Manifest watching: disabled
-    💡 To customize, create a webapplication.json file in your webapp directory.
+    💡 To customize, create a ui-bundle.json file in your UI bundle directory.
 
-✅ Using webapp: my-dashboard (webui/my-dashboard)
+✅ Using UI bundle: my-bundle (uiBundles/my-bundle)
 
 ✅ Ready for development!
     → Proxy:      http://localhost:4545 (open this in your browser)
@@ -353,16 +353,16 @@ Press Ctrl+C to stop
 
 ### Manifest Hot Reload
 
-Edit `webapplication.json` while running - changes apply automatically:
+Edit `ui-bundle.json` while running - changes apply automatically:
 
 ```bash
-# Console output when you change webapplication.json:
+# Console output when you change ui-bundle.json:
 Manifest changed detected
 ✓ Manifest reloaded successfully
 Dev server URL updated to: http://localhost:5174
 ```
 
-> **Note**: Manifest watching is only enabled when `webapplication.json` exists. Webapps without manifests don't have this feature.
+> **Note**: Manifest watching is only enabled when `ui-bundle.json` exists. UI bundles without manifests don't have this feature.
 
 ### Health Monitoring
 
@@ -404,7 +404,7 @@ When you run the dev server yourself:
 
 ```bash
 # Terminal 1: Start your dev server manually
-cd my-webapp
+cd my-bundle
 npm run dev
 # Output: Local: http://localhost:5173/
 
@@ -434,58 +434,58 @@ If the URL is not reachable, the CLI starts the dev server and uses the actual U
 
 ## Troubleshooting
 
-### "No webapp found" or "No valid webapps"
+### "No UI bundle found" or "No valid UI bundles"
 
-Ensure your webapp has the required `.webapplication-meta.xml` file:
+Ensure your UI bundle has the required `.uibundle-meta.xml` file:
 
 ```
-force-app/main/default/webui/
-└── my-app/
-    ├── my-app.webapplication-meta.xml   # Required!
+force-app/main/default/uiBundles/
+└── my-bundle/
+    ├── my-bundle.uibundle-meta.xml   # Required!
     ├── package.json
-    └── webapplication.json              # Optional (for dev config)
+    └── ui-bundle.json                # Optional (for dev config)
 ```
 
-The `.webapplication-meta.xml` file identifies a valid SFDX webapp. Without it, the directory is ignored.
+The `.uibundle-meta.xml` file identifies a valid SFDX UI bundle. Without it, the directory is ignored.
 
-### "You are inside webapp X but specified --name Y"
+### "You are inside UI bundle X but specified --name Y"
 
-This error occurs when you're inside one webapp folder but try to run a different webapp:
+This error occurs when you're inside one UI bundle folder but try to run a different one:
 
 ```bash
-# You're in FirstWebApp folder but trying to run SecondWebApp
-cd webui/FirstWebApp
-sf ui-bundle dev --name SecondWebApp --target-org myOrg  # Error!
+# You're in FirstBundle folder but trying to run SecondBundle
+cd uiBundles/FirstBundle
+sf ui-bundle dev --name SecondBundle --target-org myOrg  # Error!
 ```
 
 **Solutions:**
 
-- Remove `--name` to use the current webapp
+- Remove `--name` to use the current UI bundle
 - Navigate to the project root and use `--name`
-- Navigate to the correct webapp folder
+- Navigate to the correct UI bundle folder
 
-### "No webapp found with name X"
+### "No UI bundle found with name X"
 
-The `--name` flag matches the folder name of the webapp.
+The `--name` flag matches the folder name of the UI bundle.
 
 ```bash
-# This looks for webapp named "myApp"
-sf ui-bundle dev --name myApp --target-org myOrg
+# This looks for UI bundle named "myBundle"
+sf ui-bundle dev --name myBundle --target-org myOrg
 ```
 
 ### "Dependencies Not Installed" / "command not found"
 
-Install dependencies in your webapp folder:
+Install dependencies in your UI bundle folder:
 
 ```bash
-cd webui/my-app
+cd uiBundles/my-bundle
 npm install
 ```
 
 ### "No Dev Server Detected"
 
 1. Ensure dev server is running: `npm run dev`
-2. Verify URL in `webapplication.json` is correct
+2. Verify URL in `ui-bundle.json` is correct
 3. Try explicit URL: `sf ui-bundle dev --url http://localhost:5173 --target-org myOrg`
 
 ### "Port 4545 already in use"
@@ -514,11 +514,11 @@ Enable detailed logging by setting `SF_LOG_LEVEL=debug`. Debug logs are written 
 **Step 1: Start log tail in Terminal 1**
 
 ```bash
-# Tail today's log file, filtering for webapp messages
-tail -f ~/.sf/sf-$(date +%Y-%m-%d).log | grep --line-buffered WebappDev
+# Tail today's log file, filtering for UiBundleDev messages
+tail -f ~/.sf/sf-$(date +%Y-%m-%d).log | grep --line-buffered UiBundleDev
 
 # Or for cleaner output (requires jq):
-tail -f ~/.sf/sf-$(date +%Y-%m-%d).log | grep --line-buffered WebappDev | jq -r '.msg'
+tail -f ~/.sf/sf-$(date +%Y-%m-%d).log | grep --line-buffered UiBundleDev | jq -r '.msg'
 ```
 
 **Step 2: Run command in Terminal 2**
@@ -530,9 +530,9 @@ SF_LOG_LEVEL=debug sf ui-bundle dev --target-org myOrg
 **Example debug output:**
 
 ```
-Discovering webapplication.json manifest(s)...
-Using webapp: myApp at webui/my-app
-Manifest loaded: myApp
+Discovering ui-bundle.json manifest(s)...
+Using UI bundle: myBundle at uiBundles/my-bundle
+Manifest loaded: myBundle
 Starting dev server with command: npm run dev
 Dev server ready at: http://localhost:5173/
 Using authentication for org: user@example.com
@@ -546,11 +546,11 @@ Proxy server running on http://localhost:4545
 
 The command integrates with the Salesforce VSCode UI Preview extension (`salesforcedx-vscode-ui-preview`):
 
-1. Extension detects `webapplication.json` in workspace
+1. Extension detects `ui-bundle.json` in workspace
 2. User clicks "Preview" button on the file
 3. Extension executes: `sf ui-bundle dev --target-org <org> --open`
-4. If multiple webapps exist, uses `--name` to specify which one
-5. Browser opens with the app running
+4. If multiple UI bundles exist, uses `--name` to specify which one
+5. Browser opens with your UI bundle running
 
 ---
 
@@ -607,10 +607,8 @@ yarn build  # Rebuild - no re-linking needed
 ```
 plugin-ui-bundle-dev/
 ├── src/
-│   ├── commands/webapp/
+│   ├── commands/ui-bundle/
 │   │   └── dev.ts              # Main command implementation
-│   ├── auth/
-│   │   └── org.ts              # Salesforce authentication
 │   ├── config/
 │   │   ├── manifest.ts         # Manifest type definitions
 │   │   ├── ManifestWatcher.ts  # File watching and hot reload
@@ -620,32 +618,23 @@ plugin-ui-bundle-dev/
 │   │   ├── ProxyServer.ts      # HTTP/WebSocket proxy server
 │   │   ├── handler.ts          # Request routing and forwarding
 │   │   └── routing.ts          # URL pattern matching
-│   ├── server/
-│   │   └── DevServerManager.ts # Dev server process management
-│   ├── error/
-│   │   ├── ErrorHandler.ts     # Error creation utilities
-│   │   ├── DevServerErrorParser.ts
-│   │   └── ErrorPageRenderer.ts
-│   └── templates/
-│       └── error-page.html     # Error page template
+│   └── server/
+│       └── DevServerManager.ts # Dev server process management
 ├── messages/
-│   └── webapp.dev.md           # CLI messages and help text
+│   └── ui-bundle.dev.md        # CLI messages and help text
 └── schemas/
-    └── webapp-dev.json         # JSON schema for output
+    └── ui__bundle-dev.json     # JSON schema for output
 ```
 
 ### Key Components
 
-| Component              | Purpose                                          |
-| ---------------------- | ------------------------------------------------ |
-| `dev.ts`               | Command orchestration and lifecycle              |
-| `webappDiscovery.ts`   | SFDX project detection and webapp discovery      |
-| `org.ts`               | Salesforce authentication token management       |
-| `ProxyServer.ts`       | HTTP proxy with WebSocket support                |
-| `handler.ts`           | Request routing to dev server or Salesforce      |
-| `DevServerManager.ts`  | Dev server process spawning and monitoring       |
-| `ManifestWatcher.ts`   | webapplication.json file watching for hot reload |
-| `ErrorPageRenderer.ts` | Browser error page generation                    |
+| Component             | Purpose                                        |
+| --------------------- | ---------------------------------------------- |
+| `dev.ts`              | Command orchestration and lifecycle            |
+| `webappDiscovery.ts`  | SFDX project detection and UI bundle discovery |
+| `ProxyServer.ts`      | HTTP proxy with WebSocket support              |
+| `DevServerManager.ts` | Dev server process spawning and monitoring     |
+| `ManifestWatcher.ts`  | ui-bundle.json file watching for hot reload    |
 
 ---
 
