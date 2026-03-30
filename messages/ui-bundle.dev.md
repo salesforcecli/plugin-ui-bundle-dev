@@ -3,14 +3,13 @@
 Preview a UI bundle locally and in real-time, without deploying it to your org.
 
 # description
+A UI bundle refers to an application that runs on Salesforce Platform that uses a non-native UI framework, such as React.  Salesforce provides native UI frameworks, such as Lighting Web Components (LWC), to build applications that run on the Salesforce Platform. But you can also use non-native JavaScript- or TypeScript-based UI frameworks, such as React, to build a UI experience for the Salesforce Platform and that you can launch from the App Launcher.  UI bundles are defined by the UiBundle metadata type in your DX project.
 
 This command starts a local development (dev) server so you can preview a UI bundle using the local metadata files in your DX project. Using a local preview helps you quickly develop UI bundles, because you don't have to continually deploy metadata to your org.
 
 The command also launches a local proxy server that sits between your UI bundle and Salesforce, automatically injecting authentication headers from Salesforce CLI's stored tokens. The proxy allows your UI bundle to make authenticated API calls to Salesforce without exposing credentials.
 
 Even though you're previewing the UI bundle locally and not deploying anything to an org, you're still required to authorize and specify an org to use this command.
-
-Salesforce UI bundles are represented by the UiBundle metadata type.
 
 # flags.name.summary
 
