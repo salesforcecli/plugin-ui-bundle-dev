@@ -479,8 +479,8 @@ export async function discoverUiBundle(
           'Each uiBundle must have a {name}.uibundle-meta.xml file.\n\n' +
           'Expected structure:\n' +
           '  uiBundles/\n' +
-          '    └── my-app/\n' +
-          '        ├── my-app.uibundle-meta.xml  (required)\n' +
+          '    └── myDashboard/\n' +
+          '        ├── myDashboard.uibundle-meta.xml  (required)\n' +
           '        └── ui-bundle.json             (optional, for dev config)',
         'UiBundleNotFoundError'
       );
@@ -490,8 +490,8 @@ export async function discoverUiBundle(
         'No uiBundles folder found in the SFDX project.\n\n' +
           'Create the folder structure in any package directory (e.g. force-app, packages/my-pkg):\n' +
           '  <package-path>/main/default/uiBundles/\n' +
-          '    └── my-app/\n' +
-          '        ├── my-app.uibundle-meta.xml  (required)\n' +
+          '    └── myDashboard/\n' +
+          '        ├── myDashboard.uibundle-meta.xml  (required)\n' +
           '        └── ui-bundle.json             (optional, for dev config)',
         'UiBundleNotFoundError'
       );
