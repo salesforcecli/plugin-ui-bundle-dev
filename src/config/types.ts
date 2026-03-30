@@ -22,7 +22,6 @@ export type { ManifestChangeEvent } from './ManifestWatcher.js';
 
 /**
  * Command execution result
- * What the sf ui-bundle dev command returns to the user
  */
 export type UiBundleDevResult = {
   /** Proxy server URL (where user should open browser) */
