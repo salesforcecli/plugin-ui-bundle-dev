@@ -1751,19 +1751,19 @@
   resolved "https://registry.npmjs.org/@salesforce/prettier-config/-/prettier-config-0.0.3.tgz"
   integrity sha512-hYOhoPTCSYMDYn+U1rlEk16PoBeAJPkrdg4/UtAzupM1mRRJOwEPMG1d7U8DxJFKuXW3DMEYWr2MwAIBDaHmFg==
 
-"@salesforce/sdk-core@^1.118.0":
-  version "1.118.0"
-  resolved "https://registry.yarnpkg.com/@salesforce/sdk-core/-/sdk-core-1.118.0.tgz#b0f4e0a8cbfa09a5c42d8b069ef9fb8408917df0"
-  integrity sha512-AhItSwaT418QPG6zxOfITNBipIwigqUEP2ElfZGtxmWKsSOogfLz2e02fMpVcOGnqa8KIhkTAzymtiapsKgJTg==
+"@salesforce/sdk-core@^1.118.4":
+  version "1.118.4"
+  resolved "https://registry.yarnpkg.com/@salesforce/sdk-core/-/sdk-core-1.118.4.tgz#258881863ff4a4cd87e6267ea217d40887c48db0"
+  integrity sha512-z6Qjjb3NvG++Uhd1R6s+GRE2Cg9namLMFv33vDF2o3iDXerojr/yYLjLnnvx+vKdbtpB7o68ypPWeGv1zqpGaA==
 
-"@salesforce/sdk-data@^1.118.0":
-  version "1.118.0"
-  resolved "https://registry.yarnpkg.com/@salesforce/sdk-data/-/sdk-data-1.118.0.tgz#99129fd59de4ec1dacedc0934af1baf99e615d53"
-  integrity sha512-XV750l1Y+CqfO7YX3cQz3EMaqylStoAHewiiQk0qHUeHHpUbW1QAcSUvZpZxyOkdvifke2W6WWxqo5XcvWOM9A==
+"@salesforce/sdk-data@^1.118.4":
+  version "1.118.4"
+  resolved "https://registry.yarnpkg.com/@salesforce/sdk-data/-/sdk-data-1.118.4.tgz#869fa7473f69294f78c35c95bc72ab11bbfa9c27"
+  integrity sha512-ksRXTSuDg2ykTnPPr4d/DiMfZCXSBVoytWyLV9d2MxbU89EoH4XpIQnspjBu17yrnxyXL6Jwf05bgqCvj19P7A==
   dependencies:
     "@conduit-client/service-fetch-network" "3.17.0"
     "@conduit-client/utils" "3.17.0"
-    "@salesforce/sdk-core" "^1.118.0"
+    "@salesforce/sdk-core" "^1.118.4"
 
 "@salesforce/sf-plugins-core@^11.3.12":
   version "11.3.12"
@@ -1804,14 +1804,13 @@
   resolved "https://registry.npmjs.org/@salesforce/ts-types/-/ts-types-2.0.12.tgz"
   integrity sha512-BIJyduJC18Kc8z+arUm5AZ9VkPRyw1KKAm+Tk+9LT99eOzhNilyfKzhZ4t+tG2lIGgnJpmytZfVDZ0e2kFul8g==
 
-"@salesforce/ui-bundle@^1.117.3":
-  version "1.118.0"
-  resolved "https://registry.yarnpkg.com/@salesforce/ui-bundle/-/ui-bundle-1.118.0.tgz#d006defab1efa0cd2b3a1d3bacac16ac6bfa4616"
-  integrity sha512-nzV7Qi2FQI7jbO8g9nfhmtgUOCHA7UuRa6PmRSOUfsy8SXUgha1j4jTpMqx0IFN9ugx770f+3BQ4/x4oyg5Tyw==
+"@salesforce/ui-bundle@^1.118.4":
+  version "1.118.4"
+  resolved "https://registry.yarnpkg.com/@salesforce/ui-bundle/-/ui-bundle-1.118.4.tgz#c52a221d41cec79379e66759bc4e996a8d20e923"
+  integrity sha512-PftiQgtZJVfsx1hct6SaWJvmQYCIIIybxmPaYxzv+XjvhE0zqQ+mWrPPU5Vs5ODiz+rDDD7CBBNwFUBZ6maU4Q==
   dependencies:
     "@salesforce/core" "^8.23.4"
-    "@salesforce/sdk-data" "^1.118.0"
-    axios "^1.7.7"
+    "@salesforce/sdk-data" "^1.118.4"
     micromatch "^4.0.8"
     path-to-regexp "^8.3.0"
 
@@ -3053,15 +3052,6 @@ available-typed-arrays@^1.0.7:
   integrity sha512-wvUjBtSGN7+7SjNpq/9M2Tg350UZD3q62IFZLbRAR1bSMlCo1ZaeW+BJ+D090e4hIIZLBcTDWe4Mh4jvUDajzQ==
   dependencies:
     possible-typed-array-names "^1.0.0"
-
-axios@^1.7.7:
-  version "1.13.2"
-  resolved "https://registry.npmjs.org/axios/-/axios-1.13.2.tgz"
-  integrity sha512-VPk9ebNqPcy5lRGuSlKx752IlDatOjT9paPlm8A7yOuW2Fbvp4X3JznJtT4f0GzGLLiWE9W8onz51SqLYwzGaA==
-  dependencies:
-    follow-redirects "^1.15.6"
-    form-data "^4.0.4"
-    proxy-from-env "^1.1.0"
 
 balanced-match@^1.0.0:
   version "1.0.2"
@@ -4529,7 +4519,7 @@ flatted@^3.2.9:
   resolved "https://registry.npmjs.org/flatted/-/flatted-3.3.3.tgz"
   integrity sha512-GX+ysw4PBCz0PzosHDepZGANEuFCMLrnRTiEy9McGjmkCQYwRq4A/X786G/fjM/+OjsWSU1ZrY5qyARZmO/uwg==
 
-follow-redirects@^1.0.0, follow-redirects@^1.15.6:
+follow-redirects@^1.0.0:
   version "1.15.11"
   resolved "https://registry.npmjs.org/follow-redirects/-/follow-redirects-1.15.11.tgz"
   integrity sha512-deG2P0JfjrTxl50XGCDyfI97ZGVCxIpfKYmfyrQ54n5FO/0gfIES8C/Psl6kWVDolizcaaxZJnTS0QSMxvnsBQ==
@@ -7005,11 +6995,6 @@ proto-list@~1.2.1:
   version "1.2.4"
   resolved "https://registry.npmjs.org/proto-list/-/proto-list-1.2.4.tgz"
   integrity sha512-vtK/94akxsTMhe0/cbfpR+syPuszcuwhqVjJq26CuNDgFGj682oRBXOP5MJpv2r7JtE8MsiepGIqvvOTBwn2vA==
-
-proxy-from-env@^1.1.0:
-  version "1.1.0"
-  resolved "https://registry.npmjs.org/proxy-from-env/-/proxy-from-env-1.1.0.tgz"
-  integrity sha512-D+zkORCbA9f1tdWRK0RaCR3GPv50cMxcrz4X8k5LTSUD1Dkw47mKJEZQNunItRTkWwgtaUSo1RVFRIG9ZXiFYg==
 
 pump@^3.0.0:
   version "3.0.3"
