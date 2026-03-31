@@ -1,3 +1,9 @@
+## [1.2.2](https://github.com/salesforcecli/plugin-ui-bundle-dev/compare/1.2.1...1.2.2) (2026-03-31)
+
+### Bug Fixes
+
+- upgrade ui bundle dep ([#47](https://github.com/salesforcecli/plugin-ui-bundle-dev/issues/47)) ([a2e7274](https://github.com/salesforcecli/plugin-ui-bundle-dev/commit/a2e72746917ccf6977a6c4e992892107702037fa))
+
 ## [1.2.1](https://github.com/salesforcecli/plugin-ui-bundle-dev/compare/1.2.0...1.2.1) (2026-03-31)
 
 ### Bug Fixes
