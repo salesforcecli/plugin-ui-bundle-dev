@@ -32,13 +32,13 @@ import { createServer, type Server } from 'node:net';
 /** Mocha suite-level timeout for describe blocks that spawn webapp dev. */
 export const SUITE_TIMEOUT = 180_000;
 
-/** Timeout for spawnWebappDev when the command is expected to start successfully. */
+/** Timeout for spawnUiBundleDev when the command is expected to start successfully. */
 export const SPAWN_TIMEOUT = 120_000;
 
-/** Shorter timeout for spawnWebappDev when the command is expected to fail quickly. */
+/** Shorter timeout for spawnUiBundleDev when the command is expected to fail quickly. */
 export const SPAWN_FAIL_TIMEOUT = 60_000;
 
-export type WebappDevHandle = {
+export type UiBundleDevHandle = {
   /** The proxy URL emitted by the command on stderr as JSON `{"url":"..."}` */
   proxyUrl: string;
   /** The underlying child process */
@@ -50,16 +50,19 @@ export type WebappDevHandle = {
 };
 
 /**
- * Spawn `sf webapp dev` asynchronously and wait for the JSON URL line on stderr.
+ * Spawn `sf ui-bundle dev` asynchronously and wait for the JSON URL line on stderr.
  *
  * Uses `bin/dev.js` (same binary that `execCmd` uses) so we test the
  * local plugin code, not whatever is installed globally.
  */
-export function spawnWebappDev(args: string[], options: { cwd: string; timeout?: number }): Promise<WebappDevHandle> {
+export function spawnUiBundleDev(
+  args: string[],
+  options: { cwd: string; timeout?: number }
+): Promise<UiBundleDevHandle> {
   const binDev = join(process.cwd(), 'bin', 'dev.js');
   const proc = spawn(
     process.execPath,
-    ['--loader', 'ts-node/esm', '--no-warnings=ExperimentalWarning', binDev, 'webapp', 'dev', ...args],
+    ['--loader', 'ts-node/esm', '--no-warnings=ExperimentalWarning', binDev, 'ui-bundle', 'dev', ...args],
     {
       cwd: options.cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -86,7 +89,7 @@ export function spawnWebappDev(args: string[], options: { cwd: string; timeout?:
     }
   };
 
-  return new Promise<WebappDevHandle>((resolve, reject) => {
+  return new Promise<UiBundleDevHandle>((resolve, reject) => {
     const timeoutMs = options.timeout ?? SPAWN_TIMEOUT;
     const timeoutId = setTimeout(() => {
       killProcessGroup('SIGKILL');
@@ -140,7 +143,7 @@ export function spawnWebappDev(args: string[], options: { cwd: string; timeout?:
     proc.on('close', (code) => {
       clearTimeout(timeoutId);
       if (code !== null && code !== 0) {
-        reject(new Error(`webapp dev exited with code ${code}.\nstderr:\n${stderrData}`));
+        reject(new Error(`ui-bundle dev exited with code ${code}.\nstderr:\n${stderrData}`));
       }
     });
   });
@@ -176,7 +179,7 @@ export function startTestHttpServer(port: number): Promise<HttpServer> {
 /**
  * Start an HTTP server that mimics a Vite dev server with the
  * WebAppProxyHandler plugin active. Responds to health check requests
- * (`?sfProxyHealthCheck=true`) with `X-Salesforce-WebApp-Proxy: true`.
+ * (`?sfProxyHealthCheck=true`) with `X-Salesforce-UiBundle-Proxy: true`.
  */
 export function startViteProxyServer(port: number): Promise<HttpServer> {
   return new Promise((resolve, reject) => {
@@ -185,7 +188,7 @@ export function startViteProxyServer(port: number): Promise<HttpServer> {
       if (url.searchParams.get('sfProxyHealthCheck') === 'true') {
         res.writeHead(200, {
           'Content-Type': 'text/plain',
-          'X-Salesforce-WebApp-Proxy': 'true',
+          'X-Salesforce-UiBundle-Proxy': 'true',
         });
         res.end('OK');
         return;

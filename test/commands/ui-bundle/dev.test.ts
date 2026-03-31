@@ -17,9 +17,9 @@
 import { expect } from 'chai';
 import sinon from 'sinon';
 import { TestContext } from '@salesforce/core/testSetup';
-import type { WebAppManifest, WebAppDevResult } from '../../../src/config/types.js';
+import type { UiBundleManifest, UiBundleDevResult } from '../../../src/config/types.js';
 
-describe('webapp:dev command integration', () => {
+describe('ui-bundle:dev command integration', () => {
   const $$ = new TestContext();
 
   afterEach(() => {
@@ -49,15 +49,15 @@ describe('webapp:dev command integration', () => {
           method: 'GET',
           signal: AbortSignal.timeout(3000),
         });
-        return response.headers.get('X-Salesforce-WebApp-Proxy') === 'true';
+        return response.headers.get('X-Salesforce-UiBundle-Proxy') === 'true';
       } catch {
         return false;
       }
     }
 
-    it('should return true when X-Salesforce-WebApp-Proxy header is present and true', async () => {
+    it('should return true when X-Salesforce-UiBundle-Proxy header is present and true', async () => {
       const mockHeaders = new Headers();
-      mockHeaders.set('X-Salesforce-WebApp-Proxy', 'true');
+      mockHeaders.set('X-Salesforce-UiBundle-Proxy', 'true');
 
       fetchStub.resolves({
         ok: true,
@@ -74,9 +74,9 @@ describe('webapp:dev command integration', () => {
       expect(calledUrl).to.include('sfProxyHealthCheck=true');
     });
 
-    it('should return false when X-Salesforce-WebApp-Proxy header is not present', async () => {
+    it('should return false when X-Salesforce-UiBundle-Proxy header is not present', async () => {
       const mockHeaders = new Headers();
-      // No X-Salesforce-WebApp-Proxy header
+      // No X-Salesforce-UiBundle-Proxy header
 
       fetchStub.resolves({
         ok: true,
@@ -88,9 +88,9 @@ describe('webapp:dev command integration', () => {
       expect(result).to.be.false;
     });
 
-    it('should return false when X-Salesforce-WebApp-Proxy header is present but not "true"', async () => {
+    it('should return false when X-Salesforce-UiBundle-Proxy header is present but not "true"', async () => {
       const mockHeaders = new Headers();
-      mockHeaders.set('X-Salesforce-WebApp-Proxy', 'false');
+      mockHeaders.set('X-Salesforce-UiBundle-Proxy', 'false');
 
       fetchStub.resolves({
         ok: true,
@@ -128,7 +128,7 @@ describe('webapp:dev command integration', () => {
 
     it('should construct correct health check URL with query parameter', async () => {
       const mockHeaders = new Headers();
-      mockHeaders.set('X-Salesforce-WebApp-Proxy', 'true');
+      mockHeaders.set('X-Salesforce-UiBundle-Proxy', 'true');
 
       fetchStub.resolves({
         ok: true,
@@ -143,7 +143,7 @@ describe('webapp:dev command integration', () => {
 
     it('should preserve existing query parameters when adding health check', async () => {
       const mockHeaders = new Headers();
-      mockHeaders.set('X-Salesforce-WebApp-Proxy', 'true');
+      mockHeaders.set('X-Salesforce-UiBundle-Proxy', 'true');
 
       fetchStub.resolves({
         ok: true,
@@ -172,21 +172,21 @@ describe('webapp:dev command integration', () => {
   });
 
   describe('Type Definitions', () => {
-    it('should have correct WebAppManifest structure', () => {
-      const manifest: WebAppManifest = {
-        name: 'testWebApp',
+    it('should have correct UiBundleManifest structure', () => {
+      const manifest: UiBundleManifest = {
+        name: 'testUiBundle',
         outputDir: 'dist',
         dev: {
           url: 'http://localhost:5173',
         },
       };
 
-      expect(manifest.name).to.equal('testWebApp');
+      expect(manifest.name).to.equal('testUiBundle');
       expect(manifest.dev?.url).to.equal('http://localhost:5173');
     });
 
-    it('should have correct WebAppDevResult structure', () => {
-      const result: WebAppDevResult = {
+    it('should have correct UiBundleDevResult structure', () => {
+      const result: UiBundleDevResult = {
         url: 'http://localhost:4545',
         devServerUrl: 'http://localhost:5173',
       };
@@ -206,8 +206,8 @@ describe('webapp:dev command integration', () => {
     });
 
     it('should use manifest dev.url when no explicit URL', () => {
-      const manifest: WebAppManifest = {
-        name: 'testWebApp',
+      const manifest: UiBundleManifest = {
+        name: 'testUiBundle',
         outputDir: 'dist',
         dev: {
           url: 'http://localhost:5173',
@@ -218,8 +218,8 @@ describe('webapp:dev command integration', () => {
     });
 
     it('should use dev.command when no URL provided', () => {
-      const manifest: WebAppManifest = {
-        name: 'testWebApp',
+      const manifest: UiBundleManifest = {
+        name: 'testUiBundle',
         outputDir: 'dist',
         dev: {
           command: 'npm run dev',
@@ -232,8 +232,8 @@ describe('webapp:dev command integration', () => {
 
   describe('Configuration Validation', () => {
     it('should validate manifest with dev.url', () => {
-      const manifest: WebAppManifest = {
-        name: 'testWebApp',
+      const manifest: UiBundleManifest = {
+        name: 'testUiBundle',
         outputDir: 'dist',
         dev: {
           url: 'http://localhost:5173',
@@ -246,8 +246,8 @@ describe('webapp:dev command integration', () => {
     });
 
     it('should validate manifest with dev.command', () => {
-      const manifest: WebAppManifest = {
-        name: 'testWebApp',
+      const manifest: UiBundleManifest = {
+        name: 'testUiBundle',
         outputDir: 'dist',
         dev: {
           command: 'npm run dev',

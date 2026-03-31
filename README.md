@@ -1,10 +1,10 @@
-# plugin-app-dev
+# plugin-ui-bundle-dev
 
-[![NPM](https://img.shields.io/npm/v/@salesforce/plugin-app-dev.svg?label=@salesforce/plugin-app-dev)](https://www.npmjs.com/package/@salesforce/plugin-app-dev) [![Downloads/week](https://img.shields.io/npm/dw/@salesforce/plugin-app-dev.svg)](https://npmjs.org/package/@salesforce/plugin-app-dev) [![License](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/license/apache-2-0)
+[![NPM](https://img.shields.io/npm/v/@salesforce/plugin-ui-bundle-dev.svg?label=@salesforce/plugin-ui-bundle-dev)](https://www.npmjs.com/package/@salesforce/plugin-ui-bundle-dev) [![Downloads/week](https://img.shields.io/npm/dw/@salesforce/plugin-ui-bundle-dev.svg)](https://npmjs.org/package/@salesforce/plugin-ui-bundle-dev) [![License](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/license/apache-2-0)
 
-# Salesforce CLI App Dev Plugin
+# Salesforce CLI UI Bundle Dev Plugin
 
-A Salesforce CLI plugin for building web applications that integrate with Salesforce. This plugin provides tools for local development, packaging, and deployment of webapps with built-in Salesforce authentication.
+A Salesforce CLI plugin for building UI bundles that integrate with Salesforce. This plugin provides tools for local development of UI bundles with built-in Salesforce authentication.
 
 This plugin is bundled with the [Salesforce CLI](https://developer.salesforce.com/tools/sfdxcli). For more information on the CLI, read the [getting started guide](https://developer.salesforce.com/docs/atlas.en-us.sfdx_setup.meta/sfdx_setup/sfdx_setup_intro.htm).
 
@@ -12,19 +12,18 @@ We always recommend using the latest version of these commands bundled with the 
 
 ## Features
 
-- 🔐 **Local Development Proxy** - Run webapps locally with automatic Salesforce authentication
+- 🔐 **Local Development Proxy** - Run UI bundles locally with automatic Salesforce authentication
 - 🌐 **Intelligent Request Routing** - Automatically routes requests between Salesforce APIs and dev servers
 - 🔄 **Dev Server Management** - Spawns and monitors dev servers (Vite, CRA, Next.js)
-- 🎨 **Beautiful Error Handling** - HTML error pages with auto-refresh and diagnostics
 - 💚 **Health Monitoring** - Periodic health checks with status updates
-- 🔧 **Hot Config Reload** - Detects `webapplication.json` changes automatically
+- 🔧 **Hot Config Reload** - Detects `ui-bundle.json` changes automatically
 
 ## Quick Start
 
 1. **Install the plugin:**
 
    ```bash
-   sf plugins install @salesforce/plugin-app-dev
+   sf plugins install @salesforce/plugin-ui-bundle-dev
    ```
 
 2. **Authenticate with Salesforce:**
@@ -33,12 +32,12 @@ We always recommend using the latest version of these commands bundled with the 
    sf org login web --alias myorg
    ```
 
-3. **Create webapplication.json:**
+3. **Create ui-bundle.json:**
 
    ```json
    {
-     "name": "myapp",
-     "label": "My Web App",
+     "name": "myBundle",
+     "label": "My UI Bundle",
      "version": "1.0.0",
      "apiVersion": "60.0",
      "outputDir": "dist",
@@ -50,12 +49,12 @@ We always recommend using the latest version of these commands bundled with the 
 
 4. **Start development:**
    ```bash
-   sf webapp dev --name myapp --target-org myorg --open
+   sf ui-bundle dev --name myBundle --target-org myorg --open
    ```
 
 ## Documentation
 
-📚 **[Complete Guide](SF_WEBAPP_DEV_GUIDE.md)** - Comprehensive documentation covering:
+📚 **[Complete Guide](SF_UI_BUNDLE_DEV_GUIDE.md)** - Comprehensive documentation covering:
 
 - Overview and architecture
 - Getting started (5-minute quick start)
@@ -69,7 +68,7 @@ We always recommend using the latest version of these commands bundled with the 
 ## Install
 
 ```bash
-sf plugins install @salesforce/plugin-app-dev@x.y.z
+sf plugins install @salesforce/plugin-ui-bundle-dev@x.y.z
 ```
 
 ## Issues
@@ -101,7 +100,7 @@ To build the plugin locally, make sure to have yarn installed and run the follow
 
 ```bash
 # Clone the repository
-git clone git@github.com:salesforcecli/plugin-app-dev
+git clone git@github.com:salesforcecli/plugin-ui-bundle-dev
 
 # Install the dependencies and compile
 yarn && yarn build
@@ -125,27 +124,27 @@ sf plugins
 
 ## Commands
 
-### `sf webapp dev`
+### `sf ui-bundle dev`
 
-Start a local development proxy server for webapp development with Salesforce authentication.
+Start a local development proxy server for UI Bundle development with Salesforce authentication.
 
 **Two operating modes:**
 
-- **Command mode** (default): When `dev.command` is set in `webapplication.json` (or default `npm run dev`), the CLI starts the dev server. URL defaults to `http://localhost:5173`; override with `dev.url` or `--url` if needed.
+- **Command mode** (default): When `dev.command` is set in `ui-bundle.json` (or default `npm run dev`), the CLI starts the dev server. URL defaults to `http://localhost:5173`; override with `dev.url` or `--url` if needed.
 - **URL-only mode**: When only `dev.url` or `--url` is provided (no command), the CLI assumes the dev server is already running and does not start it. Proxy only.
 
 ```bash
 USAGE
-  $ sf webapp dev --name <webapp-name> --target-org <org-alias> [options]
+  $ sf ui-bundle dev --target-org <org-alias> [options]
 
 REQUIRED FLAGS
-  -n, --name=<value>         Name of the webapp (must match webapplication.json)
   -o, --target-org=<value>   Salesforce org to authenticate against
 
 OPTIONAL FLAGS
+  -n, --name=<value>         Name of the UI bundle (must match ui-bundle.json)
   -u, --url=<value>          Dev server URL. Command mode: override default 5173. URL-only: required (server must be running)
   -p, --port=<value>         Proxy server port (default: 4545)
-  --open                     Open browser automatically
+  -b, --open                 Open browser automatically
 
 DESCRIPTION
   Starts a local HTTP proxy that injects Salesforce authentication and routes
@@ -154,20 +153,24 @@ DESCRIPTION
   URL-only mode, connects to an already-running dev server.
 
 EXAMPLES
-  Command mode (CLI starts dev server, default port 5173):
+  Start dev server by auto-discovering the UI bundle:
 
-    $ sf webapp dev --name myapp --target-org myorg --open
+    $ sf ui-bundle dev --target-org myorg --open
+
+  Explicitly specify the UI bundle name:
+
+    $ sf ui-bundle dev --name myBundle --target-org myorg --open
 
   URL-only mode (dev server already running):
 
-    $ sf webapp dev --name myapp --target-org myorg --url http://localhost:5173 --open
+    $ sf ui-bundle dev --name myBundle --target-org myorg --url http://localhost:5173 --open
 
   Custom proxy port:
 
-    $ sf webapp dev --name myapp --target-org myorg --port 8080 --open
+    $ sf ui-bundle dev --target-org myorg --port 8080 --open
 
 SEE ALSO
-  - Complete Guide: SF_WEBAPP_DEV_GUIDE.md
+  - Complete Guide: SF_UI_BUNDLE_DEV_GUIDE.md
 ```
 
 <!-- commandsstop -->

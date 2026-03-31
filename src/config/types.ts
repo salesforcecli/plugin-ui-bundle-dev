@@ -15,16 +15,15 @@
  */
 
 // Re-export manifest types from manifest.ts
-export type { WebAppManifest, DevConfig, RoutingConfig, RewriteRule, RedirectRule } from './manifest.js';
+export type { UiBundleManifest, DevConfig, RoutingConfig, RewriteRule, RedirectRule } from './manifest.js';
 
 // Re-export from ManifestWatcher
 export type { ManifestChangeEvent } from './ManifestWatcher.js';
 
 /**
  * Command execution result
- * What the sf webapp dev command returns to the user
  */
-export type WebAppDevResult = {
+export type UiBundleDevResult = {
   /** Proxy server URL (where user should open browser) */
   url: string;
   /** Dev server URL being proxied */

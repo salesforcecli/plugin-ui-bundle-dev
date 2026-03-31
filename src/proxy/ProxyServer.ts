@@ -17,18 +17,14 @@
 import { createServer } from 'node:http';
 import type { Server, IncomingMessage, ServerResponse } from 'node:http';
 import { EventEmitter } from 'node:events';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import httpProxy from 'http-proxy';
 import { Logger, SfError } from '@salesforce/core';
-import type { OrgInfo } from '@salesforce/webapp-experimental/app';
-import { getOrgInfo } from '@salesforce/webapp-experimental/app';
-import type { ProxyHandler } from '@salesforce/webapp-experimental/proxy';
-import { createProxyHandler } from '@salesforce/webapp-experimental/proxy';
-import type { WebAppManifest } from '../config/manifest.js';
+import type { OrgInfo } from '@salesforce/ui-bundle/app';
+import { getOrgInfo } from '@salesforce/ui-bundle/app';
+import type { ProxyHandler } from '@salesforce/ui-bundle/proxy';
+import { createProxyHandler } from '@salesforce/ui-bundle/proxy';
+import type { UiBundleManifest } from '../config/manifest.js';
 import type { DevServerError } from '../config/types.js';
-import type { ErrorPageData } from '../templates/ErrorPageRenderer.js';
-import { ErrorPageRenderer } from '../templates/ErrorPageRenderer.js';
 
 /**
  * Configuration for the proxy server
@@ -37,7 +33,7 @@ type ProxyServerConfig = {
   port: number;
   devServerUrl: string;
   salesforceInstanceUrl: string;
-  manifest?: WebAppManifest;
+  manifest?: UiBundleManifest;
   orgAlias?: string;
   host?: string;
 };
@@ -51,12 +47,10 @@ export class ProxyServer extends EventEmitter {
   private config: ProxyServerConfig;
   private readonly logger: Logger;
   private readonly wsProxy: httpProxy;
-  private readonly errorPageRenderer: ErrorPageRenderer;
   private server: Server | null = null;
   private isCodeBuilder = false;
   private healthCheckInterval: NodeJS.Timeout | null = null;
   private devServerStatus: 'unknown' | 'up' | 'down' | 'error' = 'unknown';
-  private readonly workspaceScript: string;
   private activeDevServerError: DevServerError | null = null;
   private readonly activeConnections: Set<import('net').Socket> = new Set();
   private proxyHandler: ProxyHandler | null = null;
@@ -67,9 +61,6 @@ export class ProxyServer extends EventEmitter {
     super();
     this.config = config;
     this.logger = Logger.childFromRoot('ProxyServer');
-    this.errorPageRenderer = new ErrorPageRenderer();
-    this.workspaceScript = ProxyServer.detectWorkspaceScript();
-
     this.isCodeBuilder = ProxyServer.detectCodeBuilder();
 
     this.wsProxy = httpProxy.createProxyServer({
@@ -89,25 +80,6 @@ export class ProxyServer extends EventEmitter {
     return codeBuilderIndicators.some((indicator) => process.env[indicator] !== undefined);
   }
 
-  private static detectWorkspaceScript(): string {
-    try {
-      const packageJsonPath = join(process.cwd(), 'package.json');
-      const packageJsonContent = readFileSync(packageJsonPath, 'utf-8');
-      const packageJson = JSON.parse(packageJsonContent) as { scripts?: Record<string, string> };
-
-      const commonScripts = ['dev', 'start', 'serve'];
-      for (const scriptName of commonScripts) {
-        if (packageJson.scripts?.[scriptName]) {
-          return `npm run ${scriptName}`;
-        }
-      }
-
-      return 'npm run dev';
-    } catch {
-      return 'npm run dev';
-    }
-  }
-
   /**
    * Wraps the response to inject a route-change script into HTML pages.
    * When the app is embedded in Live Preview iframe, this script notifies the parent
@@ -120,24 +92,21 @@ export class ProxyServer extends EventEmitter {
     const chunks: Buffer[] = [];
 
     const routeScript =
-      '<script>(function(){if(window===window.top)return;function send(){try{var p=window.location.pathname||\'/\';window.parent.postMessage({command:\'routeChanged\',route:p,_source:\'webapps-proxy-injected-script\'},\'*\')}catch(e){}}send();window.addEventListener(\'popstate\',send);var _push=history.pushState;if(_push){history.pushState=function(){_push.apply(this,arguments);setTimeout(send,0)}}var _replace=history.replaceState;if(_replace){history.replaceState=function(){_replace.apply(this,arguments);setTimeout(send,0)}}if(typeof window.navigation!==\'undefined\'&&window.navigation.addEventListener){window.navigation.addEventListener(\'navigate\',function(){setTimeout(send,0)})}})();</script>';
+      "<script>(function(){if(window===window.top)return;function send(){try{var p=window.location.pathname||'/';window.parent.postMessage({command:'routeChanged',route:p,_source:'webapps-proxy-injected-script'},'*')}catch(e){}}send();window.addEventListener('popstate',send);var _push=history.pushState;if(_push){history.pushState=function(){_push.apply(this,arguments);setTimeout(send,0)}}var _replace=history.replaceState;if(_replace){history.replaceState=function(){_replace.apply(this,arguments);setTimeout(send,0)}}if(typeof window.navigation!=='undefined'&&window.navigation.addEventListener){window.navigation.addEventListener('navigate',function(){setTimeout(send,0)})}})();</script>";
 
     const wrapped = Object.create(res, {
       writeHead: {
-        value: (
-          code: number,
-          h?: Record<string, string | string[] | number | undefined>
-        ) => {
+        value: (code: number, h?: Record<string, string | string[] | number | undefined>) => {
           statusCode = code;
           if (h) {
             const merged: Record<string, string | string[] | number | undefined> = {
               ...headers,
-              ...h
+              ...h,
             };
             headers = merged;
           }
           return true;
-        }
+        },
       },
       write: {
         value: (
@@ -154,19 +123,13 @@ export class ProxyServer extends EventEmitter {
             actualEncoding = encoding;
             actualCb = cb;
           }
-          chunks.push(
-            Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, actualEncoding as BufferEncoding)
-          );
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, actualEncoding as BufferEncoding));
           if (actualCb) actualCb();
           return true;
-        }
+        },
       },
       end: {
-        value: (
-          chunk?: Buffer | string | (() => void),
-          encoding?: BufferEncoding | (() => void),
-          cb?: () => void
-        ) => {
+        value: (chunk?: Buffer | string | (() => void), encoding?: BufferEncoding | (() => void), cb?: () => void) => {
           let actualChunk: Buffer | string | undefined;
           let actualEncoding: BufferEncoding | undefined;
           let actualCb: (() => void) | undefined;
@@ -185,9 +148,7 @@ export class ProxyServer extends EventEmitter {
           }
           if (actualChunk)
             chunks.push(
-              Buffer.isBuffer(actualChunk)
-                ? actualChunk
-                : Buffer.from(actualChunk, actualEncoding as BufferEncoding)
+              Buffer.isBuffer(actualChunk) ? actualChunk : Buffer.from(actualChunk, actualEncoding as BufferEncoding)
             );
           const body = Buffer.concat(chunks);
           const contentType = (headers['content-type'] ?? headers['Content-Type'] ?? '') as string;
@@ -199,8 +160,8 @@ export class ProxyServer extends EventEmitter {
             res.writeHead(statusCode, headers);
             res.end(body, actualCb);
           }
-        }
-      }
+        },
+      },
     }) as ServerResponse;
 
     return wrapped;
@@ -383,7 +344,7 @@ export class ProxyServer extends EventEmitter {
     });
   }
 
-  public updateManifest(manifest: WebAppManifest): void {
+  public updateManifest(manifest: UiBundleManifest): void {
     this.config.manifest = manifest;
     this.initializeProxyHandler();
     this.logger.debug('Proxy handler reinitialized with updated manifest');
@@ -503,8 +464,8 @@ export class ProxyServer extends EventEmitter {
   }
 
   private initializeProxyHandler(): void {
-    const manifest: WebAppManifest = this.config.manifest ?? {
-      name: 'webapp',
+    const manifest: UiBundleManifest = this.config.manifest ?? {
+      name: 'uiBundle',
       outputDir: 'dist',
     };
 
@@ -514,49 +475,22 @@ export class ProxyServer extends EventEmitter {
   }
 
   private serveDevServerErrorPage(error: DevServerError, res: ServerResponse): void {
-    try {
-      const html = this.errorPageRenderer.renderDevServerError(error);
-
-      res.writeHead(500, {
-        'Content-Type': 'text/html',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-      });
-
-      res.end(html);
-      this.logger.debug('Served dev server error page to browser');
-    } catch (err) {
-      this.logger.error(`Failed to render dev server error page: ${err instanceof Error ? err.message : String(err)}`);
-      res.writeHead(500, { 'Content-Type': 'text/plain' });
-      res.end(`Dev Server Error: ${error.title}\n\n${error.message}\n\nCheck terminal for details.`);
-    }
+    res.writeHead(500, {
+      'Content-Type': 'text/plain',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    });
+    res.end(`Dev Server Error: ${error.title}\n\n${error.message}\n\nCheck terminal for details.`);
+    this.logger.debug('Served dev server error response');
   }
 
   private serveErrorPage(res: ServerResponse): void {
-    try {
-      const errorPageData: ErrorPageData = {
-        status: 'No Dev Server Detected',
-        devServerUrl: this.config.devServerUrl,
-        workspaceScript: this.workspaceScript,
-        proxyUrl: this.getProxyUrl(),
-        orgTarget: this.config.salesforceInstanceUrl.replace('https://', ''),
-      };
-
-      const html = this.errorPageRenderer.render(errorPageData);
-
-      res.writeHead(503, {
-        'Content-Type': 'text/html',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-      });
-      res.end(html);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`CRITICAL: Failed to render dev server error page: ${errorMessage}`);
-
-      res.writeHead(503, { 'Content-Type': 'text/plain' });
-      res.end(
-        `Dev Server Unavailable\n\nCannot connect to: ${this.config.devServerUrl}\n\nStart your dev server and refresh this page.`
-      );
-    }
+    res.writeHead(503, {
+      'Content-Type': 'text/plain',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    });
+    res.end(
+      `Dev Server Unavailable\n\nCannot connect to: ${this.config.devServerUrl}\n\nStart your dev server and refresh this page.`
+    );
   }
 
   private startHealthCheck(): void {

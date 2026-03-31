@@ -17,48 +17,48 @@
 import { access, readdir, readFile } from 'node:fs/promises';
 import { basename, dirname, join, relative } from 'node:path';
 import { Logger, SfError, SfProject } from '@salesforce/core';
-import type { WebAppManifest } from './manifest.js';
+import type { UiBundleManifest } from './manifest.js';
 
-const logger = Logger.childFromRoot('WebappDiscovery');
+const logger = Logger.childFromRoot('UiBundleDiscovery');
 
 /**
- * Default command to run when no webapplication.json manifest is found
+ * Default command to run when no ui-bundle.json manifest is found
  */
 export const DEFAULT_DEV_COMMAND = 'npm run dev';
 
 /**
- * Standard metadata path segment for webapplications (relative to package directory).
- * Consistent with other metadata types: packagePath/main/default/webapplications
+ * Standard metadata path segment for uiBundles (relative to package directory).
+ * Consistent with other metadata types: packagePath/main/default/uiBundles
  */
-const WEBAPPLICATIONS_RELATIVE_PATH = 'main/default/webapplications';
+const WEBAPPLICATIONS_RELATIVE_PATH = 'main/default/uiBundles';
 
 /**
- * Pattern to match webapplication metadata XML files
+ * Pattern to match uibundle metadata XML files
  */
-const WEBAPP_META_XML_PATTERN = /^(.+)\.webapplication-meta\.xml$/;
+const WEBAPP_META_XML_PATTERN = /^(.+)\.uibundle-meta\.xml$/;
 
 /**
- * Discovered webapp with its directory path and optional manifest
+ * Discovered uiBundle with its directory path and optional manifest
  */
-export type DiscoveredWebapp = {
-  /** Absolute path to the webapp directory */
+export type DiscoveredUiBundle = {
+  /** Absolute path to the uiBundle directory */
   path: string;
-  /** Relative path from cwd to the webapp directory */
+  /** Relative path from cwd to the uiBundle directory */
   relativePath: string;
-  /** Parsed manifest content (null if no webapplication.json found) */
-  manifest: WebAppManifest | null;
-  /** Webapp name (from .webapplication-meta.xml or folder name) */
+  /** Parsed manifest content (null if no ui-bundle.json found) */
+  manifest: UiBundleManifest | null;
+  /** Webapp name (from .uibundle-meta.xml or folder name) */
   name: string;
-  /** Whether this webapp has a webapplication.json manifest file */
+  /** Whether this uiBundle has a ui-bundle.json manifest file */
   hasManifest: boolean;
   /** Path to the manifest file (null if no manifest) */
   manifestPath: string | null;
-  /** Whether this webapp has a .webapplication-meta.xml file (valid SFDX webapp) */
+  /** Whether this uiBundle has a .uibundle-meta.xml file (valid SFDX uiBundle) */
   hasMetaXml: boolean;
 };
 
 /**
- * Directories to exclude when processing webapplications folder.
+ * Directories to exclude when processing uiBundles folder.
  * Note: Directories starting with '.' are excluded separately in shouldExcludeDirectory()
  */
 const EXCLUDED_DIRECTORIES = new Set(['node_modules', 'dist', 'build', 'out', 'coverage', '__pycache__', 'venv']);
@@ -70,22 +70,22 @@ function shouldExcludeDirectory(dirName: string): boolean {
   return EXCLUDED_DIRECTORIES.has(dirName) || dirName.startsWith('.');
 }
 
-/** Folder name for webapplications metadata */
-const WEBAPPLICATIONS_FOLDER = 'webapplications';
+/** Folder name for uiBundles metadata */
+export const UI_BUNDLES_FOLDER = 'uiBundles';
 
 /**
- * Check if a folder name is the standard webapplications folder
+ * Check if a folder name is the standard uiBundles folder
  */
-function isWebapplicationsFolder(folderName: string): boolean {
-  return folderName === WEBAPPLICATIONS_FOLDER;
+function isUiBundlesFolder(folderName: string): boolean {
+  return folderName === UI_BUNDLES_FOLDER;
 }
 
 /**
- * Check if a directory contains a {name}.webapplication-meta.xml file
- * Returns the webapp name extracted from the filename, or null if not found.
+ * Check if a directory contains a {name}.uibundle-meta.xml file
+ * Returns the uiBundle name extracted from the filename, or null if not found.
  * Logs a warning if multiple metadata files are found (uses first match).
  */
-async function findWebappMetaXml(dirPath: string): Promise<string | null> {
+async function findUiBundleMetaXml(dirPath: string): Promise<string | null> {
   try {
     const entries = await readdir(dirPath);
     const matches: string[] = [];
@@ -103,7 +103,7 @@ async function findWebappMetaXml(dirPath: string): Promise<string | null> {
 
     if (matches.length > 1) {
       logger.warn(
-        `Multiple .webapplication-meta.xml files found in ${dirPath}: ${matches.join(', ')}. Using "${matches[0]}".`
+        `Multiple .uibundle-meta.xml files found in ${dirPath}: ${matches.join(', ')}. Using "${matches[0]}".`
       );
     }
 
@@ -126,13 +126,13 @@ async function pathExists(path: string): Promise<boolean> {
 }
 
 /**
- * Try to parse a webapplication.json file.
+ * Try to parse a ui-bundle.json file.
  * Accepts any valid JSON object - missing fields will use defaults.
  */
-async function tryParseWebappManifest(filePath: string): Promise<WebAppManifest | null> {
+async function tryParseUiBundleManifest(filePath: string): Promise<UiBundleManifest | null> {
   try {
     const content = await readFile(filePath, 'utf-8');
-    const manifest = JSON.parse(content) as WebAppManifest;
+    const manifest = JSON.parse(content) as UiBundleManifest;
 
     // Accept any valid JSON object (missing fields will use defaults)
     if (manifest && typeof manifest === 'object') {
@@ -146,14 +146,14 @@ async function tryParseWebappManifest(filePath: string): Promise<WebAppManifest 
 }
 
 /**
- * Resolve webapp name using priority: metaXmlName > folderName.
+ * Resolve uiBundle name using priority: metaXmlName > folderName.
  * Manifest does not have a name property - do not depend on it.
  *
  * @param folderName - The folder name (fallback)
- * @param metaXmlName - Name extracted from .webapplication-meta.xml (or null)
- * @returns The resolved webapp name
+ * @param metaXmlName - Name extracted from .uibundle-meta.xml (or null)
+ * @returns The resolved uiBundle name
  */
-function resolveWebappName(folderName: string, metaXmlName: string | null): string {
+function resolveUiBundleName(folderName: string, metaXmlName: string | null): string {
   return metaXmlName ?? folderName;
 }
 
@@ -174,21 +174,21 @@ async function tryResolveSfdxProjectRoot(cwd: string): Promise<string | null> {
 }
 
 /**
- * Get all webapplications folder paths from the project's package directories.
- * Consistent with other metadata types: each package can have main/default/webapplications.
+ * Get all uiBundles folder paths from the project's package directories.
+ * Consistent with other metadata types: each package can have main/default/uiBundles.
  *
  * @param projectRoot - Absolute path to project root (where sfdx-project.json lives)
- * @returns Array of absolute paths to webapplications folders that exist
+ * @returns Array of absolute paths to uiBundles folders that exist
  */
-async function getWebapplicationsPathsFromProject(projectRoot: string): Promise<string[]> {
+async function getUiBundlesPathsFromProject(projectRoot: string): Promise<string[]> {
   try {
     const project = await SfProject.resolve(projectRoot);
     const packageDirs = project.getUniquePackageDirectories();
 
     const existenceChecks = await Promise.all(
       packageDirs.map(async (pkg) => {
-        const webappsPath = join(projectRoot, pkg.path, WEBAPPLICATIONS_RELATIVE_PATH);
-        return (await pathExists(webappsPath)) ? webappsPath : null;
+        const uiBundlesPath = join(projectRoot, pkg.path, WEBAPPLICATIONS_RELATIVE_PATH);
+        return (await pathExists(uiBundlesPath)) ? uiBundlesPath : null;
       })
     );
 
@@ -199,53 +199,53 @@ async function getWebapplicationsPathsFromProject(projectRoot: string): Promise<
 }
 
 /**
- * Check if we're inside a webapplications folder by traversing upward through parent directories.
+ * Check if we're inside a uiBundles folder by traversing upward through parent directories.
  *
- * This handles cases where the user runs the command from inside a webapp folder:
+ * This handles cases where the user runs the command from inside a uiBundle folder:
  *
- * Example 1: Running from /project/force-app/main/default/webapplications/my-app/src/
- * Traverses: src -> my-app -> webapplications (found!)
- * Returns: { webappsFolder: "/project/.../webapplications", currentWebappName: "my-app" }
+ * Example 1: Running from /project/force-app/main/default/uiBundles/my-app/src/
+ * Traverses: src -> my-app -> uiBundles (found!)
+ * Returns: { uiBundlesFolder: "/project/.../uiBundles", currentUiBundleName: "my-app" }
  *
- * Example 2: Running from /project/force-app/main/default/webapplications/my-app/
- * Checks parent: webapplications (found!)
- * Returns: { webappsFolder: "/project/.../webapplications", currentWebappName: "my-app" }
+ * Example 2: Running from /project/force-app/main/default/uiBundles/my-app/
+ * Checks parent: uiBundles (found!)
+ * Returns: { uiBundlesFolder: "/project/.../uiBundles", currentUiBundleName: "my-app" }
  *
- * Example 3: Running from /project/force-app/main/default/webapplications/
- * Current dir is webapplications (found!)
- * Returns: { webappsFolder: "/project/.../webapplications", currentWebappName: null }
+ * Example 3: Running from /project/force-app/main/default/uiBundles/
+ * Current dir is uiBundles (found!)
+ * Returns: { uiBundlesFolder: "/project/.../uiBundles", currentUiBundleName: null }
  *
  * @param dir - Directory to start from
- * @returns Object with webapplications folder path and current webapp name, or null if not found
+ * @returns Object with uiBundles folder path and current uiBundle name, or null if not found
  */
-function findWebapplicationsFolderUpward(
+function findUiBundlesFolderUpward(
   dir: string
-): { webappsFolder: string; currentWebappName: string | null } | null {
+): { uiBundlesFolder: string; currentUiBundleName: string | null } | null {
   let currentDir = dir;
   let childDir: string | null = null; // Tracks the previous dir as we move up
   const maxUpwardDepth = 10;
   let depth = 0;
 
-  // Walk up the directory tree looking for "webapplications" folder
+  // Walk up the directory tree looking for "uiBundles" folder
   while (depth < maxUpwardDepth) {
     const dirName = basename(currentDir);
     const parentDir = dirname(currentDir);
 
-    // Case: Current directory IS the webapplications folder
-    // e.g., cwd = /project/webapplications
-    if (isWebapplicationsFolder(dirName)) {
+    // Case: Current directory IS the uiBundles folder
+    // e.g., cwd = /project/uiBundles
+    if (isUiBundlesFolder(dirName)) {
       return {
-        webappsFolder: currentDir,
-        currentWebappName: childDir ? basename(childDir) : null,
+        uiBundlesFolder: currentDir,
+        currentUiBundleName: childDir ? basename(childDir) : null,
       };
     }
 
-    // Case: Parent directory is the webapplications folder
-    // e.g., cwd = /project/webapplications/my-app (parent is webapplications)
-    if (isWebapplicationsFolder(basename(parentDir))) {
+    // Case: Parent directory is the uiBundles folder
+    // e.g., cwd = /project/uiBundles/my-app (parent is webui)
+    if (isUiBundlesFolder(basename(parentDir))) {
       return {
-        webappsFolder: parentDir,
-        currentWebappName: dirName, // Current dir is the webapp folder name
+        uiBundlesFolder: parentDir,
+        currentUiBundleName: dirName, // Current dir is the uiBundle folder name
       };
     }
 
@@ -260,58 +260,58 @@ function findWebapplicationsFolderUpward(
     depth++;
   }
 
-  // Not inside a webapplications folder
+  // Not inside a uiBundles folder
   return null;
 }
 
 /**
- * Discover all webapps inside the webapplications folder.
- * Only directories containing a {name}.webapplication-meta.xml file are considered valid webapps.
- * If a webapplication.json exists, use it for dev configuration.
+ * Discover all uiBundles inside the uiBundles folder.
+ * Only directories containing a {name}.uibundle-meta.xml file are considered valid uiBundles.
+ * If a ui-bundle.json exists, use it for dev configuration.
  *
- * @param webappsFolderPath - Absolute path to the webapplications folder
+ * @param uiBundlesFolderPath - Absolute path to the uiBundles folder
  * @param cwd - Original working directory for relative path calculation
- * @returns Array of discovered webapps (only those with .webapplication-meta.xml)
+ * @returns Array of discovered uiBundles (only those with .uibundle-meta.xml)
  */
-async function discoverWebappsInFolder(webappsFolderPath: string, cwd: string): Promise<DiscoveredWebapp[]> {
+async function discoverUiBundlesInFolder(uiBundlesFolderPath: string, cwd: string): Promise<DiscoveredUiBundle[]> {
   try {
-    const entries = await readdir(webappsFolderPath, { withFileTypes: true });
+    const entries = await readdir(uiBundlesFolderPath, { withFileTypes: true });
 
-    // Get all subdirectories (each is a potential webapp)
-    const webappDirs = entries.filter((e) => e.isDirectory() && !shouldExcludeDirectory(e.name));
+    // Get all subdirectories (each is a potential uiBundle)
+    const uiBundleDirs = entries.filter((e) => e.isDirectory() && !shouldExcludeDirectory(e.name));
 
-    // Process each webapp directory in parallel
-    const webappPromises = webappDirs.map(async (entry): Promise<DiscoveredWebapp | null> => {
-      const webappPath = join(webappsFolderPath, entry.name);
+    // Process each uiBundle directory in parallel
+    const uiBundlePromises = uiBundleDirs.map(async (entry): Promise<DiscoveredUiBundle | null> => {
+      const uiBundlePath = join(uiBundlesFolderPath, entry.name);
 
-      // Check for .webapplication-meta.xml file - this identifies valid webapps
-      const metaXmlName = await findWebappMetaXml(webappPath);
+      // Check for .uibundle-meta.xml file - this identifies valid uiBundles
+      const metaXmlName = await findUiBundleMetaXml(uiBundlePath);
 
-      // Only include directories that have a .webapplication-meta.xml file
+      // Only include directories that have a .uibundle-meta.xml file
       if (!metaXmlName) {
         return null;
       }
 
-      const manifestFilePath = join(webappPath, 'webapplication.json');
+      const manifestFilePath = join(uiBundlePath, 'ui-bundle.json');
 
       // Try to load manifest for dev configuration
-      const manifest = await tryParseWebappManifest(manifestFilePath);
+      const manifest = await tryParseUiBundleManifest(manifestFilePath);
 
       return {
-        path: webappPath,
-        relativePath: relative(cwd, webappPath) || entry.name,
+        path: uiBundlePath,
+        relativePath: relative(cwd, uiBundlePath) || entry.name,
         manifest,
-        name: resolveWebappName(entry.name, metaXmlName),
+        name: resolveUiBundleName(entry.name, metaXmlName),
         hasManifest: manifest !== null,
         manifestPath: manifest ? manifestFilePath : null,
         hasMetaXml: true,
       };
     });
 
-    const results = await Promise.all(webappPromises);
+    const results = await Promise.all(uiBundlePromises);
 
-    // Filter out null results (directories without .webapplication-meta.xml)
-    return results.filter((webapp): webapp is DiscoveredWebapp => webapp !== null);
+    // Filter out null results (directories without .uibundle-meta.xml)
+    return results.filter((uiBundle): uiBundle is DiscoveredUiBundle => uiBundle !== null);
   } catch {
     // Permission denied or other read error
     return [];
@@ -319,234 +319,241 @@ async function discoverWebappsInFolder(webappsFolderPath: string, cwd: string): 
 }
 
 /**
- * Result of finding all webapps, includes context about current location
+ * Result of finding all uiBundles, includes context about current location
  */
-type FindAllWebappsResult = {
-  /** All discovered webapps */
-  webapps: DiscoveredWebapp[];
-  /** Name of webapp user is currently inside (folder name), null if not inside any */
-  currentWebappName: string | null;
-  /** Whether the webapplications folder was found (even if empty or no valid webapps) */
-  webappsFolderFound: boolean;
+type FindAllUiBundlesResult = {
+  /** All discovered uiBundles */
+  uiBundles: DiscoveredUiBundle[];
+  /** Name of uiBundle user is currently inside (folder name), null if not inside any */
+  currentUiBundleName: string | null;
+  /** Whether the uiBundles folder was found (even if empty or no valid uiBundles) */
+  uiBundlesFolderFound: boolean;
   /** Whether we're in an SFDX project context */
   inSfdxProject: boolean;
 };
 
 /**
- * Find all webapps using simplified discovery algorithm.
+ * Find all uiBundles using simplified discovery algorithm.
  *
  * Discovery strategy (in order):
- * 1. Check if inside a webapplications/<webapp> directory (upward search)
- * 2. Check for SFDX project and search webapplications in all package directories
- * 3. If neither, check if current directory is a webapp (has .webapplication-meta.xml)
+ * 1. Check if inside a uiBundles/<uiBundle> directory (upward search)
+ * 2. Check for SFDX project and search uiBundles in all package directories
+ * 3. If neither, check if current directory is a uiBundle (has .uibundle-meta.xml)
  *
  * @param cwd - Directory to search from (defaults to process.cwd())
- * @returns Object with discovered webapps and context information
+ * @returns Object with discovered uiBundles and context information
  */
-async function findAllWebapps(cwd: string = process.cwd()): Promise<FindAllWebappsResult> {
-  let webappsFolder: string | null = null;
-  let currentWebappName: string | null = null;
+async function findAllUiBundles(cwd: string = process.cwd()): Promise<FindAllUiBundlesResult> {
+  let uiBundlesFolder: string | null = null;
+  let currentUiBundleName: string | null = null;
   let inSfdxProject = false;
 
-  // Step 1: Check if we're inside a webapplications folder (upward search)
-  // This handles: running from webapplications/<webapp> or webapplications/<webapp>/src/
-  const upwardResult = findWebapplicationsFolderUpward(cwd);
+  // Step 1: Check if we're inside a uiBundles folder (upward search)
+  // This handles: running from uiBundles/<uiBundle> or uiBundles/<uiBundle>/src/
+  const upwardResult = findUiBundlesFolderUpward(cwd);
 
   if (upwardResult) {
-    webappsFolder = upwardResult.webappsFolder;
-    currentWebappName = upwardResult.currentWebappName;
+    uiBundlesFolder = upwardResult.uiBundlesFolder;
+    currentUiBundleName = upwardResult.currentUiBundleName;
   } else {
-    // Step 2: Check for SFDX project and search webapplications in all package directories
+    // Step 2: Check for SFDX project and search uiBundles in all package directories
     const projectRoot = await tryResolveSfdxProjectRoot(cwd);
 
     if (projectRoot) {
       inSfdxProject = true;
-      const webappsPaths = await getWebapplicationsPathsFromProject(projectRoot);
+      const uiBundlesPaths = await getUiBundlesPathsFromProject(projectRoot);
 
-      if (webappsPaths.length > 0) {
-        // Discover webapps from all package directories and combine
-        const webappArrays = await Promise.all(webappsPaths.map((path) => discoverWebappsInFolder(path, cwd)));
-        const allWebapps = webappArrays.flat();
+      if (uiBundlesPaths.length > 0) {
+        // Discover uiBundles from all package directories and combine
+        const uiBundleArrays = await Promise.all(uiBundlesPaths.map((path) => discoverUiBundlesInFolder(path, cwd)));
+        const allUiBundles = uiBundleArrays.flat();
 
         return {
-          webapps: allWebapps.sort((a, b) => a.name.localeCompare(b.name)),
-          currentWebappName: null,
-          webappsFolderFound: true,
+          uiBundles: allUiBundles.sort((a, b) => a.name.localeCompare(b.name)),
+          currentUiBundleName: null,
+          uiBundlesFolderFound: true,
           inSfdxProject,
         };
       }
     }
   }
 
-  // Step 3: If no webapplications folder found, check if current directory IS a webapp
-  // (has a .webapplication-meta.xml file) - for running outside SFDX project context
-  if (!webappsFolder) {
-    const metaXmlName = await findWebappMetaXml(cwd);
+  // Step 3: If no uiBundles folder found, check if current directory IS a uiBundle
+  // (has a .uibundle-meta.xml file) - for running outside SFDX project context
+  if (!uiBundlesFolder) {
+    const metaXmlName = await findUiBundleMetaXml(cwd);
     if (metaXmlName) {
-      // Current directory is a standalone webapp
-      const manifestFilePath = join(cwd, 'webapplication.json');
-      const manifest = await tryParseWebappManifest(manifestFilePath);
-      const webappName = resolveWebappName(basename(cwd), metaXmlName);
+      // Current directory is a standalone uiBundle
+      const manifestFilePath = join(cwd, 'ui-bundle.json');
+      const manifest = await tryParseUiBundleManifest(manifestFilePath);
+      const uiBundleName = resolveUiBundleName(basename(cwd), metaXmlName);
 
-      const standaloneWebapp: DiscoveredWebapp = {
+      const standaloneUiBundle: DiscoveredUiBundle = {
         path: cwd,
         relativePath: '.',
         manifest,
-        name: webappName,
+        name: uiBundleName,
         hasManifest: manifest !== null,
         manifestPath: manifest ? manifestFilePath : null,
         hasMetaXml: true,
       };
 
       return {
-        webapps: [standaloneWebapp],
-        currentWebappName: webappName,
-        webappsFolderFound: false,
+        uiBundles: [standaloneUiBundle],
+        currentUiBundleName: uiBundleName,
+        uiBundlesFolderFound: false,
         inSfdxProject: false,
       };
     }
 
-    // No webapp found anywhere
+    // No uiBundle found anywhere
     return {
-      webapps: [],
-      currentWebappName: null,
-      webappsFolderFound: false,
+      uiBundles: [],
+      currentUiBundleName: null,
+      uiBundlesFolderFound: false,
       inSfdxProject,
     };
   }
 
-  // Discover all webapps in the folder
-  const webapps = await discoverWebappsInFolder(webappsFolder, cwd);
+  // Discover all uiBundles in the folder
+  const uiBundles = await discoverUiBundlesInFolder(uiBundlesFolder, cwd);
 
   // Sort by name for consistent ordering
   return {
-    webapps: webapps.sort((a, b) => a.name.localeCompare(b.name)),
-    currentWebappName,
-    webappsFolderFound: true,
+    uiBundles: uiBundles.sort((a, b) => a.name.localeCompare(b.name)),
+    currentUiBundleName,
+    uiBundlesFolderFound: true,
     inSfdxProject,
   };
 }
 
 /**
- * Result of webapp discovery
+ * Result of uiBundle discovery
  */
-export type DiscoverWebappResult = {
-  /** The selected/discovered webapp (null if user needs to select via prompt) */
-  webapp: DiscoveredWebapp | null;
-  /** All discovered webapps */
-  allWebapps: DiscoveredWebapp[];
-  /** Whether the webapp was auto-selected because user is inside its folder */
+export type DiscoverUiBundleResult = {
+  /** The selected/discovered uiBundle (null if user needs to select via prompt) */
+  uiBundle: DiscoveredUiBundle | null;
+  /** All discovered uiBundles */
+  allUiBundles: DiscoveredUiBundle[];
+  /** Whether the uiBundle was auto-selected because user is inside its folder */
   autoSelected: boolean;
 };
 
 /**
- * Get a single webapp, handling the various discovery scenarios.
+ * Get a single uiBundle, handling the various discovery scenarios.
  *
  * Discovery use cases:
- * 1. SFDX Project Root: Search webapplications in all package directories
- * - Webapps identified by {name}.webapplication-meta.xml
- * - Always prompt for selection (even if only 1 webapp)
+ * 1. SFDX Project Root: Search uiBundles in all package directories
+ * - Webapps identified by {name}.uibundle-meta.xml
+ * - Always prompt for selection (even if only 1 uiBundle)
  *
- * 2. Inside webapplications/<webapp> directory:
- * - Auto-select current webapp
+ * 2. Inside uiBundles/<uiBundle> directory:
+ * - Auto-select current uiBundle
  * - Error if --name conflicts with current directory
  *
- * 3. Outside SFDX project with .webapplication-meta.xml in current dir:
- * - Use current directory as standalone webapp
+ * 3. Outside SFDX project with .uibundle-meta.xml in current dir:
+ * - Use current directory as standalone uiBundle
  *
- * @param name - Optional webapp name to search for (--name flag)
+ * @param name - Optional uiBundle name to search for (--name flag)
  * @param cwd - Directory to search from
- * @returns Object containing the discovered webapp, all webapps, and autoSelected flag
- * @throws SfError if no webapps found, named webapp not found, or --name conflicts with current dir
+ * @returns Object containing the discovered uiBundle, all uiBundles, and autoSelected flag
+ * @throws SfError if no uiBundles found, named uiBundle not found, or --name conflicts with current dir
  */
-export async function discoverWebapp(
+export async function discoverUiBundle(
   name: string | undefined,
   cwd: string = process.cwd()
-): Promise<DiscoverWebappResult> {
-  const { webapps: allWebapps, currentWebappName, webappsFolderFound, inSfdxProject } = await findAllWebapps(cwd);
+): Promise<DiscoverUiBundleResult> {
+  const {
+    uiBundles: allUiBundles,
+    currentUiBundleName,
+    uiBundlesFolderFound,
+    inSfdxProject,
+  } = await findAllUiBundles(cwd);
 
-  // No webapps found
-  if (allWebapps.length === 0) {
-    if (webappsFolderFound) {
-      // Folder exists but no valid webapps (no .webapplication-meta.xml files)
+  // No uiBundles found
+  if (allUiBundles.length === 0) {
+    if (uiBundlesFolderFound) {
+      // Folder exists but no valid uiBundles (no .uibundle-meta.xml files)
       throw new SfError(
-        'Found "webapplications" folder but no valid webapps inside it.\n' +
-          'Each webapp must have a {name}.webapplication-meta.xml file.\n\n' +
+        'Found "uiBundles" folder but no valid uiBundles inside it.\n' +
+          'Each uiBundle must have a {name}.uibundle-meta.xml file.\n\n' +
           'Expected structure:\n' +
-          '  webapplications/\n' +
-          '    └── my-app/\n' +
-          '        ├── my-app.webapplication-meta.xml  (required)\n' +
-          '        └── webapplication.json             (optional, for dev config)',
-        'WebappNotFoundError'
+          '  uiBundles/\n' +
+          '    └── myDashboard/\n' +
+          '        ├── myDashboard.uibundle-meta.xml  (required)\n' +
+          '        └── ui-bundle.json             (optional, for dev config)',
+        'UiBundleNotFoundError'
       );
     } else if (inSfdxProject) {
-      // In SFDX project but webapplications folder doesn't exist
+      // In SFDX project but uiBundles folder doesn't exist
       throw new SfError(
-        'No webapplications folder found in the SFDX project.\n\n' +
+        'No uiBundles folder found in the SFDX project.\n\n' +
           'Create the folder structure in any package directory (e.g. force-app, packages/my-pkg):\n' +
-          '  <package-path>/main/default/webapplications/\n' +
-          '    └── my-app/\n' +
-          '        ├── my-app.webapplication-meta.xml  (required)\n' +
-          '        └── webapplication.json             (optional, for dev config)',
-        'WebappNotFoundError'
+          '  <package-path>/main/default/uiBundles/\n' +
+          '    └── myDashboard/\n' +
+          '        ├── myDashboard.uibundle-meta.xml  (required)\n' +
+          '        └── ui-bundle.json             (optional, for dev config)',
+        'UiBundleNotFoundError'
       );
     } else {
-      // Not in SFDX project and no webapp found
+      // Not in SFDX project and no uiBundle found
       throw new SfError(
-        'No webapp found.\n\n' +
+        'No uiBundle found.\n\n' +
           'To use this command, either:\n' +
-          '1. Run from an SFDX project with webapps in <package>/main/default/webapplications/\n' +
-          '2. Run from inside a webapplications/<webapp>/ directory\n' +
-          '3. Run from a directory containing a {name}.webapplication-meta.xml file',
-        'WebappNotFoundError'
+          '1. Run from an SFDX project with uiBundles in <package>/main/default/uiBundles/\n' +
+          '2. Run from inside a uiBundles/<uiBundle>/ directory\n' +
+          '3. Run from a directory containing a {name}.uibundle-meta.xml file',
+        'UiBundleNotFoundError'
       );
     }
   }
 
   // Check for --name conflict with current directory
-  // If user is inside webapp A but specifies --name B, that's an error
-  if (name && currentWebappName) {
-    const currentWebapp = allWebapps.find(
-      (w) => w.name === currentWebappName || basename(w.path) === currentWebappName
+  // If user is inside uiBundle A but specifies --name B, that's an error
+  if (name && currentUiBundleName) {
+    const currentUiBundle = allUiBundles.find(
+      (w) => w.name === currentUiBundleName || basename(w.path) === currentUiBundleName
     );
-    if (currentWebapp && currentWebapp.name !== name && basename(currentWebapp.path) !== name) {
+    if (currentUiBundle && currentUiBundle.name !== name && basename(currentUiBundle.path) !== name) {
       throw new SfError(
-        `You are inside the "${currentWebappName}" webapp directory but specified --name "${name}".\n\n` +
+        `You are inside the "${currentUiBundleName}" uiBundle directory but specified --name "${name}".\n\n` +
           'Either:\n' +
-          `  - Remove the --name flag to use the current webapp ("${currentWebappName}")\n` +
-          `  - Navigate to the "${name}" webapp directory and run the command from there\n` +
+          `  - Remove the --name flag to use the current uiBundle ("${currentUiBundleName}")\n` +
+          `  - Navigate to the "${name}" uiBundle directory and run the command from there\n` +
           '  - Run the command from the project root to use --name',
-        'WebappNameConflictError'
+        'UiBundleNameConflictError'
       );
     }
   }
 
-  // Priority 1: If --name flag provided, find that specific webapp
+  // Priority 1: If --name flag provided, find that specific uiBundle
   if (name) {
-    const webapp = allWebapps.find((w) => w.name === name || basename(w.path) === name);
-    if (!webapp) {
+    const uiBundle = allUiBundles.find((w) => w.name === name || basename(w.path) === name);
+    if (!uiBundle) {
       const WARNING = '\u26A0\uFE0F'; // ⚠️
 
-      const availableNames = allWebapps
+      const availableNames = allUiBundles
         .map((w) => `  - ${w.name} (${w.relativePath})${w.hasManifest ? '' : ` ${WARNING} No dev manifest`}`)
         .join('\n');
       throw new SfError(
-        `No webapp found with name "${name}".\n\nAvailable webapps:\n${availableNames}`,
-        'WebappNameNotFoundError'
+        `No uiBundle found with name "${name}".\n\nAvailable uiBundles:\n${availableNames}`,
+        'UiBundleNameNotFoundError'
       );
     }
-    return { webapp, allWebapps, autoSelected: false };
+    return { uiBundle, allUiBundles, autoSelected: false };
   }
 
-  // Priority 2: If user is inside a webapp folder, auto-select that webapp
-  if (currentWebappName) {
-    const webapp = allWebapps.find((w) => w.name === currentWebappName || basename(w.path) === currentWebappName);
-    if (webapp) {
-      return { webapp, allWebapps, autoSelected: true };
+  // Priority 2: If user is inside a uiBundle folder, auto-select that uiBundle
+  if (currentUiBundleName) {
+    const uiBundle = allUiBundles.find(
+      (w) => w.name === currentUiBundleName || basename(w.path) === currentUiBundleName
+    );
+    if (uiBundle) {
+      return { uiBundle, allUiBundles, autoSelected: true };
     }
   }
 
   // No auto-selection - always prompt user to select
-  // (Removed: auto-selection of single webapp - reviewer wants prompt even for 1 webapp)
-  return { webapp: null, allWebapps, autoSelected: false };
+  // (Removed: auto-selection of single uiBundle - reviewer wants prompt even for 1 uiBundle)
+  return { uiBundle: null, allUiBundles, autoSelected: false };
 }

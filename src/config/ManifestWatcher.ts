@@ -19,7 +19,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { watch, type FSWatcher } from 'chokidar';
 import { SfError } from '@salesforce/core';
-import type { WebAppManifest } from './manifest.js';
+import type { UiBundleManifest } from './manifest.js';
 
 /**
  * Manifest change event type
@@ -30,7 +30,7 @@ export type ManifestChangeEvent = {
   /** Path to the manifest file */
   path: string;
   /** New manifest data (if added or changed) */
-  manifest?: WebAppManifest;
+  manifest?: UiBundleManifest;
 };
 
 /**
@@ -38,8 +38,8 @@ export type ManifestChangeEvent = {
  */
 type ManifestWatcherOptions = {
   /**
-   * Path to the webapplication.json manifest file
-   * Defaults to webapplication.json in the current working directory
+   * Path to the ui-bundle.json manifest file
+   * Defaults to ui-bundle.json in the current working directory
    */
   manifestPath?: string;
 
@@ -62,14 +62,14 @@ type ManifestWatcherOptions = {
 type ManifestWatcherEvents = {
   change: (event: ManifestChangeEvent) => void;
   error: (error: SfError) => void;
-  ready: (manifest: WebAppManifest) => void;
+  ready: (manifest: UiBundleManifest) => void;
 };
 
 /**
- * ManifestWatcher loads and monitors the webapplication.json manifest file
+ * ManifestWatcher loads and monitors the ui-bundle.json manifest file
  *
  * Features:
- * - Loads webapplication.json from project root
+ * - Loads ui-bundle.json from project root
  * - Watches for file changes and emits events
  * - Provides helpful error messages
  * - Supports hot-reload without restarting the proxy
@@ -78,7 +78,7 @@ type ManifestWatcherEvents = {
 export class ManifestWatcher extends EventEmitter {
   // 1. Instance fields
   private options: Required<ManifestWatcherOptions>;
-  private manifest: WebAppManifest | null = null;
+  private manifest: UiBundleManifest | null = null;
   private watcher: FSWatcher | null = null;
   private debounceTimeout: NodeJS.Timeout | null = null;
 
@@ -87,7 +87,7 @@ export class ManifestWatcher extends EventEmitter {
     super();
 
     this.options = {
-      manifestPath: options.manifestPath ?? join(process.cwd(), 'webapplication.json'),
+      manifestPath: options.manifestPath ?? join(process.cwd(), 'ui-bundle.json'),
       watch: options.watch ?? true,
       debounceMs: options.debounceMs ?? 300,
     };
@@ -117,7 +117,7 @@ export class ManifestWatcher extends EventEmitter {
    *
    * @returns The loaded manifest, or null if not yet loaded
    */
-  public getManifest(): WebAppManifest | null {
+  public getManifest(): UiBundleManifest | null {
     return this.manifest;
   }
 
@@ -175,8 +175,8 @@ export class ManifestWatcher extends EventEmitter {
         });
         this.emit(
           'error',
-          new SfError('webapplication.json was deleted', 'ManifestRemovedError', [
-            'Recreate the webapplication.json file to continue',
+          new SfError('ui-bundle.json was deleted', 'ManifestRemovedError', [
+            'Recreate the ui-bundle.json file to continue',
           ])
         );
       } else {
@@ -208,10 +208,10 @@ export class ManifestWatcher extends EventEmitter {
   private loadManifest(): void {
     // Check if file exists
     if (!existsSync(this.options.manifestPath)) {
-      throw new SfError(`webapplication.json not found at ${this.options.manifestPath}`, 'ManifestNotFoundError', [
+      throw new SfError(`ui-bundle.json not found at ${this.options.manifestPath}`, 'ManifestNotFoundError', [
         'Make sure you are in the correct directory',
-        'Create a webapplication.json file in your project root',
-        'Check that the file is named exactly "webapplication.json"',
+        'Create a ui-bundle.json file in your project root',
+        'Check that the file is named exactly "ui-bundle.json"',
       ]);
     }
 
@@ -221,18 +221,18 @@ export class ManifestWatcher extends EventEmitter {
       rawContent = readFileSync(this.options.manifestPath, 'utf-8');
     } catch (error) {
       throw new SfError(
-        `Failed to read webapplication.json: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to read ui-bundle.json: ${error instanceof Error ? error.message : String(error)}`,
         'ManifestReadError',
         ['Check file permissions', 'Ensure the file is not locked by another process']
       );
     }
 
     // Parse JSON
-    let parsed: WebAppManifest;
+    let parsed: UiBundleManifest;
     try {
-      parsed = JSON.parse(rawContent) as WebAppManifest;
+      parsed = JSON.parse(rawContent) as UiBundleManifest;
     } catch (error) {
-      throw new SfError(`Invalid JSON in webapplication.json: ${(error as Error).message}`, 'ManifestParseError', [
+      throw new SfError(`Invalid JSON in ui-bundle.json: ${(error as Error).message}`, 'ManifestParseError', [
         'Check for missing commas or brackets',
         'Validate JSON syntax using a JSON validator',
         'Common issues: trailing commas, unquoted keys, single quotes instead of double quotes',
@@ -272,7 +272,7 @@ export class ManifestWatcher extends EventEmitter {
       this.emit(
         'error',
         new SfError(`File watcher error: ${error.message}`, 'ManifestWatcherError', [
-          'The webapplication.json file watcher encountered an error',
+          'The ui-bundle.json file watcher encountered an error',
           'You may need to restart the command',
         ])
       );

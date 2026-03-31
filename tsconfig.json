@@ -3,7 +3,9 @@
   "compilerOptions": {
     "outDir": "lib",
     "rootDir": "src",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "module": "Preserve",
+    "moduleResolution": "Bundler"
   },
   "include": ["./src/**/*.ts"]
 }

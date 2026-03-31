@@ -20,14 +20,14 @@ import { expect } from 'chai';
 import { SfError } from '@salesforce/core';
 import { TestContext } from '@salesforce/core/testSetup';
 import { ManifestWatcher } from '../../src/config/ManifestWatcher.js';
-import type { WebAppManifest, ManifestChangeEvent } from '../../src/config/types.js';
+import type { UiBundleManifest, ManifestChangeEvent } from '../../src/config/types.js';
 
 describe('ManifestWatcher', () => {
   const $$ = new TestContext();
   const testDir = join(process.cwd(), '.test-manifests');
-  const testManifestPath = join(testDir, 'webapplication.json');
+  const testManifestPath = join(testDir, 'ui-bundle.json');
 
-  const validManifest: WebAppManifest = {
+  const validManifest: UiBundleManifest = {
     name: 'testApp',
     outputDir: 'dist',
     dev: {
@@ -69,7 +69,7 @@ describe('ManifestWatcher', () => {
 
       const watcher = new ManifestWatcher({ manifestPath: testManifestPath, watch: false });
 
-      let readyManifest: WebAppManifest | null = null;
+      let readyManifest: UiBundleManifest | null = null;
       watcher.on('ready', (manifest) => {
         readyManifest = manifest;
       });
@@ -90,7 +90,7 @@ describe('ManifestWatcher', () => {
       } catch (error) {
         expect(error).to.be.instanceOf(SfError);
         expect((error as SfError).name).to.equal('ManifestNotFoundError');
-        expect((error as SfError).message).to.include('webapplication.json not found');
+        expect((error as SfError).message).to.include('ui-bundle.json not found');
         expect((error as SfError).actions).to.exist;
       }
 
@@ -125,7 +125,7 @@ describe('ManifestWatcher', () => {
 
     it('should handle read permission errors', async () => {
       // Create a file path that doesn't exist to simulate read error
-      const invalidPath = join(testDir, 'nonexistent', 'webapplication.json');
+      const invalidPath = join(testDir, 'nonexistent', 'ui-bundle.json');
 
       const watcher = new ManifestWatcher({ manifestPath: invalidPath, watch: false });
 
@@ -431,8 +431,8 @@ describe('ManifestWatcher', () => {
   });
 
   describe('Default Options', () => {
-    it('should use webapplication.json in current directory by default', async () => {
-      const defaultPath = join(process.cwd(), 'webapplication.json');
+    it('should use ui-bundle.json in current directory by default', async () => {
+      const defaultPath = join(process.cwd(), 'ui-bundle.json');
 
       // Create manifest in current directory
       writeFileSync(defaultPath, JSON.stringify(validManifest, null, 2));
