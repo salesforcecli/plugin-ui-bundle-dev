@@ -29,7 +29,7 @@ import { createServer, type Server } from 'node:net';
  * parallelism is enabled later, overlapping ranges would cause EADDRINUSE.
  */
 
-/** Mocha suite-level timeout for describe blocks that spawn webapp dev. */
+/** Mocha suite-level timeout for describe blocks that spawn ui-bundle dev. */
 export const SUITE_TIMEOUT = 180_000;
 
 /** Timeout for spawnUiBundleDev when the command is expected to start successfully. */
@@ -178,8 +178,8 @@ export function startTestHttpServer(port: number): Promise<HttpServer> {
 
 /**
  * Start an HTTP server that mimics a Vite dev server with the
- * WebAppProxyHandler plugin active. Responds to health check requests
- * (`?sfProxyHealthCheck=true`) with `X-Salesforce-UiBundle-Proxy: true`.
+ * UIBundleProxyHandler plugin active. Responds to health check requests
+ * (`?sfProxyHealthCheck=true`) with `X-Salesforce-UIBundle-Proxy: true`.
  */
 export function startViteProxyServer(port: number): Promise<HttpServer> {
   return new Promise((resolve, reject) => {

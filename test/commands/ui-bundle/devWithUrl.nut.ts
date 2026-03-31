@@ -23,7 +23,7 @@ import {
   writeManifest,
   ensureSfCli,
   authOrgViaUrl,
-} from './helpers/webappProjectUtils.js';
+} from './helpers/uiBundleProjectUtils.js';
 import {
   spawnUiBundleDev,
   startTestHttpServer,

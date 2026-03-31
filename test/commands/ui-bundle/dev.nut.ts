@@ -30,7 +30,7 @@ import {
   ensureSfCli,
   authOrgViaUrl,
   REAL_HOME,
-} from './helpers/webappProjectUtils.js';
+} from './helpers/uiBundleProjectUtils.js';
 
 /* ------------------------------------------------------------------ *
  *  Tier 1 — No Auth                                                   *

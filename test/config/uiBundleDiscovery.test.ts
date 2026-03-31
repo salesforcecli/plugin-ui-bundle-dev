@@ -18,9 +18,9 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect } from 'chai';
 import { SfError, SfProject } from '@salesforce/core';
-import { DEFAULT_DEV_COMMAND, discoverUiBundle, UI_BUNDLES_FOLDER } from '../../src/config/webappDiscovery.js';
+import { DEFAULT_DEV_COMMAND, discoverUiBundle, UI_BUNDLES_FOLDER } from '../../src/config/uiBundleDiscovery.js';
 
-describe('webappDiscovery', () => {
+describe('uiBundleDiscovery', () => {
   const testDir = join(process.cwd(), '.test-uiBundle-discovery');
 
   // Standard SFDX uiBundles path

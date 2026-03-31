@@ -17,7 +17,7 @@
 import type { Server } from 'node:net';
 import { TestSession } from '@salesforce/cli-plugins-testkit';
 import { expect } from 'chai';
-import { createProjectWithDevServer, ensureSfCli, authOrgViaUrl } from './helpers/webappProjectUtils.js';
+import { createProjectWithDevServer, ensureSfCli, authOrgViaUrl } from './helpers/uiBundleProjectUtils.js';
 import {
   occupyPort,
   spawnUiBundleDev,
