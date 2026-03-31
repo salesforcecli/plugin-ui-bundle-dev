@@ -1,7 +1,7 @@
 {
   "name": "@salesforce/plugin-ui-bundle-dev",
   "description": "A CLI plugin for building UI that integrates with Salesforce",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "author": "Salesforce",
   "bugs": "https://github.com/forcedotcom/cli/issues",
   "dependencies": {
