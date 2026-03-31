@@ -23,7 +23,7 @@ import type { UiBundleManifest } from '../../config/manifest.js';
 import { ManifestWatcher } from '../../config/ManifestWatcher.js';
 import { DevServerManager } from '../../server/DevServerManager.js';
 import { ProxyServer } from '../../proxy/ProxyServer.js';
-import { discoverUiBundle, DEFAULT_DEV_COMMAND, type DiscoveredUiBundle } from '../../config/webappDiscovery.js';
+import { discoverUiBundle, DEFAULT_DEV_COMMAND, type DiscoveredUiBundle } from '../../config/uiBundleDiscovery.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@salesforce/plugin-ui-bundle-dev', 'ui-bundle.dev');
@@ -160,7 +160,7 @@ export default class UiBundleDev extends SfCommand<UiBundleDevResult> {
         method: 'GET',
         signal: AbortSignal.timeout(3000), // 3 second timeout
       });
-      return response.headers.get('X-Salesforce-UiBundle-Proxy') === 'true';
+      return response.headers.get('X-Salesforce-UIBundle-Proxy') === 'true';
     } catch {
       // Health check failed - Vite proxy not active
       return false;

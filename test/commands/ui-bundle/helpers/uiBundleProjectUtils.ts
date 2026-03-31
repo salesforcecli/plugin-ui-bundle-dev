@@ -19,7 +19,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { TestSession } from '@salesforce/cli-plugins-testkit';
-import { UI_BUNDLES_FOLDER } from '../../../../src/config/webappDiscovery.js';
+import { UI_BUNDLES_FOLDER } from '../../../../src/config/uiBundleDiscovery.js';
 
 /**
  * Real home directory captured at module load, before TestSession overrides process.env.HOME.
@@ -118,10 +118,10 @@ export function createProjectWithUiBundle(session: TestSession, projectName: str
 export function createProjectWithMultipleUiBundles(
   session: TestSession,
   projectName: string,
-  webAppNames: string[]
+  uiBundleNames: string[]
 ): string {
   const projectDir = createProject(session, projectName);
-  for (const name of webAppNames) {
+  for (const name of uiBundleNames) {
     execSync(`sf ui-bundle generate --name ${name}`, {
       cwd: projectDir,
       stdio: 'pipe',

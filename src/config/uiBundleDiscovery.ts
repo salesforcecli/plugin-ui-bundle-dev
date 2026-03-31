@@ -30,12 +30,12 @@ export const DEFAULT_DEV_COMMAND = 'npm run dev';
  * Standard metadata path segment for uiBundles (relative to package directory).
  * Consistent with other metadata types: packagePath/main/default/uiBundles
  */
-const WEBAPPLICATIONS_RELATIVE_PATH = 'main/default/uiBundles';
+const UI_BUNDLES_RELATIVE_PATH = 'main/default/uiBundles';
 
 /**
  * Pattern to match uibundle metadata XML files
  */
-const WEBAPP_META_XML_PATTERN = /^(.+)\.uibundle-meta\.xml$/;
+const UIBUNDLE_META_XML_PATTERN = /^(.+)\.uibundle-meta\.xml$/;
 
 /**
  * Discovered uiBundle with its directory path and optional manifest
@@ -47,7 +47,7 @@ export type DiscoveredUiBundle = {
   relativePath: string;
   /** Parsed manifest content (null if no ui-bundle.json found) */
   manifest: UiBundleManifest | null;
-  /** Webapp name (from .uibundle-meta.xml or folder name) */
+  /** uiBundle name (from .uibundle-meta.xml or folder name) */
   name: string;
   /** Whether this uiBundle has a ui-bundle.json manifest file */
   hasManifest: boolean;
@@ -91,7 +91,7 @@ async function findUiBundleMetaXml(dirPath: string): Promise<string | null> {
     const matches: string[] = [];
 
     for (const entry of entries) {
-      const match = WEBAPP_META_XML_PATTERN.exec(entry);
+      const match = UIBUNDLE_META_XML_PATTERN.exec(entry);
       if (match) {
         matches.push(match[1]);
       }
@@ -187,7 +187,7 @@ async function getUiBundlesPathsFromProject(projectRoot: string): Promise<string
 
     const existenceChecks = await Promise.all(
       packageDirs.map(async (pkg) => {
-        const uiBundlesPath = join(projectRoot, pkg.path, WEBAPPLICATIONS_RELATIVE_PATH);
+        const uiBundlesPath = join(projectRoot, pkg.path, UI_BUNDLES_RELATIVE_PATH);
         return (await pathExists(uiBundlesPath)) ? uiBundlesPath : null;
       })
     );
@@ -444,7 +444,7 @@ export type DiscoverUiBundleResult = {
  *
  * Discovery use cases:
  * 1. SFDX Project Root: Search uiBundles in all package directories
- * - Webapps identified by {name}.uibundle-meta.xml
+ * - uiBundles identified by {name}.uibundle-meta.xml
  * - Always prompt for selection (even if only 1 uiBundle)
  *
  * 2. Inside uiBundles/<uiBundle> directory:
