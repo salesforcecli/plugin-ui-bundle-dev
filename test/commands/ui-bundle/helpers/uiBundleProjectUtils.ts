@@ -23,7 +23,7 @@ import { UI_BUNDLES_FOLDER } from '../../../../src/config/uiBundleDiscovery.js';
 
 /**
  * Real home directory captured at module load, before TestSession overrides process.env.HOME.
- * Used when running `sf ui-bundle generate` so the CLI finds linked plugin-templates
+ * Used when running `sf template generate ui-bundle` so the CLI finds linked plugin-templates
  * (TestSession sets HOME to a temp dir, which hides linked plugins).
  */
 export const REAL_HOME = homedir();
@@ -98,12 +98,12 @@ export function createProject(session: TestSession, name: string): string {
 }
 
 /**
- * Run `sf project generate` then `sf ui-bundle generate --name <uiBundleName>` inside
+ * Run `sf project generate` then `sf template generate ui-bundle --name <uiBundleName>` inside
  * the project. Returns the absolute path to the generated project root.
  */
 export function createProjectWithUiBundle(session: TestSession, projectName: string, uiBundleName: string): string {
   const projectDir = createProject(session, projectName);
-  execSync(`sf ui-bundle generate --name ${uiBundleName}`, {
+  execSync(`sf template generate ui-bundle --name ${uiBundleName}`, {
     cwd: projectDir,
     stdio: 'pipe',
     env: { ...process.env, HOME: REAL_HOME, USERPROFILE: REAL_HOME },
@@ -122,7 +122,7 @@ export function createProjectWithMultipleUiBundles(
 ): string {
   const projectDir = createProject(session, projectName);
   for (const name of uiBundleNames) {
-    execSync(`sf ui-bundle generate --name ${name}`, {
+    execSync(`sf template generate ui-bundle --name ${name}`, {
       cwd: projectDir,
       stdio: 'pipe',
       env: { ...process.env, HOME: REAL_HOME, USERPROFILE: REAL_HOME },

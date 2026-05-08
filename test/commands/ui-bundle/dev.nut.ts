@@ -121,7 +121,7 @@ describe('ui-bundle dev NUTs — Tier 2 CLI validation', () => {
   // Discovery treats this as ambiguous intent and rejects it.
   it('should error on --name conflict when inside a different uiBundle', () => {
     const projectDir = createProjectWithUiBundle(session, 'nameConflict', 'appA');
-    execSync('sf ui-bundle generate --name appB', {
+    execSync('sf template generate ui-bundle --name appB', {
       cwd: projectDir,
       stdio: 'pipe',
       env: { ...process.env, HOME: REAL_HOME, USERPROFILE: REAL_HOME },
