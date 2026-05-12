@@ -16,17 +16,14 @@
 
 import { execSync } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { TestSession } from '@salesforce/cli-plugins-testkit';
 import { UI_BUNDLES_FOLDER } from '../../../../src/config/uiBundleDiscovery.js';
 
-/**
- * Real home directory captured at module load, before TestSession overrides process.env.HOME.
- * Used when running `sf ui-bundle generate` so the CLI finds linked plugin-templates
- * (TestSession sets HOME to a temp dir, which hides linked plugins).
- */
-export const REAL_HOME = homedir();
+const DEFAULT_SFDX_PROJECT = {
+  packageDirectories: [{ path: 'force-app', default: true }],
+};
 
 /**
  * Relative path from project root to the uiBundles folder.
@@ -42,22 +39,6 @@ export function uiBundlePath(projectDir: string, uiBundleName?: string): string 
 }
 
 /**
- * Verify the global `sf` CLI is available and has the required commands.
- * Must be called after TestSession.create() since the session sets a valid HOME.
- */
-export function ensureSfCli(): void {
-  try {
-    execSync('sf project generate --help', { stdio: 'pipe', timeout: 30_000 });
-  } catch {
-    throw new Error(
-      'Global sf CLI with plugin-templates not found.\n' +
-        'Install: npm install @salesforce/cli -g\n' +
-        'CI installs @salesforce/cli@nightly via nut.yml.'
-    );
-  }
-}
-
-/**
  * Authenticate an org via TESTKIT_AUTH_URL without requiring DevHub.
  * Returns the authenticated username.
  *
@@ -70,7 +51,6 @@ export function authOrgViaUrl(): string {
     throw new Error('TESTKIT_AUTH_URL environment variable is not set.');
   }
 
-  // Use --sfdx-url-file for cross-platform reliability
   const tmpFile = join(tmpdir(), `testkit-auth-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`);
   try {
     writeFileSync(tmpFile, authUrl, 'utf8');
@@ -86,28 +66,32 @@ export function authOrgViaUrl(): string {
 }
 
 /**
- * Run `sf project generate --name <name>` inside the session directory.
- * Returns the absolute path to the generated project root.
+ * Create a minimal SFDX project directory with sfdx-project.json.
+ * Returns the absolute path to the project root.
  */
 export function createProject(session: TestSession, name: string): string {
-  execSync(`sf project generate --name ${name}`, {
-    cwd: session.dir,
-    stdio: 'pipe',
-  });
-  return join(session.dir, name);
+  const projectDir = join(session.dir, name);
+  mkdirSync(projectDir, { recursive: true });
+  writeFileSync(join(projectDir, 'sfdx-project.json'), JSON.stringify(DEFAULT_SFDX_PROJECT, null, 2));
+  return projectDir;
 }
 
 /**
- * Run `sf project generate` then `sf ui-bundle generate --name <uiBundleName>` inside
- * the project. Returns the absolute path to the generated project root.
+ * Create a uiBundle directory with the required .uibundle-meta.xml file.
+ */
+export function createUiBundle(projectDir: string, name: string): void {
+  const dir = uiBundlePath(projectDir, name);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, `${name}.uibundle-meta.xml`), '<UiBundle/>');
+}
+
+/**
+ * Create a uiBundle directory with the required .uibundle-meta.xml file inside
+ * a project. Returns the absolute path to the project root.
  */
 export function createProjectWithUiBundle(session: TestSession, projectName: string, uiBundleName: string): string {
   const projectDir = createProject(session, projectName);
-  execSync(`sf ui-bundle generate --name ${uiBundleName}`, {
-    cwd: projectDir,
-    stdio: 'pipe',
-    env: { ...process.env, HOME: REAL_HOME, USERPROFILE: REAL_HOME },
-  });
+  createUiBundle(projectDir, uiBundleName);
   return projectDir;
 }
 
@@ -122,11 +106,7 @@ export function createProjectWithMultipleUiBundles(
 ): string {
   const projectDir = createProject(session, projectName);
   for (const name of uiBundleNames) {
-    execSync(`sf ui-bundle generate --name ${name}`, {
-      cwd: projectDir,
-      stdio: 'pipe',
-      env: { ...process.env, HOME: REAL_HOME, USERPROFILE: REAL_HOME },
-    });
+    createUiBundle(projectDir, name);
   }
   return projectDir;
 }
@@ -160,7 +140,7 @@ export function writeManifest(projectDir: string, uiBundleName: string, manifest
  *
  * The script is CommonJS (.cjs) to avoid ESM/shell quoting issues.
  */
-export function createDevServerScript(uiBundleDir: string, port: number): string {
+function createDevServerScript(uiBundleDir: string, port: number): string {
   const script = [
     "const http = require('http');",
     'const server = http.createServer((_, res) => {',
