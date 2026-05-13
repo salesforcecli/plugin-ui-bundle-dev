@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { execSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { execCmd, TestSession } from '@salesforce/cli-plugins-testkit';
@@ -25,11 +24,10 @@ import {
   createProjectWithMultipleUiBundles,
   createEmptyUiBundlesDir,
   createUiBundleDirWithoutMeta,
+  createUiBundle,
   writeManifest,
   uiBundlePath,
-  ensureSfCli,
   authOrgViaUrl,
-  REAL_HOME,
 } from './helpers/uiBundleProjectUtils.js';
 
 /* ------------------------------------------------------------------ *
@@ -83,7 +81,6 @@ describe('ui-bundle dev NUTs — Tier 2 CLI validation', () => {
     }
 
     session = await TestSession.create({ devhubAuthStrategy: 'NONE' });
-    ensureSfCli();
     targetOrg = authOrgViaUrl();
   });
 
@@ -121,11 +118,7 @@ describe('ui-bundle dev NUTs — Tier 2 CLI validation', () => {
   // Discovery treats this as ambiguous intent and rejects it.
   it('should error on --name conflict when inside a different uiBundle', () => {
     const projectDir = createProjectWithUiBundle(session, 'nameConflict', 'appA');
-    execSync('sf ui-bundle generate --name appB', {
-      cwd: projectDir,
-      stdio: 'pipe',
-      env: { ...process.env, HOME: REAL_HOME, USERPROFILE: REAL_HOME },
-    });
+    createUiBundle(projectDir, 'appB');
 
     const cwdInsideAppA = uiBundlePath(projectDir, 'appA');
 

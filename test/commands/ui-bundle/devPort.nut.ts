@@ -17,7 +17,7 @@
 import type { Server } from 'node:net';
 import { TestSession } from '@salesforce/cli-plugins-testkit';
 import { expect } from 'chai';
-import { createProjectWithDevServer, ensureSfCli, authOrgViaUrl } from './helpers/uiBundleProjectUtils.js';
+import { createProjectWithDevServer, authOrgViaUrl } from './helpers/uiBundleProjectUtils.js';
 import {
   occupyPort,
   spawnUiBundleDev,
@@ -58,7 +58,6 @@ describe('ui-bundle dev NUTs — Tier 2 port handling', function () {
     }
 
     session = await TestSession.create({ devhubAuthStrategy: 'NONE' });
-    ensureSfCli();
     targetOrg = authOrgViaUrl();
   });
 
