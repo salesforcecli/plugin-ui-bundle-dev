@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { randomUUID } from 'node:crypto';
 import open from 'open';
 import select from '@inquirer/select';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
@@ -103,44 +104,61 @@ export default class UiBundleDev extends SfCommand<UiBundleDevResult> {
   }
 
   /**
-   * Check if a URL is reachable (returns true/false)
-   * Used to check if --url is already available before starting dev server
+   * Check the port status: is it available, or is a server already running there?
+   * If a server is running, verify its identity via the health check token.
+   *
+   * @returns 'available' if no server is running, 'verified' if the running server's
+   * token matches ours, 'unverified' if a server is running but cannot be confirmed.
    */
-  private static async isUrlReachable(url: string): Promise<boolean> {
+  private static async checkPortStatus(url: string): Promise<'available' | 'verified' | 'unverified'> {
+    const expectedToken = process.env.SF_LIVE_PREVIEW_TOKEN;
+
     try {
-      const response = await fetch(url, {
-        method: 'HEAD',
-        signal: AbortSignal.timeout(3000), // 3 second timeout
+      const healthUrl = new URL(url);
+      healthUrl.searchParams.set('sfProxyHealthCheck', 'true');
+      const response = await fetch(healthUrl.toString(), {
+        method: 'GET',
+        signal: AbortSignal.timeout(3000),
       });
-      return response.ok;
+      if (!response.ok || !expectedToken) return 'unverified';
+      const token = response.headers.get('X-Live-Preview-Token');
+      return token === expectedToken ? 'verified' : 'unverified';
     } catch {
-      return false;
+      return 'available';
     }
   }
 
   /**
-   * Poll a URL until it is reachable or timeout.
+   * Poll a URL until our verified server is detected, or abort if a foreign server appears.
+   * Uses checkPortStatus on each iteration so every poll verifies identity via the
+   * X-Live-Preview-Token header — no race window between "is it up?" and "is it ours?".
    *
-   * @param url - URL to poll (HEAD request)
+   * @param url - URL to poll
    * @param timeoutMs - Max time to wait
    * @param intervalMs - Poll interval
    * @param start - Start timestamp (for recursion)
-   * @returns true if reachable within timeout
+   * @returns true if verified within timeout, false on timeout
+   * @throws SfError with name 'PortSquattingAbort' if a foreign server is detected
    */
-  private static async pollUntilReachable(
+  private static async pollUntilVerified(
     url: string,
     timeoutMs: number,
     intervalMs = 500,
     start = Date.now()
   ): Promise<boolean> {
-    if (await UiBundleDev.isUrlReachable(url)) {
-      return true;
-    }
+    const status = await UiBundleDev.checkPortStatus(url);
+    if (status === 'verified') return true;
+    // 'available' — server not up yet, keep polling
+    // 'unverified' — server may still be initializing (proxy plugin not ready), keep polling
     if (Date.now() - start >= timeoutMs) {
+      if (status === 'unverified') {
+        process.stderr.write(JSON.stringify({ error: 'PortSquattingAbort', port: url }) + '\n');
+        throw new SfError('Aborted: unverified server on port.', 'PortSquattingAbort');
+      }
       return false;
     }
     await new Promise((r) => setTimeout(r, intervalMs));
-    return UiBundleDev.pollUntilReachable(url, timeoutMs, intervalMs, start);
+    return UiBundleDev.pollUntilVerified(url, timeoutMs, intervalMs, start);
   }
 
   /**
@@ -174,6 +192,11 @@ export default class UiBundleDev extends SfCommand<UiBundleDevResult> {
     // Initialize logger from @salesforce/core for debug logging
     // Logger respects SF_LOG_LEVEL environment variable
     this.logger = await Logger.child('UiBundleDev');
+
+    // Ensure a live preview token exists — self-generate if the extension didn't provide one
+    if (!process.env.SF_LIVE_PREVIEW_TOKEN) {
+      process.env.SF_LIVE_PREVIEW_TOKEN = randomUUID();
+    }
 
     // Declare variables outside try block for catch block access
     let manifest: UiBundleManifest | null = null;
@@ -282,12 +305,15 @@ export default class UiBundleDev extends SfCommand<UiBundleDevResult> {
         );
       }
 
-      // Check if URL is already reachable
-      const isReachable = await UiBundleDev.isUrlReachable(resolvedUrl);
-      if (isReachable) {
+      // Check port status: available, verified (our server), or unverified (foreign)
+      const portStatus = await UiBundleDev.checkPortStatus(resolvedUrl);
+      if (portStatus === 'verified') {
         devServerUrl = resolvedUrl;
         this.log(messages.getMessage('info.url-already-available', [resolvedUrl]));
-        this.logger.debug(`URL ${resolvedUrl} is reachable, skipping dev server startup`);
+        this.logger.debug(`URL ${resolvedUrl} is verified as our server, skipping dev server startup`);
+      } else if (portStatus === 'unverified') {
+        process.stderr.write(JSON.stringify({ error: 'PortSquattingAbort', port: resolvedUrl }) + '\n');
+        throw new SfError('Aborted: unverified server on port.', 'PortSquattingAbort');
       } else if (flags.url) {
         // User explicitly passed --url; assume server is already running at that URL
         // Fail immediately if unreachable (don't start dev server)
@@ -343,8 +369,8 @@ export default class UiBundleDev extends SfCommand<UiBundleDevResult> {
 
         this.devServerManager.start();
 
-        // Poll until URL is reachable, or fail immediately on process error
-        const pollPromise = UiBundleDev.pollUntilReachable(resolvedUrl, 60_000);
+        // Poll until our server is verified, or fail on process error / port squatting
+        const pollPromise = UiBundleDev.pollUntilVerified(resolvedUrl, 60_000);
         const errorPromise = new Promise<boolean>((_, reject) => {
           this.devServerManager!.once('error', (error: SfError | DevServerError) => {
             const devError =
