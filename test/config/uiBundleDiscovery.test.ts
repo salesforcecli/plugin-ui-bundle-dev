@@ -87,8 +87,8 @@ describe('uiBundleDiscovery', () => {
   });
 
   describe('DEFAULT_DEV_COMMAND', () => {
-    it('should be npm run dev', () => {
-      expect(DEFAULT_DEV_COMMAND).to.equal('npm run dev');
+    it('should be npm run dev:design', () => {
+      expect(DEFAULT_DEV_COMMAND).to.equal('npm run dev:design');
     });
   });
 

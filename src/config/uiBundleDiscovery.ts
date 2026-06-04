@@ -22,9 +22,15 @@ import type { UiBundleManifest } from './manifest.js';
 const logger = Logger.childFromRoot('UiBundleDiscovery');
 
 /**
- * Default command to run when no ui-bundle.json manifest is found
+ * Default dev command when `ui-bundle.json` does not specify `dev.command`.
+ *
+ * Set to `npm run dev:design` so that design-mode clients (notably the Live
+ * Preview VS Code extension) get hybrid-editor support automatically. The
+ * bundle's `package.json` must define a `dev:design` script for this
+ * default to resolve. Bundles that need a different command should set
+ * `dev.command` in `ui-bundle.json`.
  */
-export const DEFAULT_DEV_COMMAND = 'npm run dev';
+export const DEFAULT_DEV_COMMAND = 'npm run dev:design';
 
 /**
  * Standard metadata path segment for uiBundles (relative to package directory).
