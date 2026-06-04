@@ -21,7 +21,6 @@ import {
   createProjectWithDevServer,
   createProjectWithUiBundle,
   writeManifest,
-  ensureSfCli,
   authOrgViaUrl,
 } from './helpers/uiBundleProjectUtils.js';
 import {
@@ -66,7 +65,6 @@ describe('ui-bundle dev NUTs — Tier 2 URL/proxy integration', function () {
     }
 
     session = await TestSession.create({ devhubAuthStrategy: 'NONE' });
-    ensureSfCli();
     targetOrg = authOrgViaUrl();
   });
 
