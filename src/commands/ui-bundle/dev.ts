@@ -700,8 +700,8 @@ export default class UiBundleDev extends SfCommand<UiBundleDevResult> {
       JSON.stringify({ warn: 'LEGACY_WEBAPP_DETECTED', port: url, bundle: bundleName }) + '\n'
     );
     this.warn(
-      `Outdated @salesforce/ui-bundle detected for "${bundleName}". ` +
-        'Update the dependency — older versions will be unsupported in a future release.'
+      `Unable to verify the authenticity of the dev server for "${bundleName}". ` +
+        'Update @salesforce/ui-bundle to the latest version.'
     );
   }
 
