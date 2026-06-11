@@ -143,7 +143,16 @@ export function writeManifest(projectDir: string, uiBundleName: string, manifest
 function createDevServerScript(uiBundleDir: string, port: number): string {
   const script = [
     "const http = require('http');",
-    'const server = http.createServer((_, res) => {',
+    'const server = http.createServer((req, res) => {',
+    `  const url = new URL(req.url || '/', 'http://localhost:${port}');`,
+    "  if (url.searchParams.get('sfProxyHealthCheck') === 'true') {",
+    '    res.writeHead(200, {',
+    "      'Content-Type': 'text/plain',",
+    "      'X-Live-Preview-Token': process.env.SF_LIVE_PREVIEW_TOKEN || '',",
+    '    });',
+    "    res.end('OK');",
+    '    return;',
+    '  }',
     "  res.writeHead(200, { 'Content-Type': 'text/html' });",
     "  res.end('<h1>Test Dev Server</h1>');",
     '});',
