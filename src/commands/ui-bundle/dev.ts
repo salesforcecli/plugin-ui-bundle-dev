@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { randomUUID } from 'node:crypto';
 import open from 'open';
 import select from '@inquirer/select';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
@@ -27,6 +28,23 @@ import { discoverUiBundle, DEFAULT_DEV_COMMAND, type DiscoveredUiBundle } from '
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@salesforce/plugin-ui-bundle-dev', 'ui-bundle.dev');
+
+// Kill switch for backward compatibility. true = warn + allow webapps that
+// don't echo X-Live-Preview-Token; false = strict, abort on missing token.
+// Override at runtime with SF_UI_BUNDLE_ALLOW_LEGACY_WEBAPPS=false. Flip the
+// default once webapp adoption is high; the liberal branch then becomes dead
+// code and is a one-line removal.
+const ALLOW_LEGACY_WEBAPPS_DEFAULT = true;
+
+function allowLegacyWebapps(): boolean {
+  const raw = process.env.SF_UI_BUNDLE_ALLOW_LEGACY_WEBAPPS;
+  if (raw == null) return ALLOW_LEGACY_WEBAPPS_DEFAULT;
+  const v = raw.trim().toLowerCase();
+  return v !== 'false' && v !== '0' && v !== 'no';
+}
+
+type PortStatus = 'available' | 'verified' | 'legacy' | 'foreign';
+type PollResult = { mode: 'verified' | 'legacy' } | { mode: 'timeout' };
 
 export default class UiBundleDev extends SfCommand<UiBundleDevResult> {
   public static readonly summary = messages.getMessage('summary');
@@ -65,6 +83,8 @@ export default class UiBundleDev extends SfCommand<UiBundleDevResult> {
   private devServerManager: DevServerManager | null = null;
   private proxyServer: ProxyServer | null = null;
   private logger: Logger | null = null;
+  /** Legacy-webapp warning fires once per CLI process. */
+  private legacyWarningEmitted = false;
 
   /**
    * Open the proxy URL in the default browser
@@ -103,44 +123,79 @@ export default class UiBundleDev extends SfCommand<UiBundleDevResult> {
   }
 
   /**
-   * Check if a URL is reachable (returns true/false)
-   * Used to check if --url is already available before starting dev server
+   * Probe the dev-server URL and classify what's listening.
+   * Returns 'available' when no TCP response, 'verified' when the response
+   * echoes our X-Live-Preview-Token, 'legacy' on OK with no token header
+   * (old @salesforce/ui-bundle or a passive squatter; the caller decides via
+   * allowLegacyWebapps()), 'foreign' on non-OK status or token mismatch.
    */
-  private static async isUrlReachable(url: string): Promise<boolean> {
+  private static async checkPortStatus(url: string): Promise<PortStatus> {
+    const expectedToken = process.env.SF_LIVE_PREVIEW_TOKEN;
+
     try {
-      const response = await fetch(url, {
-        method: 'HEAD',
-        signal: AbortSignal.timeout(3000), // 3 second timeout
+      const healthUrl = new URL(url);
+      healthUrl.searchParams.set('sfProxyHealthCheck', 'true');
+      const response = await fetch(healthUrl.toString(), {
+        method: 'GET',
+        signal: AbortSignal.timeout(3000),
       });
-      return response.ok;
+
+      if (!response.ok) return 'foreign';
+
+      const token = response.headers.get('X-Live-Preview-Token');
+      if (token == null) return 'legacy';
+      if (expectedToken && token === expectedToken) return 'verified';
+      return 'foreign';
     } catch {
-      return false;
+      return 'available';
     }
   }
 
   /**
-   * Poll a URL until it is reachable or timeout.
-   *
-   * @param url - URL to poll (HEAD request)
-   * @param timeoutMs - Max time to wait
-   * @param intervalMs - Poll interval
-   * @param start - Start timestamp (for recursion)
-   * @returns true if reachable within timeout
+   * Resolve a non-'available' port status to an action: returns the effective
+   * mode ('verified' | 'legacy') or throws PortSquattingAbort for 'foreign'
+   * (always) and 'legacy' under strict mode.
    */
-  private static async pollUntilReachable(
+  private static classifyOccupiedPort(status: 'verified' | 'legacy' | 'foreign', url: string): 'verified' | 'legacy' {
+    if (status === 'verified') return 'verified';
+    if (status === 'legacy') {
+      if (allowLegacyWebapps()) return 'legacy';
+      process.stderr.write(
+        JSON.stringify({ error: 'PortSquattingAbort', port: url, reason: 'strict-mode-legacy' }) + '\n'
+      );
+      throw new SfError(
+        'Aborted: server on port did not echo X-Live-Preview-Token and strict mode is enabled ' +
+          '(SF_UI_BUNDLE_ALLOW_LEGACY_WEBAPPS=false).',
+        'PortSquattingAbort'
+      );
+    }
+    // 'foreign'
+    process.stderr.write(JSON.stringify({ error: 'PortSquattingAbort', port: url, reason: 'foreign' }) + '\n');
+    throw new SfError('Aborted: another server is on the port and failed identity verification.', 'PortSquattingAbort');
+  }
+
+  /**
+   * Poll the URL after spawn until it answers. Every poll re-runs identity
+   * verification via the X-Live-Preview-Token header (no "is it up vs. is it
+   * ours" race). Throws PortSquattingAbort on 'foreign' (always) or 'legacy'
+   * under strict mode; otherwise resolves with the effective mode or 'timeout'.
+   */
+  private static async pollUntilVerified(
     url: string,
     timeoutMs: number,
     intervalMs = 500,
     start = Date.now()
-  ): Promise<boolean> {
-    if (await UiBundleDev.isUrlReachable(url)) {
-      return true;
+  ): Promise<PollResult> {
+    const status = await UiBundleDev.checkPortStatus(url);
+    if (status !== 'available') {
+      const mode = UiBundleDev.classifyOccupiedPort(status, url);
+      return { mode };
     }
     if (Date.now() - start >= timeoutMs) {
-      return false;
+      return { mode: 'timeout' };
     }
     await new Promise((r) => setTimeout(r, intervalMs));
-    return UiBundleDev.pollUntilReachable(url, timeoutMs, intervalMs, start);
+    return UiBundleDev.pollUntilVerified(url, timeoutMs, intervalMs, start);
   }
 
   /**
@@ -174,6 +229,11 @@ export default class UiBundleDev extends SfCommand<UiBundleDevResult> {
     // Initialize logger from @salesforce/core for debug logging
     // Logger respects SF_LOG_LEVEL environment variable
     this.logger = await Logger.child('UiBundleDev');
+
+    // Ensure a live preview token exists — self-generate if the extension didn't provide one
+    if (!process.env.SF_LIVE_PREVIEW_TOKEN) {
+      process.env.SF_LIVE_PREVIEW_TOKEN = randomUUID();
+    }
 
     // Declare variables outside try block for catch block access
     let manifest: UiBundleManifest | null = null;
@@ -282,12 +342,21 @@ export default class UiBundleDev extends SfCommand<UiBundleDevResult> {
         );
       }
 
-      // Check if URL is already reachable
-      const isReachable = await UiBundleDev.isUrlReachable(resolvedUrl);
-      if (isReachable) {
+      // Pre-flight: classifyOccupiedPort throws on foreign / strict-mode legacy.
+      let portReachable = false;
+      const preFlightStatus = await UiBundleDev.checkPortStatus(resolvedUrl);
+      if (preFlightStatus !== 'available') {
+        const mode = UiBundleDev.classifyOccupiedPort(preFlightStatus, resolvedUrl);
+        portReachable = true;
+        if (mode === 'legacy') {
+          this.emitLegacyWebappWarning(resolvedUrl, selectedUiBundle.name);
+        }
+      }
+
+      if (portReachable) {
         devServerUrl = resolvedUrl;
         this.log(messages.getMessage('info.url-already-available', [resolvedUrl]));
-        this.logger.debug(`URL ${resolvedUrl} is reachable, skipping dev server startup`);
+        this.logger.debug(`URL ${resolvedUrl} is already available, skipping dev server startup`);
       } else if (flags.url) {
         // User explicitly passed --url; assume server is already running at that URL
         // Fail immediately if unreachable (don't start dev server)
@@ -343,9 +412,10 @@ export default class UiBundleDev extends SfCommand<UiBundleDevResult> {
 
         this.devServerManager.start();
 
-        // Poll until URL is reachable, or fail immediately on process error
-        const pollPromise = UiBundleDev.pollUntilReachable(resolvedUrl, 60_000);
-        const errorPromise = new Promise<boolean>((_, reject) => {
+        // pollUntilVerified throws on foreign / strict-mode legacy; otherwise
+        // resolves with { mode: 'verified' | 'legacy' | 'timeout' }.
+        const pollPromise = UiBundleDev.pollUntilVerified(resolvedUrl, 60_000);
+        const errorPromise = new Promise<PollResult>((_, reject) => {
           this.devServerManager!.once('error', (error: SfError | DevServerError) => {
             const devError =
               'devServerError' in error
@@ -364,8 +434,11 @@ export default class UiBundleDev extends SfCommand<UiBundleDevResult> {
           });
         });
 
-        const pollReached = await Promise.race([pollPromise, errorPromise]);
-        if (!pollReached) {
+        const pollResult = await Promise.race([pollPromise, errorPromise]);
+        if (pollResult.mode === 'legacy') {
+          this.emitLegacyWebappWarning(resolvedUrl, selectedUiBundle.name);
+        }
+        if (pollResult.mode === 'timeout') {
           // Timeout - capture context before cleanup nulls devServerManager
           const manager = this.devServerManager;
           const lastOutput = manager?.getLastOutput() ?? '';
@@ -614,6 +687,22 @@ export default class UiBundleDev extends SfCommand<UiBundleDevResult> {
       this.warn(messages.getMessage('warning.dev-server-start-hint'));
       this.logger?.debug(`Dev server check error: ${(error as Error).message}`);
     }
+  }
+
+  /**
+   * Emit the legacy-webapp warning on stderr (structured JSON for the VS Code
+   * extension) and via SfCommand.warn() (terminal/output channel). Idempotent.
+   */
+  private emitLegacyWebappWarning(url: string, bundleName: string): void {
+    if (this.legacyWarningEmitted) return;
+    this.legacyWarningEmitted = true;
+    process.stderr.write(
+      JSON.stringify({ warn: 'LEGACY_WEBAPP_DETECTED', port: url, bundle: bundleName }) + '\n'
+    );
+    this.warn(
+      `Unable to verify the authenticity of the dev server for "${bundleName}". ` +
+        'Update @salesforce/ui-bundle to the latest version.'
+    );
   }
 
   /**

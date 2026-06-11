@@ -164,10 +164,21 @@ export function occupyPort(port: number): Promise<Server> {
 /**
  * Start a plain HTTP server that serves static HTML content.
  * Used for proxy-only mode tests where the dev server is already running.
+ * Responds to ?sfProxyHealthCheck=true with X-Live-Preview-Token (mimics the
+ * Vite proxy plugin contract for port squatting verification).
  */
 export function startTestHttpServer(port: number): Promise<HttpServer> {
   return new Promise((resolve, reject) => {
-    const server = createHttpServer((_, res) => {
+    const server = createHttpServer((req, res) => {
+      const url = new URL(req.url ?? '/', `http://localhost:${port}`);
+      if (url.searchParams.get('sfProxyHealthCheck') === 'true') {
+        res.writeHead(200, {
+          'Content-Type': 'text/plain',
+          'X-Live-Preview-Token': process.env.SF_LIVE_PREVIEW_TOKEN ?? '',
+        });
+        res.end('OK');
+        return;
+      }
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end('<h1>Manual Dev Server</h1>');
     });
@@ -189,6 +200,7 @@ export function startViteProxyServer(port: number): Promise<HttpServer> {
         res.writeHead(200, {
           'Content-Type': 'text/plain',
           'X-Salesforce-UiBundle-Proxy': 'true',
+          'X-Live-Preview-Token': process.env.SF_LIVE_PREVIEW_TOKEN ?? '',
         });
         res.end('OK');
         return;

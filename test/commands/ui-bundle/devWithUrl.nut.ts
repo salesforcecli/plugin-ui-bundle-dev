@@ -64,6 +64,10 @@ describe('ui-bundle dev NUTs — Tier 2 URL/proxy integration', function () {
       );
     }
 
+    // Set a known token so test dev servers can respond with it on health checks,
+    // simulating the IDE extension → Vite plugin → CLI verification flow.
+    process.env.SF_LIVE_PREVIEW_TOKEN = 'test-token-url-nuts';
+
     session = await TestSession.create({ devhubAuthStrategy: 'NONE' });
     targetOrg = authOrgViaUrl();
   });
