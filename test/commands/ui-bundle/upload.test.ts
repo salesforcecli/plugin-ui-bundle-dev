@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect } from 'chai';
 import { TestContext, MockTestOrgData } from '@salesforce/core/testSetup';
 import { Org } from '@salesforce/core';
 import { stubSfCommandUx } from '@salesforce/sf-plugins-core';
+import type FormData from 'form-data';
 import UiBundleUpload from '../../../src/commands/ui-bundle/upload.js';
 import type { UiBundleUploadResult } from '../../../src/config/types.js';
 
@@ -34,6 +35,27 @@ function createZipFixture(): string {
   return zipPath;
 }
 
+/**
+ * Materialize an uncompressed source directory for the `--bundle-dir` path.
+ * A couple of nested files are enough to exercise SDR's recursive compression.
+ */
+function createBundleDirFixture(): string {
+  const dir = mkdtempSync(join(tmpdir(), 'upload-test-dir-'));
+  mkdirSync(join(dir, 'src'));
+  writeFileSync(join(dir, 'index.html'), '<html></html>');
+  writeFileSync(join(dir, 'src', 'app.js'), 'console.log("hi");');
+  return dir;
+}
+
+/** Read the full multipart body (with the `bundle` part embedded) from a captured request. */
+function bundleBufferFromRequest(request: unknown): Buffer {
+  const body = (request as { body: FormData }).body;
+  return body.getBuffer();
+}
+
+/** The local zip-file signature — every zip stream starts with these 4 bytes. */
+const ZIP_MAGIC = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
+
 describe('ui-bundle:upload command unit tests', () => {
   const $$ = new TestContext();
 
@@ -46,7 +68,7 @@ describe('ui-bundle:upload command unit tests', () => {
    *  org resolution or network interaction. No connection stubbing.    *
    * ------------------------------------------------------------------ */
   describe('flag validation (no network interaction)', () => {
-    it('missing --zip-file -> FailedFlagValidationError, no network call', async () => {
+    it('neither --zip-file nor --bundle-dir -> FailedFlagValidationError (exactly-one), no network call', async () => {
       const testOrg = new MockTestOrgData();
       await $$.stubAuths(testOrg);
       const requestStub = $$.SANDBOX.stub();
@@ -58,8 +80,35 @@ describe('ui-bundle:upload command unit tests', () => {
         expect.fail('should have thrown');
       } catch (e) {
         const err = e as Error & { message: string; cause?: Error };
-        expect(err.message).to.include('Missing required flag zip-file');
+        // Flag order in the message isn't stable; assert on the prefix and both names.
+        expect(err.message).to.include('Exactly one of the following must be provided');
+        expect(err.message).to.include('--zip-file');
+        expect(err.message).to.include('--bundle-dir');
         // SfCommand wraps the thrown error in a generic Error; the original class survives as `cause`.
+        expect(err.cause?.constructor.name).to.equal('FailedFlagValidationError');
+      }
+      expect(requestStub.called).to.be.false;
+    });
+
+    it('both --zip-file and --bundle-dir -> FailedFlagValidationError (exactly-one), no network call', async () => {
+      const testOrg = new MockTestOrgData();
+      await $$.stubAuths(testOrg);
+      const requestStub = $$.SANDBOX.stub();
+      $$.fakeConnectionRequest = requestStub;
+      stubSfCommandUx($$.SANDBOX);
+      const zipPath = createZipFixture();
+      const bundleDir = createBundleDirFixture();
+
+      try {
+        await UiBundleUpload.run(
+          ['--zip-file', zipPath, '--bundle-dir', bundleDir, '--as-salesforce-pages', '--target-org', testOrg.username],
+          import.meta.url
+        );
+        expect.fail('should have thrown');
+      } catch (e) {
+        const err = e as Error & { message: string; cause?: Error };
+        // Message wording depends on parse order; assert on the stable prefix.
+        expect(err.message).to.include('cannot also be provided when using');
         expect(err.cause?.constructor.name).to.equal('FailedFlagValidationError');
       }
       expect(requestStub.called).to.be.false;
@@ -121,6 +170,27 @@ describe('ui-bundle:upload command unit tests', () => {
       }
       expect(requestStub.called).to.be.false;
     });
+
+    it('non-existent --bundle-dir path -> directory-existence validation error, no network call', async () => {
+      const testOrg = new MockTestOrgData();
+      await $$.stubAuths(testOrg);
+      const requestStub = $$.SANDBOX.stub();
+      $$.fakeConnectionRequest = requestStub;
+      stubSfCommandUx($$.SANDBOX);
+      const nonExistentDir = join(tmpdir(), `does-not-exist-dir-${Date.now()}`);
+
+      try {
+        await UiBundleUpload.run(
+          ['--bundle-dir', nonExistentDir, '--as-salesforce-pages', '--target-org', testOrg.username],
+          import.meta.url
+        );
+        expect.fail('should have thrown');
+      } catch (e) {
+        const err = e as Error & { name: string; message: string };
+        expect(err.message).to.include(nonExistentDir);
+      }
+      expect(requestStub.called).to.be.false;
+    });
   });
 
   /* ------------------------------------------------------------------ *
@@ -152,6 +222,42 @@ describe('ui-bundle:upload command unit tests', () => {
       expect(uxStubs.log.args.flat()).to.deep.include('Upload queued successfully.');
       expect(uxStubs.log.args.flat()).to.deep.include('Job ID: 0BXxx0000000001.');
       expect(uxStubs.logToStderr.called).to.be.false;
+    });
+
+    it('--zip-file -> sends the file as-is (a zip) in the bundle part, no re-compression', async () => {
+      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000003', status: 'Queued' });
+      $$.fakeConnectionRequest = requestStub;
+      stubSfCommandUx($$.SANDBOX);
+
+      await UiBundleUpload.run(
+        ['--zip-file', zipPath, '--as-salesforce-pages', '--target-org', testOrg.username],
+        import.meta.url
+      );
+
+      expect(requestStub.calledOnce).to.be.true;
+      // getBuffer() returns the whole multipart body; the placeholder zip is embedded verbatim.
+      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]);
+      expect(sent.includes(ZIP_MAGIC)).to.be.true;
+    });
+
+    it('--bundle-dir -> compresses the directory (via SDR) into a zip bundle part', async () => {
+      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000004', status: 'Queued' });
+      $$.fakeConnectionRequest = requestStub;
+      stubSfCommandUx($$.SANDBOX);
+      const bundleDir = createBundleDirFixture();
+
+      const result = await UiBundleUpload.run(
+        ['--bundle-dir', bundleDir, '--as-salesforce-pages', '--target-org', testOrg.username],
+        import.meta.url
+      );
+
+      expect(result).to.deep.equal({ jobId: '0BXxx0000000004', status: 'Queued' } as UiBundleUploadResult);
+      expect(requestStub.calledOnce).to.be.true;
+      // The bundle part is a real SDR-produced zip (its local-file-header magic appears in the body).
+      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]);
+      expect(sent.includes(ZIP_MAGIC)).to.be.true;
+      // A compressed two-file directory is meaningfully larger than the 4-byte placeholder.
+      expect(sent.length).to.be.greaterThan(100);
     });
 
     it('Failed response (defensive) -> correct return value, logged to stderr, exitCode 1', async () => {

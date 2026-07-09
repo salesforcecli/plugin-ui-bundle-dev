@@ -10,6 +10,7 @@
     "@salesforce/core": "^8.25.1",
     "@salesforce/kit": "^3.2.4",
     "@salesforce/sf-plugins-core": "^12.2.6",
+    "@salesforce/source-deploy-retrieve": "^12.37.1",
     "@salesforce/ui-bundle": "^1.118.4",
     "chokidar": "^3.6.0",
     "form-data": "^4.0.5",
