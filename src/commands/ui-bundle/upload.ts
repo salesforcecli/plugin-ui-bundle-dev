@@ -115,6 +115,7 @@ export default class UiBundleUpload extends SfCommand<UiBundleUploadResult> {
     }
 
     // Step 3: Build the multipart body and issue a single synchronous POST, no retry/poll loop.
+    // We send form.getBuffer() (the fully-assembled multipart Buffer) since jsforce's instanceof FormData check fails across differing form-data module copies.
     const form = new FormData();
     form.append('bundle', zipBuffer, { filename: zipFilename });
     // 'pages' is a placeholder field name pending the finalized server contract.
@@ -125,7 +126,7 @@ export default class UiBundleUpload extends SfCommand<UiBundleUploadResult> {
       response = await orgConnection.request<{ jobId: string; status: string; message?: string }>({
         method: 'POST',
         url: `${orgConnection.baseUrl()}/connect/uibundle/deploys`,
-        body: form,
+        body: form.getBuffer(),
         headers: form.getHeaders(),
       });
     } catch (error) {

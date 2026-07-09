@@ -21,7 +21,6 @@ import { expect } from 'chai';
 import { TestContext, MockTestOrgData } from '@salesforce/core/testSetup';
 import { Org } from '@salesforce/core';
 import { stubSfCommandUx } from '@salesforce/sf-plugins-core';
-import type FormData from 'form-data';
 import UiBundleUpload from '../../../src/commands/ui-bundle/upload.js';
 import type { UiBundleUploadResult } from '../../../src/config/types.js';
 
@@ -49,8 +48,8 @@ function createBundleDirFixture(): string {
 
 /** Read the full multipart body (with the `bundle` part embedded) from a captured request. */
 function bundleBufferFromRequest(request: unknown): Buffer {
-  const body = (request as { body: FormData }).body;
-  return body.getBuffer();
+  // The request body is now the fully-assembled multipart Buffer (form.getBuffer()).
+  return (request as { body: Buffer }).body;
 }
 
 /** The local zip-file signature — every zip stream starts with these 4 bytes. */
