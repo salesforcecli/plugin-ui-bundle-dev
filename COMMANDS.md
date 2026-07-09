@@ -3,6 +3,7 @@
 <!-- commands -->
 
 - [`sf ui-bundle dev`](#sf-ui-bundle-dev)
+- [`sf ui-bundle upload`](#sf-ui-bundle-upload)
 
 ## `sf ui-bundle dev`
 
@@ -62,6 +63,52 @@ EXAMPLES
   Start with debug logging enabled by specifying the SF_LOG_LEVEL environment variable before running the command:
 
     $ SF_LOG_LEVEL=debug sf ui-bundle dev --target-org myorg
+```
+
+## `sf ui-bundle upload`
+
+Upload a UI Bundle to your org.
+
+```
+USAGE
+  $ sf ui-bundle upload -z <value> --use-pages -o <value> [--json] [--flags-dir <value>]
+
+FLAGS
+  -o, --target-org=<value>  (required) Username or alias of the target org. Not required if the `target-org`
+                            configuration variable is already set.
+  -z, --zip-file=<value>    (required) Path to the UI Bundle source to upload.
+      --use-pages           (required) Toggle whether this UI Bundle should be uploaded to Salesforce Pages.
+
+GLOBAL FLAGS
+  --flags-dir=<value>  Import flag values from a directory.
+  --json               Format output as json.
+
+DESCRIPTION
+  Upload a UI Bundle to your org.
+
+  Use this command to upload a React-based UI Bundle to your Salesforce org. The bundle source must be a compressed ZIP
+  file. This can be used by both admin and non-admin users.
+
+  The upload is asynchronous. View the UI bundle in your org to verify completion.
+
+EXAMPLES
+  Upload a UI Bundle to Salesforce Pages using your default org:
+
+    $ sf ui-bundle upload --zip-file my-compressed-bundle --use-pages
+
+  Upload to a specific org by alias:
+
+    $ sf ui-bundle upload --zip-file my-compressed-bundle --use-pages --target-org my-org
+
+FLAG DESCRIPTIONS
+  -z, --zip-file=<value>  Path to the UI Bundle source to upload.
+
+    The path to a compressed ZIP file containing the UI Bundle source. The CLI doesn't validate the contents of the zip
+    file — that's a server-side concern.
+
+  --use-pages  Toggle whether this UI Bundle should be uploaded to Salesforce Pages.
+
+    When set, the UI Bundle is uploaded for use with Salesforce Pages.
 ```
 
 <!-- commandsstop -->
