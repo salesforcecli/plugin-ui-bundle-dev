@@ -41,7 +41,7 @@ describe('ui-bundle upload NUTs — Tier 1 (no auth)', () => {
   it('should require --target-org', () => {
     const zipPath = createZipFixture(session);
 
-    const result = execCmd(`ui-bundle upload --zip-file ${zipPath} --use-pages --json`, {
+    const result = execCmd(`ui-bundle upload --zip-file ${zipPath} --as-salesforce-pages --json`, {
       ensureExitCode: 1,
       cwd: session.dir,
     });
@@ -83,10 +83,13 @@ describe('ui-bundle upload NUTs — Tier 2 (real org)', () => {
   it('should upload a UI Bundle and return a Queued job id', () => {
     const zipPath = createZipFixture(session);
 
-    const result = execCmd(`ui-bundle upload --zip-file ${zipPath} --use-pages --target-org ${targetOrg} --json`, {
-      ensureExitCode: 0,
-      cwd: session.dir,
-    });
+    const result = execCmd(
+      `ui-bundle upload --zip-file ${zipPath} --as-salesforce-pages --target-org ${targetOrg} --json`,
+      {
+        ensureExitCode: 0,
+        cwd: session.dir,
+      }
+    );
 
     expect(result.jsonOutput?.result).to.have.property('status', 'Queued');
     expect(result.jsonOutput?.result).to.have.property('jobId');

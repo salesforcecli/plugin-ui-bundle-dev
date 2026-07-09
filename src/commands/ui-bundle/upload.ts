@@ -25,6 +25,7 @@ Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('@salesforce/plugin-ui-bundle-dev', 'ui-bundle.upload');
 
 export default class UiBundleUpload extends SfCommand<UiBundleUploadResult> {
+  public static readonly state = 'preview';
   public static readonly summary = messages.getMessage('summary');
   public static readonly description = messages.getMessage('description');
   public static readonly examples = messages.getMessages('examples');
@@ -37,9 +38,9 @@ export default class UiBundleUpload extends SfCommand<UiBundleUploadResult> {
       exists: true,
       required: true,
     }),
-    'use-pages': Flags.boolean({
-      summary: messages.getMessage('flags.use-pages.summary'),
-      description: messages.getMessage('flags.use-pages.description'),
+    'as-salesforce-pages': Flags.boolean({
+      summary: messages.getMessage('flags.as-salesforce-pages.summary'),
+      description: messages.getMessage('flags.as-salesforce-pages.description'),
       required: true,
     }),
     'target-org': Flags.requiredOrg(),
@@ -64,7 +65,7 @@ export default class UiBundleUpload extends SfCommand<UiBundleUploadResult> {
     const form = new FormData();
     form.append('bundle', zipBuffer, { filename: basename(flags['zip-file']) });
     // 'pages' is a placeholder field name pending the finalized server contract.
-    form.append('pages', String(flags['use-pages']));
+    form.append('pages', String(flags['as-salesforce-pages']));
 
     let response: { jobId: string; status: string; message?: string };
     try {

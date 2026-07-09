@@ -179,12 +179,12 @@ Upload a UI Bundle to your org.
 
 ```bash
 USAGE
-  $ sf ui-bundle upload --zip-file <value> --use-pages --target-org <org-alias>
+  $ sf ui-bundle upload --zip-file <value> --as-salesforce-pages --target-org <org-alias>
 
 REQUIRED FLAGS
-  -z, --zip-file=<value>     Path to the UI Bundle source to upload
-      --use-pages             Toggle whether this UI Bundle should be uploaded to Salesforce Pages
-  -o, --target-org=<value>   Salesforce org to authenticate against
+  -z, --zip-file=<value>           Path to the UI Bundle source to upload
+      --as-salesforce-pages         Toggle whether this UI Bundle should be uploaded to Salesforce Pages
+  -o, --target-org=<value>         Salesforce org to authenticate against
 
 DESCRIPTION
   Uploads a React-based UI Bundle to your Salesforce org from a compressed ZIP
@@ -195,11 +195,11 @@ DESCRIPTION
 EXAMPLES
   Upload a UI Bundle to Salesforce Pages using your default org:
 
-    $ sf ui-bundle upload --zip-file my-compressed-bundle --use-pages
+    $ sf ui-bundle upload --zip-file my-compressed-bundle --as-salesforce-pages
 
   Upload to a specific org by alias:
 
-    $ sf ui-bundle upload --zip-file my-compressed-bundle --use-pages --target-org my-org
+    $ sf ui-bundle upload --zip-file my-compressed-bundle --as-salesforce-pages --target-org my-org
 ```
 
 <!-- commandsstop -->

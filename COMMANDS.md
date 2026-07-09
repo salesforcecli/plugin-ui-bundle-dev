@@ -71,13 +71,13 @@ Upload a UI Bundle to your org.
 
 ```
 USAGE
-  $ sf ui-bundle upload -z <value> --use-pages -o <value> [--json] [--flags-dir <value>]
+  $ sf ui-bundle upload -z <value> --as-salesforce-pages -o <value> [--json] [--flags-dir <value>]
 
 FLAGS
   -o, --target-org=<value>  (required) Username or alias of the target org. Not required if the `target-org`
                             configuration variable is already set.
   -z, --zip-file=<value>    (required) Path to the UI Bundle source to upload.
-      --use-pages           (required) Toggle whether this UI Bundle should be uploaded to Salesforce Pages.
+      --as-salesforce-pages (required) Toggle whether this UI Bundle should be uploaded to Salesforce Pages.
 
 GLOBAL FLAGS
   --flags-dir=<value>  Import flag values from a directory.
@@ -94,11 +94,11 @@ DESCRIPTION
 EXAMPLES
   Upload a UI Bundle to Salesforce Pages using your default org:
 
-    $ sf ui-bundle upload --zip-file my-compressed-bundle --use-pages
+    $ sf ui-bundle upload --zip-file my-compressed-bundle --as-salesforce-pages
 
   Upload to a specific org by alias:
 
-    $ sf ui-bundle upload --zip-file my-compressed-bundle --use-pages --target-org my-org
+    $ sf ui-bundle upload --zip-file my-compressed-bundle --as-salesforce-pages --target-org my-org
 
 FLAG DESCRIPTIONS
   -z, --zip-file=<value>  Path to the UI Bundle source to upload.
@@ -106,7 +106,7 @@ FLAG DESCRIPTIONS
     The path to a compressed ZIP file containing the UI Bundle source. The CLI doesn't validate the contents of the zip
     file — that's a server-side concern.
 
-  --use-pages  Toggle whether this UI Bundle should be uploaded to Salesforce Pages.
+  --as-salesforce-pages  Toggle whether this UI Bundle should be uploaded to Salesforce Pages.
 
     When set, the UI Bundle is uploaded for use with Salesforce Pages.
 ```

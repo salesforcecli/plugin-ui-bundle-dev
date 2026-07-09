@@ -16,11 +16,11 @@ Path to the UI Bundle source to upload.
 
 The path to a compressed ZIP file containing the UI Bundle source. The CLI doesn't validate the contents of the zip file — that's a server-side concern.
 
-# flags.use-pages.summary
+# flags.as-salesforce-pages.summary
 
 Toggle whether this UI Bundle should be uploaded to Salesforce Pages.
 
-# flags.use-pages.description
+# flags.as-salesforce-pages.description
 
 When set, the UI Bundle is uploaded for use with Salesforce Pages.
 
@@ -28,11 +28,11 @@ When set, the UI Bundle is uploaded for use with Salesforce Pages.
 
 - Upload a UI Bundle to Salesforce Pages using your default org:
 
-  <%= config.bin %> <%= command.id %> --zip-file my-compressed-bundle --use-pages
+  <%= config.bin %> <%= command.id %> --zip-file my-compressed-bundle --as-salesforce-pages
 
 - Upload to a specific org by alias:
 
-  <%= config.bin %> <%= command.id %> --zip-file my-compressed-bundle --use-pages --target-org my-org
+  <%= config.bin %> <%= command.id %> --zip-file my-compressed-bundle --as-salesforce-pages --target-org my-org
 
 # info.upload-queued
 
