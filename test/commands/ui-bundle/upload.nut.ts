@@ -43,7 +43,7 @@ describe('ui-bundle upload NUTs — Tier 1 (no auth)', () => {
   it('should require --target-org', () => {
     const zipPath = createZipFixture(session);
 
-    const result = execCmd(`ui-bundle upload --zip-file ${zipPath} --as-salesforce-pages --json`, {
+    const result = execCmd(`ui-bundle upload --zip-file ${zipPath} --use-salesforce-pages --json`, {
       ensureExitCode: 1,
       cwd: session.dir,
     });
@@ -56,9 +56,9 @@ describe('ui-bundle upload NUTs — Tier 1 (no auth)', () => {
 /* ------------------------------------------------------------------ *
  *  Tier 2 — Real Org                                                  *
  *                                                                     *
- *  Exercises the real POST /connect/uibundle/deploys call against a  *
- *  live org. Requires TESTKIT_AUTH_URL. Fails when absent (mandatory, *
- *  not silently skipped), matching dev.nut.ts:76-85's contract.       *
+ *  Exercises the real POST /connect/ui-bundle/deployments call        *
+ *  against a live org. Requires TESTKIT_AUTH_URL. Fails when absent   *
+ *  (mandatory, not silently skipped), matching dev.nut.ts:76-85.      *
  * ------------------------------------------------------------------ */
 describe('ui-bundle upload NUTs — Tier 2 (real org)', () => {
   let session: TestSession;
@@ -86,7 +86,7 @@ describe('ui-bundle upload NUTs — Tier 2 (real org)', () => {
   // Neither bundle-source flag → exactly-one relationship fails at parse time.
   it('should require exactly one of --zip-file / --bundle-dir (neither given)', () => {
     // oclif exits 2 for FailedFlagValidationError (flag-parse errors), distinct from the runtime NoDefaultEnvError exit-1 case in Tier 1.
-    const result = execCmd(`ui-bundle upload --as-salesforce-pages --target-org ${targetOrg} --json`, {
+    const result = execCmd(`ui-bundle upload --use-salesforce-pages --target-org ${targetOrg} --json`, {
       ensureExitCode: 2,
       cwd: session.dir,
     });
@@ -100,7 +100,7 @@ describe('ui-bundle upload NUTs — Tier 2 (real org)', () => {
     const bundleDir = createBundleDirFixture(session);
 
     const result = execCmd(
-      `ui-bundle upload --zip-file ${zipPath} --bundle-dir ${bundleDir} --as-salesforce-pages --target-org ${targetOrg} --json`,
+      `ui-bundle upload --zip-file ${zipPath} --bundle-dir ${bundleDir} --use-salesforce-pages --target-org ${targetOrg} --json`,
       {
         ensureExitCode: 2,
         cwd: session.dir,
@@ -110,8 +110,8 @@ describe('ui-bundle upload NUTs — Tier 2 (real org)', () => {
     expect(result.jsonOutput?.message).to.include('cannot also be provided when using');
   });
 
-  // --as-salesforce-pages is required; omitting it fails at parse time.
-  it('should require --as-salesforce-pages', () => {
+  // --use-salesforce-pages is required; omitting it fails at parse time.
+  it('should require --use-salesforce-pages', () => {
     const zipPath = createZipFixture(session);
 
     const result = execCmd(`ui-bundle upload --zip-file ${zipPath} --target-org ${targetOrg} --json`, {
@@ -120,16 +120,17 @@ describe('ui-bundle upload NUTs — Tier 2 (real org)', () => {
     });
 
     expect(result.jsonOutput?.message).to.include('Missing required flag');
-    expect(result.jsonOutput?.message).to.include('as-salesforce-pages');
+    expect(result.jsonOutput?.message).to.include('use-salesforce-pages');
   });
 
-  // Real-org call: POST /connect/uibundle/deploys with a placeholder zip.
+  // Real-org call: POST /connect/ui-bundle/deployments with a placeholder zip.
   // Requires the endpoint to be deployed on the target org; runs only when
   // TESTKIT_AUTH_URL opts into a real connection.
   it('should upload a UI Bundle and return a Queued job id (--zip-file)', function () {
-    // The Pkg A Connect endpoint (POST /connect/uibundle/deploys) is still Draft (spec §2.5)
-    // and not deployed on the integration org — it returns 404. Guard behind
-    // UI_BUNDLE_UPLOAD_ENDPOINT_LIVE until the endpoint ships; set it to re-enable this test.
+    // POST /connect/ui-bundle/deployments is grounded in merged Core source on feature branch
+    // p/salesforce-pages/262-develop (API v62.0), still subject to change before GA, and returns
+    // 202 { jobId, status: "Queued" }. Not yet deployed on the integration org — it returns 404.
+    // Guard behind UI_BUNDLE_UPLOAD_ENDPOINT_LIVE until the endpoint ships; set it to re-enable this test.
     if (!process.env.UI_BUNDLE_UPLOAD_ENDPOINT_LIVE) {
       this.skip();
     }
@@ -137,7 +138,7 @@ describe('ui-bundle upload NUTs — Tier 2 (real org)', () => {
     const zipPath = createZipFixture(session);
 
     const result = execCmd(
-      `ui-bundle upload --zip-file ${zipPath} --as-salesforce-pages --target-org ${targetOrg} --json`,
+      `ui-bundle upload --zip-file ${zipPath} --use-salesforce-pages --target-org ${targetOrg} --json`,
       {
         ensureExitCode: 0,
         cwd: session.dir,
@@ -150,9 +151,10 @@ describe('ui-bundle upload NUTs — Tier 2 (real org)', () => {
 
   // Real-org call with an uncompressed source directory the CLI compresses.
   it('should upload a UI Bundle and return a Queued job id (--bundle-dir, auto-compressed)', function () {
-    // The Pkg A Connect endpoint (POST /connect/uibundle/deploys) is still Draft (spec §2.5)
-    // and not deployed on the integration org — it returns 404. Guard behind
-    // UI_BUNDLE_UPLOAD_ENDPOINT_LIVE until the endpoint ships; set it to re-enable this test.
+    // POST /connect/ui-bundle/deployments is grounded in merged Core source on feature branch
+    // p/salesforce-pages/262-develop (API v62.0), still subject to change before GA, and returns
+    // 202 { jobId, status: "Queued" }. Not yet deployed on the integration org — it returns 404.
+    // Guard behind UI_BUNDLE_UPLOAD_ENDPOINT_LIVE until the endpoint ships; set it to re-enable this test.
     if (!process.env.UI_BUNDLE_UPLOAD_ENDPOINT_LIVE) {
       this.skip();
     }
@@ -160,7 +162,7 @@ describe('ui-bundle upload NUTs — Tier 2 (real org)', () => {
     const bundleDir = createBundleDirFixture(session);
 
     const result = execCmd(
-      `ui-bundle upload --bundle-dir ${bundleDir} --as-salesforce-pages --target-org ${targetOrg} --json`,
+      `ui-bundle upload --bundle-dir ${bundleDir} --use-salesforce-pages --target-org ${targetOrg} --json`,
       {
         ensureExitCode: 0,
         cwd: session.dir,

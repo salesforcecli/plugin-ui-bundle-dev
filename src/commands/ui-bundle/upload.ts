@@ -80,9 +80,9 @@ export default class UiBundleUpload extends SfCommand<UiBundleUploadResult> {
       exists: true,
       exactlyOne: ['zip-file', 'bundle-dir'],
     }),
-    'as-salesforce-pages': Flags.boolean({
-      summary: messages.getMessage('flags.as-salesforce-pages.summary'),
-      description: messages.getMessage('flags.as-salesforce-pages.description'),
+    'use-salesforce-pages': Flags.boolean({
+      summary: messages.getMessage('flags.use-salesforce-pages.summary'),
+      description: messages.getMessage('flags.use-salesforce-pages.description'),
       required: true,
     }),
     'target-org': Flags.requiredOrg(),
@@ -119,13 +119,13 @@ export default class UiBundleUpload extends SfCommand<UiBundleUploadResult> {
     const form = new FormData();
     form.append('bundle', zipBuffer, { filename: zipFilename });
     // 'pages' is a placeholder field name pending the finalized server contract.
-    form.append('pages', String(flags['as-salesforce-pages']));
+    form.append('pages', String(flags['use-salesforce-pages']));
 
     let response: { jobId: string; status: string; message?: string };
     try {
       response = await orgConnection.request<{ jobId: string; status: string; message?: string }>({
         method: 'POST',
-        url: `${orgConnection.baseUrl()}/connect/uibundle/deploys`,
+        url: `${orgConnection.baseUrl()}/connect/ui-bundle/deployments`,
         body: form.getBuffer(),
         headers: form.getHeaders(),
       });

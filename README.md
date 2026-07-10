@@ -179,14 +179,14 @@ Upload a UI Bundle to your org.
 
 ```bash
 USAGE
-  $ sf ui-bundle upload (--zip-file <value> | --bundle-dir <value>) --as-salesforce-pages --target-org <org-alias>
+  $ sf ui-bundle upload (--zip-file <value> | --bundle-dir <value>) --use-salesforce-pages --target-org <org-alias>
 
 BUNDLE SOURCE (exactly one required)
   -z, --zip-file=<value>           Path to a pre-built UI Bundle ZIP file, sent as-is
   -d, --bundle-dir=<value>         Path to an uncompressed UI Bundle source directory; the CLI compresses it before upload
 
 REQUIRED FLAGS
-      --as-salesforce-pages         Toggle whether this UI Bundle should be uploaded to Salesforce Pages
+      --use-salesforce-pages        Toggle whether this UI Bundle should be uploaded to Salesforce Pages
   -o, --target-org=<value>         Salesforce org to authenticate against
 
 DESCRIPTION
@@ -199,15 +199,15 @@ DESCRIPTION
 EXAMPLES
   Upload a UI Bundle to Salesforce Pages using your default org:
 
-    $ sf ui-bundle upload --zip-file my-compressed-bundle --as-salesforce-pages
+    $ sf ui-bundle upload --zip-file my-compressed-bundle --use-salesforce-pages
 
   Upload an uncompressed source directory (auto-compressed by the CLI):
 
-    $ sf ui-bundle upload --bundle-dir ./my-bundle-src --as-salesforce-pages
+    $ sf ui-bundle upload --bundle-dir ./my-bundle-src --use-salesforce-pages
 
   Upload to a specific org by alias:
 
-    $ sf ui-bundle upload --zip-file my-compressed-bundle --as-salesforce-pages --target-org my-org
+    $ sf ui-bundle upload --zip-file my-compressed-bundle --use-salesforce-pages --target-org my-org
 ```
 
 <!-- commandsstop -->

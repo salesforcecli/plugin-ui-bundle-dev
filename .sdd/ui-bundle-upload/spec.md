@@ -8,7 +8,7 @@
 
 ## 1. Feature Summary
 
-`sf ui-bundle upload` is a thin CLI wrapper around `POST /connect/uibundle/deploys`.
+`sf ui-bundle upload` is a thin CLI wrapper around `POST /connect/ui-bundle/deployments`.
 
 **Command state:** the command ships in developer-preview state — `public static readonly state = 'preview';` on the command class. `sf-plugins-core` therefore emits a runtime warning on every invocation and oclif prints a preview banner in `--help` (§2.4).
 
@@ -50,8 +50,8 @@
 
 ### 2.2 Core Requirements
 
-1. Ship `sf ui-bundle upload` as one synchronous call to `POST /connect/uibundle/deploys` — no polling (REQ-101).
-2. Accept the bundle source as exactly one of `--zip-file` or `--bundle-dir`, and validate the required flags (the `--zip-file`/`--bundle-dir` exactly-one relationship, `--as-salesforce-pages`, `--target-org`) before any network call (REQ-102–105).
+1. Ship `sf ui-bundle upload` as one synchronous call to `POST /connect/ui-bundle/deployments` — no polling (REQ-101).
+2. Accept the bundle source as exactly one of `--zip-file` or `--bundle-dir`, and validate the required flags (the `--zip-file`/`--bundle-dir` exactly-one relationship, `--use-salesforce-pages`, `--target-org`) before any network call (REQ-102–105).
 3. Produce correct human and `--json` output for both success and failure paths (§2.6), surfacing the server message verbatim (REQ-106–109, 111).
 4. Use distinct CLI-side error names, separable from a server-reported `Failed` status, so JSON consumers can branch on `result.name` (REQ-110).
 5. Perform no client-side zip-content validation — a server-side concern (REQ-112).
@@ -67,15 +67,15 @@
 - [ ] **102.** Neither `--zip-file` nor `--bundle-dir` given → `FailedFlagValidationError` from the `exactlyOne` relationship (`Exactly one of the following must be provided: --zip-file, --bundle-dir`), no network call. Neither flag is a standalone `required: true` flag anymore; the requirement is enforced by the exactly-one group.
 - [ ] **102b.** Both `--zip-file` and `--bundle-dir` given → `FailedFlagValidationError` from the `exactlyOne` relationship (`--zip-file cannot also be provided when using --bundle-dir`, or the symmetric `--bundle-dir cannot also be provided when using --zip-file` depending on parse order), no network call.
 - [ ] **103.** `--zip-file` path missing/not-a-file → `Flags.file({ exists: true })` validation error, no network call. Symmetrically, `--bundle-dir` path missing/not-a-directory → `Flags.directory({ exists: true })` validation error, no network call.
-- [ ] **104.** `--as-salesforce-pages` omitted → `FailedFlagValidationError` (`Missing required flag as-salesforce-pages`), no network call.
+- [ ] **104.** `--use-salesforce-pages` omitted → `FailedFlagValidationError` (`Missing required flag use-salesforce-pages`), no network call.
 - [ ] **105.** `--target-org` omitted, no default → `NoDefaultEnvError` via `Flags.requiredOrg()`, no network call. Distinct mechanism from 102/104 (org resolver, not flag parser) — see `dev.nut.ts:58` for the existing pattern.
 
 **AC2 (REQ-106–109) — Output shapes**
 
-- [ ] **106.** `Queued` response → human success block (§2.6) to stdout, exit 0.
-- [ ] **107.** `--json` + `Queued` → `{ "result": { "jobId", "status": "Queued" } }` only, no human text.
-- [ ] **108.** Defensive handling for whether the server response body ever carries a `status: "Failed"` shape → human failure block (§2.6) to stderr, exit 1. Not expected under the current Pkg A draft contract (§2.5) — a `Failed` result requires a job id and a job-shaped `POST` response body, neither of which the upstream spec documents — but the CLI does not fail closed if it happens.
-- [ ] **109.** `--json` equivalent of 108 → `{ "result": { "jobId", "status": "Failed", "message" } }`, exit 1. Same "defensive, not expected" framing as 108.
+- [ ] **106.** Without `--json`, `Queued` response → human success block (§2.6) to stdout, exit 0.
+- [ ] **107.** With `--json`, `Queued` response → `{ "result": { "jobId", "status": "Queued" } }` only, no human text.
+- [ ] **108.** Without `--json`, defensive handling for whether the server response body ever carries a `status: "Failed"` shape → human failure block (§2.6) to stderr, exit 1. Not expected under the current merged contract (§2.5) — a `Failed` result requires a job id and a job-shaped `POST` response body, which the upstream spec does not document as a synchronous response — but the CLI does not fail closed if it happens.
+- [ ] **109.** With `--json`, equivalent of 108 → `{ "result": { "jobId", "status": "Failed", "message" } }`, exit 1. Same "defensive, not expected" framing as 108.
 
 **AC3 (REQ-110–112) — Error semantics**
 
@@ -95,12 +95,12 @@
 
 **Command state:** `public static readonly state = 'preview';` on the command class. This marks the command as developer-preview, so oclif prints `This command is in preview.` in `--help` output and `sf-plugins-core` emits the runtime warning `⚠ This command is currently in developer preview. Developer preview commands will likely change before shipping, use at your own risk. Don't use developer preview commands in your scripts.` on every invocation.
 
-| Flag                    | Char | Type                                | Required                          | Notes                                                                                                                                                                                                                          |
-| ----------------------- | ---- | ----------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `--zip-file`            | `-z` | `Flags.file({ exists: true })`      | exactly-one (with `--bundle-dir`) | Pre-built zip source, sent as-is. No client-side zip-content validation (REQ-112). Declares `exactlyOne: ['zip-file', 'bundle-dir']`; no longer a standalone `required: true` flag.                                            |
-| `--bundle-dir`          | `-d` | `Flags.directory({ exists: true })` | exactly-one (with `--zip-file`)   | Uncompressed UI Bundle source directory; CLI auto-compresses it before upload (§2.6, REQ-302). Declares `exactlyOne: ['zip-file', 'bundle-dir']`. `-d` is free — `dev` uses `b/n/o/p/u`, `upload` uses `o/z`, so no collision. |
-| `--as-salesforce-pages` | —    | `Flags.boolean({ required: true })` | yes                               | No short char — avoids `-p` collision with `dev`'s `--port`.                                                                                                                                                                   |
-| `--target-org`          | `-o` | `Flags.requiredOrg()`               | yes                               | Same pattern as `dev.ts`; supplies its own messages.                                                                                                                                                                           |
+| Flag                     | Char | Type                                | Required                          | Notes                                                                                                                                                                                                                                                                          |
+| ------------------------ | ---- | ----------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--zip-file`             | `-z` | `Flags.file({ exists: true })`      | exactly-one (with `--bundle-dir`) | Pre-built zip source, sent as-is. No client-side zip-content validation (REQ-112). Declares `exactlyOne: ['zip-file', 'bundle-dir']`; no longer a standalone `required: true` flag.                                                                                            |
+| `--bundle-dir`           | `-d` | `Flags.directory({ exists: true })` | exactly-one (with `--zip-file`)   | Uncompressed UI Bundle source directory; CLI auto-compresses it before upload (§2.6, REQ-302). Declares `exactlyOne: ['zip-file', 'bundle-dir']`. `-d` is free — `dev` uses `b/n/o/p/u`, `upload` uses `o/z`, so no collision.                                                 |
+| `--use-salesforce-pages` | —    | `Flags.boolean({ required: true })` | yes                               | No short char — avoids `-p` collision with `dev`'s `--port`. Per the merged server contract (§2.5), there is currently no corresponding server-side field for this flag — it is a CLI-side concept only, its server effect contingent on the AC6 transport/contract resolving. |
+| `--target-org`           | `-o` | `Flags.requiredOrg()`               | yes                               | Same pattern as `dev.ts`; supplies its own messages.                                                                                                                                                                                                                           |
 
 **Exactly-one-of semantics:** `--zip-file` and `--bundle-dir` each declare `exactlyOne: ['zip-file', 'bundle-dir']`. The resulting validation, enforced by the oclif flag parser before any network call:
 
@@ -118,12 +118,12 @@ This command is in preview.
 Upload a UI Bundle to your org.
 
 USAGE
-  $ sf ui-bundle upload (-z <value> | -d <value>) --as-salesforce-pages -o <value> [--json] [--flags-dir <value>]
+  $ sf ui-bundle upload (-z <value> | -d <value>) --use-salesforce-pages -o <value> [--json] [--flags-dir <value>]
 
 FLAGS
   -z, --zip-file=<value>       Path to the UI Bundle source to upload.
   -d, --bundle-dir=<value>     Path to an uncompressed UI Bundle source directory; the CLI compresses it before upload.
-      --as-salesforce-pages    (required) Toggle whether this UI Bundle should be uploaded to Salesforce Pages.
+      --use-salesforce-pages   (required) Toggle whether this UI Bundle should be uploaded to Salesforce Pages.
   -o, --target-org=<value>     (required) Username or alias of the target org.
 
 GLOBAL FLAGS
@@ -138,43 +138,77 @@ The upload is asynchronous. View the UI bundle in your org to verify completion.
 
 EXAMPLES
   Upload a UI Bundle to Salesforce Pages using your default org:
-    $ sf ui-bundle upload --zip-file my-compressed-bundle --as-salesforce-pages
+    $ sf ui-bundle upload --zip-file my-compressed-bundle --use-salesforce-pages
 
   Upload an uncompressed source directory (auto-compressed by the CLI):
-    $ sf ui-bundle upload --bundle-dir ./my-bundle-src --as-salesforce-pages
+    $ sf ui-bundle upload --bundle-dir ./my-bundle-src --use-salesforce-pages
 
   Upload to a specific org by alias:
-    $ sf ui-bundle upload --zip-file my-compressed-bundle --as-salesforce-pages --target-org my-org
+    $ sf ui-bundle upload --zip-file my-compressed-bundle --use-salesforce-pages --target-org my-org
 ```
 
 **New dependency — `@salesforce/source-deploy-retrieve` (SDR):** compression of a `--bundle-dir` source leverages SDR's zip capability (its `ZipWriter` / zip-stream utility) to produce the zip in-memory or in a temp file before the `POST`. SDR is **not** currently in `package.json` (confirmed against the committed `dependencies` block — sibling `@salesforce/*` deps are `@salesforce/core`, `@salesforce/kit`, `@salesforce/sf-plugins-core`, `@salesforce/ui-bundle`, all pinned as `^`-caret ranges), so this feature **adds** it as a new runtime dependency using the same caret convention (exact minor version to be resolved at implementation time). The precise SDR API call is left to implementation; the spec fixes only the library and its zip utility as the mechanism.
 
-### 2.5 Connect API Contract (Pkg A, draft)
+### 2.5 Connect API Contract (v62.0 — merged in Core, feature branch)
 
-This documents the upstream Connect API contract ("Pkg A" — Async Connect API Front Door for UIBundle Deploy), currently in Draft status, so the CLI's request/response mapping is traceable to its source contract. Only the `POST` is in scope; the `GET` below is shown for context/comparison only (REQ-301 excludes it).
+This documents the upstream Connect API contract, grounded in merged Core source on feature branch `p/salesforce-pages/262-develop` (not yet on main). Only the `POST` is in scope for this command; the `GET` below is shown for context/comparison only (REQ-301 excludes it).
 
 **Endpoints:**
 
-| Method | Path                        | In scope for `upload`?                 |
-| ------ | --------------------------- | -------------------------------------- |
-| `POST` | `/connect/uibundle/deploys` | Yes — the one call this command makes. |
+| Method | Path                                                         | In scope for `upload`?                                  |
+| ------ | ------------------------------------------------------------ | ------------------------------------------------------- |
+| `POST` | `/services/data/v62.0/connect/ui-bundle/deployments`         | Yes — the one call this command makes.                  |
+| `GET`  | `/services/data/v62.0/connect/ui-bundle/deployments/{jobId}` | No — status polling, context/comparison only (REQ-301). |
 
-**`POST` request — draft field table** (explicitly "to be finalized in Spike A1"; transport itself — multipart zip vs. content-reference vs. base64 — is undecided):
+Note: `minVersion = 262` (API v62.0); `allowsPortalUsers = false`; `supportedFormats = {JSON}`; Apex family `ConnectApi.UiBundleDeploy`.
 
-| Field              | Type       | Notes                                                                                     |
-| ------------------ | ---------- | ----------------------------------------------------------------------------------------- |
-| `requestedName`    | string     | Human label, e.g. "Sales Dashboard". Load-bearing for multi-page UX; not marked optional. |
-| `bundle`           | file (zip) | multipart part; primary payload.                                                          |
-| `contentReference` | string     | optional — id of already-staged content, alternative to `bundle`.                         |
-| `workspaceId`      | string     | optional — target workspace if known.                                                     |
+**`POST` request** — the input representation is `UiBundleDeployRequestRepresentation`, serialized under the top-level tag `uiBundleDeployRequest`:
 
-`upload`'s `--zip-file`-as-multipart design tracks the _primary_ option under consideration for `bundle`, not a finalized contract — transport is still pending upstream confirmation.
+| Field              | Type   | Required?              | Notes                                                                                                                                   |
+| ------------------ | ------ | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `requestedName`    | string | optional (recommended) | Human-readable page label → BPO `RequestedName`.                                                                                        |
+| `contentReference` | string | optional               | Reference to already-staged content (ContentVersion / staged blob id) carrying the zip. **The only transport wired server-side today.** |
+| `workspaceId`      | string | optional               | Target CMS workspace id, when known.                                                                                                    |
+
+**⚠ Transport open question (AC6):** The merged server contract exposes ONLY `contentReference` (a staged-content id) as the way the zip reaches the server. There is **no `bundle` multipart file part, no base64 body, and no `usePages`/`useSalesforcePages` field server-side today.** Whether the final transport is a multipart `bundle` part, base64, or staged-content-then-`contentReference` is explicitly unresolved upstream (tracked as AC6 in the upstream work item, "not yet locked"). This reconciles with the CLI's current `--zip-file`-as-multipart design (§2.2/§2.6): that design tracks a transport that is NOT yet the wired server contract. The CLI's zip-delivery mechanism is therefore contingent on AC6 resolving, and only `contentReference` works against the merged endpoint as of this writing.
+
+**`POST` response — 202 Accepted** — representation `UiBundleDeployResponseRepresentation` (Apex `ConnectApi.UiBundleDeployResponse`):
+
+```
+{ "jobId": "<BPO Id>", "status": "Queued" }
+```
+
+**`GET` response (context only)** — representation `UiBundleDeployStatusRepresentation` (Apex `ConnectApi.UiBundleDeployStatus`), `suppressNullsOnSerialization = true` (null fields dropped):
+
+| Field           | When populated | Source (BPO col)              |
+| --------------- | -------------- | ----------------------------- |
+| `jobId`         | always         | `Id`                          |
+| `requestedName` | always         | `Label`                       |
+| `status`        | always         | mapped enum                   |
+| `pageUrl`       | Succeeded only | `PageUrl`                     |
+| `uiBundleId`    | Succeeded only | `UiBundleIdentifier` (9YE id) |
+| `workspaceId`   | Succeeded only | `CmsWorkspaceIdentifier`      |
+| `error`         | Failed only    | `ErrorDetail` (plain text)    |
+
+**Status enum (frozen contract):** `Queued | InProgress | Succeeded | Failed`. The entity uses `Success`/`Fail` internally; the service translates at the contract boundary (`UiBundleDeployService#toContractStatus`).
+
+**HTTP status codes (from the upstream ACs):** 202 accept · 400 invalid payload · 403 missing citizen-dev permission (currently a no-op seam) · 404 on GET when the job doesn't exist OR is owned by another user (no existence leak; scoped by `CreatedById`).
+
+**Source of truth (artifacts):** repo `core-2206/core-262-public`, host `gitcore.soma.salesforce.com`, feature branch `p/salesforce-pages/262-develop` (merged via PR #111849, work item W-23174801 — NOT yet on `264-main`/`262-patch`). New modules: `core/salesforce-pages-connect-api` (resources/`IUiBundleDeployResource`, constants/`UiBundleDeployConstants`, family/`UiBundleDeployResourceFamily`, representations/`UiBundleDeploy{Request,Response,Status}Representation`) and `core/salesforce-pages-connect-impl` (resources/`UiBundleDeployResource`, service/`UiBundleDeployService`, `UiBundleDeploymentStore`/`UiBundleDeploymentUddStore`). Constants: `DEPLOYS_URL = "/connect/ui-bundle/deployments"`, `DEPLOY_REQUEST_INPUT = "uiBundleDeployRequest"`, `JOB_ID = "jobId"`.
+
+**Caveats:**
+
+- Endpoint is on a feature branch, not yet on main — subject to change before GA.
+- Permission gate (citizen-dev perm) and payload validation are TODO seams in the merged skeleton, not yet enforced.
+- `pageUrl` and `workspaceId` are scheduled for removal per DEC-120 (2026-07-09): page URL to be resolved at render time from developer name; workspace read via UDD off the UIBundle FK. Do NOT assume they are always populated on `Succeeded`.
 
 **Access model:** this endpoint is accessible by standard (non-admin) users.
 
-**Server-side validation:** payload validation (size, content-type, reject-oversized-early, no execution of untrusted content) is explicitly server-side only, performed synchronously in Pkg A before enqueue. A rejection can therefore surface as a synchronous HTTP 4xx error from the `POST` call itself, distinct from the async job-level `Failed` status (§3.2, REQ-110–111).
+**Server-side validation:** payload validation (size, content-type, reject-oversized-early, no execution of untrusted content) is specified server-side to be performed synchronously before enqueue, but is a not-yet-enforced seam in the current merged skeleton. A rejection can therefore surface as a synchronous HTTP 4xx error from the `POST` call itself, distinct from the async job-level `Failed` status (§3.2, REQ-110–111).
 
 ### 2.6 Output Shapes
+
+> **Output format is governed solely by the `--json` flag.** With `--json`, the command emits ONLY the JSON result object (no human-readable text) — on both the success and the failure path. Without `--json`, the command emits ONLY the human-readable formatted text blocks shown below (to stdout on success, stderr on failure) and never emits JSON — again on both paths. There is no mode that mixes the two.
 
 The `Packaging bundle source...` step is path-dependent: with `--bundle-dir` it is the real SDR compression pass (directory → zip, REQ-302); with `--zip-file` there is nothing to package, so the step is trivial/no-op (the file is read and sent as-is). The `Staging and initiating upload...` step is identical for both paths.
 
@@ -209,7 +243,7 @@ Job ID: 0BXxx0000000001
 Packaging bundle source... done
 Staging and initiating upload... done
 
-✗ Upload failed
+Upload failed
   Job ID:   0BXxx0000000001
   Message:  Bundle validation failed — zip contains disallowed file type at path: src/server.js
 ```
@@ -271,7 +305,7 @@ Status values (`Queued`/`InProgress`/`Succeeded`/`Failed`) match the server-side
    - **Action:** exit 1, no network result object.
 
 4. **Missing or unresolvable required flags**
-   - **When:** neither/both of `--zip-file`/`--bundle-dir` supplied → `FailedFlagValidationError` from the `exactlyOne` relationship; `--as-salesforce-pages` omitted → `FailedFlagValidationError` (flag parser); `--target-org` omitted with no default org → `NoDefaultEnvError` (org resolver, distinct mechanism — see `dev.nut.ts:58`).
+   - **When:** neither/both of `--zip-file`/`--bundle-dir` supplied → `FailedFlagValidationError` from the `exactlyOne` relationship; `--use-salesforce-pages` omitted → `FailedFlagValidationError` (flag parser); `--target-org` omitted with no default org → `NoDefaultEnvError` (org resolver, distinct mechanism — see `dev.nut.ts:58`).
    - **Display:** the framework's flag/org-resolver validation error.
    - **Action:** fail before any network call (REQ-102/102b/104/105), exit 1.
 
@@ -295,7 +329,7 @@ Status values (`Queued`/`InProgress`/`Succeeded`/`Failed`) match the server-side
 
 - [ ] Neither `--zip-file` nor `--bundle-dir` → `FailedFlagValidationError` (exactly-one), no network call.
 - [ ] Both `--zip-file` and `--bundle-dir` → `FailedFlagValidationError` (exactly-one), no network call.
-- [ ] Missing `--as-salesforce-pages` → `FailedFlagValidationError`, no network call.
+- [ ] Missing `--use-salesforce-pages` → `FailedFlagValidationError`, no network call.
 - [ ] Missing `--target-org` (no default) → `NoDefaultEnvError` — distinct from the flag-parse cases.
 - [ ] Non-existent `--zip-file` path → `Flags.file({ exists: true })` validation error, no network call.
 - [ ] Non-existent / not-a-directory `--bundle-dir` path → `Flags.directory({ exists: true })` validation error, no network call.
@@ -312,7 +346,7 @@ Status values (`Queued`/`InProgress`/`Succeeded`/`Failed`) match the server-side
 
 Tiered like `dev.nut.ts` — Tier 1 (`dev.nut.ts:33-71`, no-auth flag-parse checks) and Tier 2 (`dev.nut.ts:72+`, real-org checks). Tier 2 throws if `TESTKIT_AUTH_URL` is unset, matching `dev.nut.ts`'s existing contract — it does not silently skip.
 
-- [ ] Tier 1: flag-parse / validation cases run without auth — including neither/both of `--zip-file`/`--bundle-dir` (exactly-one) and missing `--as-salesforce-pages`.
+- [ ] Tier 1: flag-parse / validation cases run without auth — including neither/both of `--zip-file`/`--bundle-dir` (exactly-one) and missing `--use-salesforce-pages`.
 - [ ] Tier 2: real-org `POST` path returns and reports a `Queued` job id, for both the `--zip-file` and `--bundle-dir` (auto-compressed) sources.
 - [ ] Tier 2 confirmed to throw (not silently skip) when `TESTKIT_AUTH_URL` is unset.
 - [ ] `command-snapshot.json` / `COMMANDS.md` show only tool-generated diffs — zero hand-edits.
@@ -376,9 +410,9 @@ The command currently inlines three customer-facing strings that this rule requi
 
 ## 7. Out of Scope
 
-1. **REQ-301.** No `status` command / `GET /connect/uibundle/deploys/{jobId}`. → Dreamforce+.
+1. **REQ-301.** No `status` command / `GET /connect/ui-bundle/deployments/{jobId}`. → Dreamforce+.
 2. **REQ-303.** No `--wait` flag, no client-side polling. → Dreamforce+.
-3. **REQ-304.** `--as-salesforce-pages` stays required-boolean, Pages-only — no generic upload semantics. → Dreamforce+ makes it optional.
+3. **REQ-304.** `--use-salesforce-pages` stays required-boolean, Pages-only — no generic upload semantics. → Dreamforce+ makes it optional.
 4. **REQ-305.** No extraction into a shared TypeScript library — lives entirely in `plugin-ui-bundle-dev` for this release. → Acknowledged roadmap item, not merely a deferred maybe: library extraction is on the roadmap for Dreamforce or shortly after, with initial use cases being CLI-specific from agents, and the eventual goal of both a CLI and a library covering all entryways down the line.
 
 > **Moved into scope — REQ-302.** Previously "No local-directory source, no auto-compression — `--zip-file` only." Now **in scope**: `--bundle-dir` accepts an uncompressed local source directory and the CLI auto-compresses it via `@salesforce/source-deploy-retrieve` before the `POST` (§2.2 item 6, §2.4, §2.6). The REQ id is retained — still referenced by §2.2, §2.4, §2.6, and §3.1 — rather than dropped.

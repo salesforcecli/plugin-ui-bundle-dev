@@ -24,11 +24,11 @@ Path to an uncompressed UI Bundle source directory.
 
 The path to an uncompressed directory containing the UI Bundle source. This command compresses the directory into a ZIP file before uploading. 
 
-# flags.as-salesforce-pages.summary
+# flags.use-salesforce-pages.summary
 
 Toggle whether this UI Bundle should be uploaded to Salesforce Pages. Currently this is a required flag as only Salesforce Pages uploads are supported.
 
-# flags.as-salesforce-pages.description
+# flags.use-salesforce-pages.description
 
 When specified, the UI Bundle is uploaded for use with Salesforce Pages.
 
@@ -36,15 +36,15 @@ When specified, the UI Bundle is uploaded for use with Salesforce Pages.
 
 - Upload a UI Bundle to Salesforce Pages using your default org:
 
-  <%= config.bin %> <%= command.id %> --zip-file my-compressed-bundle --as-salesforce-pages
+  <%= config.bin %> <%= command.id %> --zip-file my-compressed-bundle --use-salesforce-pages
 
 - Upload an uncompressed source directory (auto-compressed by the CLI):
 
-  <%= config.bin %> <%= command.id %> --bundle-dir ./my-bundle-src --as-salesforce-pages
+  <%= config.bin %> <%= command.id %> --bundle-dir ./my-bundle-src --use-salesforce-pages
 
 - Upload to a specific org by alias:
 
-  <%= config.bin %> <%= command.id %> --zip-file my-compressed-bundle --as-salesforce-pages --target-org my-org
+  <%= config.bin %> <%= command.id %> --zip-file my-compressed-bundle --use-salesforce-pages --target-org my-org
 
 # info.upload-queued
 
@@ -56,7 +56,7 @@ Job ID: %s.
 
 # error.upload-failed
 
-✗ Upload failed
+Upload failed
   Job ID:   %s
   Message:  %s
 

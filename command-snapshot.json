@@ -12,7 +12,7 @@
     "command": "ui-bundle:upload",
     "flagAliases": [],
     "flagChars": ["d", "o", "z"],
-    "flags": ["as-salesforce-pages", "bundle-dir", "flags-dir", "json", "target-org", "zip-file"],
+    "flags": ["bundle-dir", "flags-dir", "json", "target-org", "use-salesforce-pages", "zip-file"],
     "plugin": "@salesforce/plugin-ui-bundle-dev"
   }
 ]

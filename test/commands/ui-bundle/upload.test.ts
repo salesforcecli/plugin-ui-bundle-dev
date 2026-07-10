@@ -78,7 +78,7 @@ describe('ui-bundle:upload command unit tests', () => {
       stubSfCommandUx($$.SANDBOX);
 
       try {
-        await UiBundleUpload.run(['--as-salesforce-pages', '--target-org', testOrg.username], import.meta.url);
+        await UiBundleUpload.run(['--use-salesforce-pages', '--target-org', testOrg.username], import.meta.url);
         expect.fail('should have thrown');
       } catch (e) {
         const err = e as Error & { message: string; cause?: Error };
@@ -103,7 +103,15 @@ describe('ui-bundle:upload command unit tests', () => {
 
       try {
         await UiBundleUpload.run(
-          ['--zip-file', zipPath, '--bundle-dir', bundleDir, '--as-salesforce-pages', '--target-org', testOrg.username],
+          [
+            '--zip-file',
+            zipPath,
+            '--bundle-dir',
+            bundleDir,
+            '--use-salesforce-pages',
+            '--target-org',
+            testOrg.username,
+          ],
           import.meta.url
         );
         expect.fail('should have thrown');
@@ -116,7 +124,7 @@ describe('ui-bundle:upload command unit tests', () => {
       expect(requestStub.called).to.be.false;
     });
 
-    it('missing --as-salesforce-pages -> FailedFlagValidationError, no network call', async () => {
+    it('missing --use-salesforce-pages -> FailedFlagValidationError, no network call', async () => {
       const testOrg = new MockTestOrgData();
       await $$.stubAuths(testOrg);
       const requestStub = $$.SANDBOX.stub();
@@ -129,7 +137,7 @@ describe('ui-bundle:upload command unit tests', () => {
         expect.fail('should have thrown');
       } catch (e) {
         const err = e as Error & { message: string; cause?: Error };
-        expect(err.message).to.include('Missing required flag as-salesforce-pages');
+        expect(err.message).to.include('Missing required flag use-salesforce-pages');
         expect(err.cause?.constructor.name).to.equal('FailedFlagValidationError');
       }
       expect(requestStub.called).to.be.false;
@@ -142,7 +150,7 @@ describe('ui-bundle:upload command unit tests', () => {
       const zipPath = createZipFixture();
 
       try {
-        await UiBundleUpload.run(['--zip-file', zipPath, '--as-salesforce-pages'], import.meta.url);
+        await UiBundleUpload.run(['--zip-file', zipPath, '--use-salesforce-pages'], import.meta.url);
         expect.fail('should have thrown');
       } catch (e) {
         const err = e as Error & { name: string; message: string };
@@ -162,7 +170,7 @@ describe('ui-bundle:upload command unit tests', () => {
 
       try {
         await UiBundleUpload.run(
-          ['--zip-file', nonExistentPath, '--as-salesforce-pages', '--target-org', testOrg.username],
+          ['--zip-file', nonExistentPath, '--use-salesforce-pages', '--target-org', testOrg.username],
           import.meta.url
         );
         expect.fail('should have thrown');
@@ -183,7 +191,7 @@ describe('ui-bundle:upload command unit tests', () => {
 
       try {
         await UiBundleUpload.run(
-          ['--bundle-dir', nonExistentDir, '--as-salesforce-pages', '--target-org', testOrg.username],
+          ['--bundle-dir', nonExistentDir, '--use-salesforce-pages', '--target-org', testOrg.username],
           import.meta.url
         );
         expect.fail('should have thrown');
@@ -215,7 +223,7 @@ describe('ui-bundle:upload command unit tests', () => {
       const uxStubs = stubSfCommandUx($$.SANDBOX);
 
       const result = await UiBundleUpload.run(
-        ['--zip-file', zipPath, '--as-salesforce-pages', '--target-org', testOrg.username],
+        ['--zip-file', zipPath, '--use-salesforce-pages', '--target-org', testOrg.username],
         import.meta.url
       );
 
@@ -232,7 +240,7 @@ describe('ui-bundle:upload command unit tests', () => {
       stubSfCommandUx($$.SANDBOX);
 
       await UiBundleUpload.run(
-        ['--zip-file', zipPath, '--as-salesforce-pages', '--target-org', testOrg.username],
+        ['--zip-file', zipPath, '--use-salesforce-pages', '--target-org', testOrg.username],
         import.meta.url
       );
 
@@ -249,7 +257,7 @@ describe('ui-bundle:upload command unit tests', () => {
       const bundleDir = createBundleDirFixture();
 
       const result = await UiBundleUpload.run(
-        ['--bundle-dir', bundleDir, '--as-salesforce-pages', '--target-org', testOrg.username],
+        ['--bundle-dir', bundleDir, '--use-salesforce-pages', '--target-org', testOrg.username],
         import.meta.url
       );
 
@@ -275,7 +283,7 @@ describe('ui-bundle:upload command unit tests', () => {
         const uxStubs = stubSfCommandUx($$.SANDBOX);
 
         const result = await UiBundleUpload.run(
-          ['--zip-file', zipPath, '--as-salesforce-pages', '--target-org', testOrg.username],
+          ['--zip-file', zipPath, '--use-salesforce-pages', '--target-org', testOrg.username],
           import.meta.url
         );
 
@@ -312,7 +320,7 @@ describe('ui-bundle:upload command unit tests', () => {
 
       try {
         await UiBundleUpload.run(
-          ['--zip-file', zipPath, '--as-salesforce-pages', '--target-org', testOrg.username],
+          ['--zip-file', zipPath, '--use-salesforce-pages', '--target-org', testOrg.username],
           import.meta.url
         );
         expect.fail('should have thrown');
@@ -329,7 +337,7 @@ describe('ui-bundle:upload command unit tests', () => {
 
       try {
         await UiBundleUpload.run(
-          ['--zip-file', zipPath, '--as-salesforce-pages', '--target-org', testOrg.username],
+          ['--zip-file', zipPath, '--use-salesforce-pages', '--target-org', testOrg.username],
           import.meta.url
         );
         expect.fail('should have thrown');
@@ -349,7 +357,7 @@ describe('ui-bundle:upload command unit tests', () => {
 
       try {
         await UiBundleUpload.run(
-          ['--zip-file', zipPath, '--as-salesforce-pages', '--target-org', testOrg.username],
+          ['--zip-file', zipPath, '--use-salesforce-pages', '--target-org', testOrg.username],
           import.meta.url
         );
         expect.fail('should have thrown');
