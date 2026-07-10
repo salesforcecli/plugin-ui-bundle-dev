@@ -47,14 +47,14 @@ async function compressDirectory(dir: string): Promise<Buffer> {
   }
   // An empty directory produces no zip entries; reject rather than POST an empty bundle.
   if (writer.fileCount === 0) {
-    throw new SfError('The bundle source directory is empty.', 'UiBundleUploadValidationError');
+    throw new SfError(messages.getMessage('error.bundle-dir-empty'), 'UiBundleUploadValidationError');
   }
   // ZipWriter is a Writable; finalize via end() and read .buffer once it drains.
   await new Promise<void>((resolve, reject) => {
     writer.end((err?: Error) => (err ? reject(err) : resolve()));
   });
   if (!writer.buffer) {
-    throw new SfError('Failed to compress the bundle source directory.', 'UiBundleUploadValidationError');
+    throw new SfError(messages.getMessage('error.compression-failed'), 'UiBundleUploadValidationError');
   }
   return writer.buffer;
 }
@@ -141,9 +141,7 @@ export default class UiBundleUpload extends SfCommand<UiBundleUploadResult> {
     // Step 4: Map the response. The server is only expected to return `Queued`; `Failed` is handled defensively.
     if (response.status === 'Failed') {
       // logToStderr, like log, is a no-op under --json.
-      this.logToStderr(
-        ['✗ Upload failed', `  Job ID:   ${response.jobId}`, `  Message:  ${response.message ?? ''}`].join('\n')
-      );
+      this.logToStderr(messages.getMessage('error.upload-failed', [response.jobId, response.message ?? '']));
       // oclif has no built-in way to set a non-zero exit for a returned (non-thrown) result, so set it manually.
       process.exitCode = 1;
       return { jobId: response.jobId, status: 'Failed', message: response.message };

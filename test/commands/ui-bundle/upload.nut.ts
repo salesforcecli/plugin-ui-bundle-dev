@@ -85,8 +85,9 @@ describe('ui-bundle upload NUTs — Tier 2 (real org)', () => {
 
   // Neither bundle-source flag → exactly-one relationship fails at parse time.
   it('should require exactly one of --zip-file / --bundle-dir (neither given)', () => {
+    // oclif exits 2 for FailedFlagValidationError (flag-parse errors), distinct from the runtime NoDefaultEnvError exit-1 case in Tier 1.
     const result = execCmd(`ui-bundle upload --as-salesforce-pages --target-org ${targetOrg} --json`, {
-      ensureExitCode: 1,
+      ensureExitCode: 2,
       cwd: session.dir,
     });
 
@@ -101,7 +102,7 @@ describe('ui-bundle upload NUTs — Tier 2 (real org)', () => {
     const result = execCmd(
       `ui-bundle upload --zip-file ${zipPath} --bundle-dir ${bundleDir} --as-salesforce-pages --target-org ${targetOrg} --json`,
       {
-        ensureExitCode: 1,
+        ensureExitCode: 2,
         cwd: session.dir,
       }
     );
@@ -114,7 +115,7 @@ describe('ui-bundle upload NUTs — Tier 2 (real org)', () => {
     const zipPath = createZipFixture(session);
 
     const result = execCmd(`ui-bundle upload --zip-file ${zipPath} --target-org ${targetOrg} --json`, {
-      ensureExitCode: 1,
+      ensureExitCode: 2,
       cwd: session.dir,
     });
 
@@ -125,7 +126,14 @@ describe('ui-bundle upload NUTs — Tier 2 (real org)', () => {
   // Real-org call: POST /connect/uibundle/deploys with a placeholder zip.
   // Requires the endpoint to be deployed on the target org; runs only when
   // TESTKIT_AUTH_URL opts into a real connection.
-  it('should upload a UI Bundle and return a Queued job id (--zip-file)', () => {
+  it('should upload a UI Bundle and return a Queued job id (--zip-file)', function () {
+    // The Pkg A Connect endpoint (POST /connect/uibundle/deploys) is still Draft (spec §2.5)
+    // and not deployed on the integration org — it returns 404. Guard behind
+    // UI_BUNDLE_UPLOAD_ENDPOINT_LIVE until the endpoint ships; set it to re-enable this test.
+    if (!process.env.UI_BUNDLE_UPLOAD_ENDPOINT_LIVE) {
+      this.skip();
+    }
+
     const zipPath = createZipFixture(session);
 
     const result = execCmd(
@@ -141,7 +149,14 @@ describe('ui-bundle upload NUTs — Tier 2 (real org)', () => {
   });
 
   // Real-org call with an uncompressed source directory the CLI compresses.
-  it('should upload a UI Bundle and return a Queued job id (--bundle-dir, auto-compressed)', () => {
+  it('should upload a UI Bundle and return a Queued job id (--bundle-dir, auto-compressed)', function () {
+    // The Pkg A Connect endpoint (POST /connect/uibundle/deploys) is still Draft (spec §2.5)
+    // and not deployed on the integration org — it returns 404. Guard behind
+    // UI_BUNDLE_UPLOAD_ENDPOINT_LIVE until the endpoint ships; set it to re-enable this test.
+    if (!process.env.UI_BUNDLE_UPLOAD_ENDPOINT_LIVE) {
+      this.skip();
+    }
+
     const bundleDir = createBundleDirFixture(session);
 
     const result = execCmd(

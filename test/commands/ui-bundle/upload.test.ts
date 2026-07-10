@@ -19,10 +19,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect } from 'chai';
 import { TestContext, MockTestOrgData } from '@salesforce/core/testSetup';
-import { Org } from '@salesforce/core';
+import { Org, Messages } from '@salesforce/core';
 import { stubSfCommandUx } from '@salesforce/sf-plugins-core';
 import UiBundleUpload from '../../../src/commands/ui-bundle/upload.js';
 import type { UiBundleUploadResult } from '../../../src/config/types.js';
+
+Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
+const messages = Messages.loadMessages('@salesforce/plugin-ui-bundle-dev', 'ui-bundle.upload');
 
 /**
  * Create a placeholder zip fixture. Content is never inspected client-side,
@@ -288,6 +291,12 @@ describe('ui-bundle:upload command unit tests', () => {
         expect(stderrOutput).to.include('Upload failed');
         expect(stderrOutput).to.include('0BXxx0000000002');
         expect(stderrOutput).to.include('Bundle validation failed');
+        // Verify the stderr output matches what the message file produces.
+        const expectedMessage = messages.getMessage('error.upload-failed', [
+          '0BXxx0000000002',
+          'Bundle validation failed',
+        ]);
+        expect(stderrOutput).to.equal(expectedMessage);
       } finally {
         process.exitCode = savedExitCode;
       }

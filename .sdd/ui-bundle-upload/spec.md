@@ -201,7 +201,7 @@ Upload queued successfully.
 Job ID: 0BXxx0000000001
 ```
 
-**Human — failure (defensive; see callout below):**
+**Human — failure (defensive; see callout below, text sourced from `messages/ui-bundle.upload.md` per §6.3):**
 
 ```
 → Upload UI Bundle to org
@@ -305,6 +305,7 @@ Status values (`Queued`/`InProgress`/`Succeeded`/`Failed`) match the server-side
 - [ ] `Failed` response (defensive) → human failure block and `--json` shape (§2.6).
 - [ ] Each CLI-side `SfError` name asserted: `UiBundleUploadValidationError` / `UiBundleUploadNetworkError` / `UiBundleUploadAuthError`.
 - [ ] Preview-state warning emitted (`state = 'preview'`) — not suppressed under `--json`'s result payload.
+- [ ] No customer-facing output literal is inlined in `upload.ts` — all such output resolves via `messages.getMessage()` per §6.3.
 - [ ] Lint, build, and license-header checks clean on all new `.ts` files.
 
 ### 5.2 Integration Testing (`upload.nut.ts`)
@@ -360,6 +361,16 @@ Plan documents generated for this feature follow these rules:
 2. **Reference artifacts, not conversations.** Cite files, requirement IDs, and acceptance criteria (`REQ-302`, `AC1`) rather than chat threads, meetings, or verbal decisions, so each plan step stands on its own and stays reproducible.
 3. **Every task is falsifiable.** Each plan item names a concrete verification — a command, a test, or a `git diff` check — so completion is objectively checkable rather than a matter of judgment.
 4. **Scoped to this release.** Deferred or roadmap work belongs in §7 Out of Scope, not interleaved into plan steps; a plan step describes only in-scope, shippable work.
+
+### 6.3 Output Message Guidelines
+
+All customer-facing output messages — whether success text, info lines, or thrown `SfError` message strings — must follow these rules:
+
+1. **All customer-facing output messages are defined in `messages/ui-bundle.upload.md` and referenced via `messages.getMessage()`.** Never inline customer-facing strings as string literals in the command source. This extends the oclif/sf-plugins-core convention for summaries/descriptions/examples to all runtime output the user sees.
+2. **Server/framework-supplied messages surfaced verbatim are pass-through, not authored strings.** A caught `error.message` from the org connection, an HTTP error body, or any other externally-sourced error text is relayed as-is (§2.3 AC3 REQ-111 requires verbatim surfacing) — it is **not** a hardcoded literal and is out of scope for this rule.
+3. **The `SfError` name/error-code (the second argument, e.g. `'UiBundleUploadValidationError'`) is a stable machine identifier, not customer-facing prose** — it stays inline.
+
+The command currently inlines three customer-facing strings that this rule requires moving into `messages/ui-bundle.upload.md`: the empty-bundle-dir `SfError` message (`'The bundle source directory is empty.'` in `compressDirectory`), the compression-failure `SfError` message (`'Failed to compress the bundle source directory.'`), and the `Failed`-status human block (`'✗ Upload failed'` and its `Job ID:` / `Message:` labels) — this is the "Upload failed" text the user specifically called out as residing separately in upload.ts. Note: `messages/ui-bundle.upload.md` already defines unused `# error.*` keys (`error.upload-failed`, `error.auth-failed`, `error.network-failed`, `error.validation-failed`) that the code does not currently reference — the guideline's intent is that authored output routes through such message keys rather than duplicating strings inline.
 
 ---
 
