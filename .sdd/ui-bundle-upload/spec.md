@@ -23,17 +23,6 @@
 - When `--bundle-dir` is used, the CLI compresses the directory to a zip (via `@salesforce/source-deploy-retrieve`) before the `POST`; when `--zip-file` is used, the file is sent as-is.
 - The CLI prints the returned job ID and does nothing else — no polling, no zip-content validation, no lifecycle management client-side.
 
-**Business value:**
-
-- A standard user can create and persist a UI Bundle themselves — the first step toward a Salesforce Page — without filing an admin request or holding Metadata API permissions.
-- This unblocks the broader MIYO Pages self-service vision.
-
-**Invocation context:**
-
-- The command runs inside an isolated CAP (Coding Agentic Platform) DX workspace, where a bundle is agent-generated and then uploaded.
-- CAP is one agentic entry point among several (e.g. Agentforce Vibes, Agentforce Coworker), and this command is intended as the unified entryway for UI Bundle deployment across all of them.
-- The flag/output contract is designed for that agentic/pipeline consumption, not an interactive human-first CLI.
-
 ---
 
 ## 2. Functional Requirements
@@ -95,12 +84,12 @@
 
 **Command state:** `public static readonly state = 'preview';` on the command class. This marks the command as developer-preview, so oclif prints `This command is in preview.` in `--help` output and `sf-plugins-core` emits the runtime warning `⚠ This command is currently in developer preview. Developer preview commands will likely change before shipping, use at your own risk. Don't use developer preview commands in your scripts.` on every invocation.
 
-| Flag                     | Char | Type                                | Required                          | Notes                                                                                                                                                                                                                                                                          |
-| ------------------------ | ---- | ----------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `--zip-file`             | `-z` | `Flags.file({ exists: true })`      | exactly-one (with `--bundle-dir`) | Pre-built zip source, sent as-is. No client-side zip-content validation (REQ-112). Declares `exactlyOne: ['zip-file', 'bundle-dir']`; no longer a standalone `required: true` flag.                                                                                            |
-| `--bundle-dir`           | `-d` | `Flags.directory({ exists: true })` | exactly-one (with `--zip-file`)   | Uncompressed UI Bundle source directory; CLI auto-compresses it before upload (§2.6, REQ-302). Declares `exactlyOne: ['zip-file', 'bundle-dir']`. `-d` is free — `dev` uses `b/n/o/p/u`, `upload` uses `o/z`, so no collision.                                                 |
-| `--use-salesforce-pages` | —    | `Flags.boolean({ required: true })` | yes                               | No short char — avoids `-p` collision with `dev`'s `--port`. Per the merged server contract (§2.5), there is currently no corresponding server-side field for this flag — it is a CLI-side concept only, its server effect contingent on the AC6 transport/contract resolving. |
-| `--target-org`           | `-o` | `Flags.requiredOrg()`               | yes                               | Same pattern as `dev.ts`; supplies its own messages.                                                                                                                                                                                                                           |
+| Flag                     | Char | Type                                | Required                          | Notes                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------ | ---- | ----------------------------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--zip-file`             | `-z` | `Flags.file({ exists: true })`      | exactly-one (with `--bundle-dir`) | Pre-built zip source, sent as-is. No client-side zip-content validation (REQ-112). Declares `exactlyOne: ['zip-file', 'bundle-dir']`; no longer a standalone `required: true` flag.                                                                                                                                                                                                                        |
+| `--bundle-dir`           | `-d` | `Flags.directory({ exists: true })` | exactly-one (with `--zip-file`)   | Uncompressed UI Bundle source directory; CLI auto-compresses it before upload (§2.6, REQ-302). Declares `exactlyOne: ['zip-file', 'bundle-dir']`. `-d` is free — `dev` uses `b/n/o/p/u`, `upload` uses `o/z`, so no collision.                                                                                                                                                                             |
+| `--use-salesforce-pages` | —    | `Flags.boolean({ required: true })` | yes                               | No short char — avoids `-p` collision with `dev`'s `--port`. The AC6 transport is now resolved (multipart `bundle`, §2.5), so this flag is no longer transport-contingent. But there is still no corresponding server-side field — PR #118209 did NOT add a `usePages`/`useSalesforcePages` field — so it remains a CLI-side concept only; the flag→server-field mapping is a separate, still-open matter. |
+| `--target-org`           | `-o` | `Flags.requiredOrg()`               | yes                               | Same pattern as `dev.ts`; supplies its own messages.                                                                                                                                                                                                                                                                                                                                                       |
 
 **Exactly-one-of semantics:** `--zip-file` and `--bundle-dir` each declare `exactlyOne: ['zip-file', 'bundle-dir']`. The resulting validation, enforced by the oclif flag parser before any network call:
 
@@ -151,7 +140,7 @@ EXAMPLES
 
 ### 2.5 Connect API Contract (v62.0 — merged in Core, feature branch)
 
-This documents the upstream Connect API contract, grounded in merged Core source on feature branch `p/salesforce-pages/262-develop` (not yet on main). Only the `POST` is in scope for this command; the `GET` below is shown for context/comparison only (REQ-301 excludes it).
+Only the `POST` is in scope for this command; the `GET` below is shown for context/comparison only (REQ-301 excludes it).
 
 **Endpoints:**
 
@@ -162,23 +151,21 @@ This documents the upstream Connect API contract, grounded in merged Core source
 
 Note: `minVersion = 262` (API v62.0); `allowsPortalUsers = false`; `supportedFormats = {JSON}`; Apex family `ConnectApi.UiBundleDeploy`.
 
-**`POST` request** — the input representation is `UiBundleDeployRequestRepresentation`, serialized under the top-level tag `uiBundleDeployRequest`:
+**`POST` request** — the JSON metadata accompanying the binary is the input representation `UiBundleDeployRequestRepresentation`, serialized under the wire name `uiBundleDeployRequest` (code constant `DEPLOY_REQUEST_INPUT`; the PR #118209 contract doc informally shorthands it `deployRequest`, but the wired name is `uiBundleDeployRequest`). Per PR #118209 (AC6) the representation now carries ONLY `requestedName`:
 
-| Field              | Type   | Required?              | Notes                                                                                                                                   |
-| ------------------ | ------ | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `requestedName`    | string | optional (recommended) | Human-readable page label → BPO `RequestedName`.                                                                                        |
-| `contentReference` | string | optional               | Reference to already-staged content (ContentVersion / staged blob id) carrying the zip. **The only transport wired server-side today.** |
-| `workspaceId`      | string | optional               | Target CMS workspace id, when known.                                                                                                    |
+| Field           | Type   | Required?              | Notes                                            |
+| --------------- | ------ | ---------------------- | ------------------------------------------------ |
+| `requestedName` | string | optional (recommended) | Human-readable page label → BPO `RequestedName`. |
 
-**⚠ Transport open question (AC6):** The merged server contract exposes ONLY `contentReference` (a staged-content id) as the way the zip reaches the server. There is **no `bundle` multipart file part, no base64 body, and no `usePages`/`useSalesforcePages` field server-side today.** Whether the final transport is a multipart `bundle` part, base64, or staged-content-then-`contentReference` is explicitly unresolved upstream (tracked as AC6 in the upstream work item, "not yet locked"). This reconciles with the CLI's current `--zip-file`-as-multipart design (§2.2/§2.6): that design tracks a transport that is NOT yet the wired server contract. The CLI's zip-delivery mechanism is therefore contingent on AC6 resolving, and only `contentReference` works against the merged endpoint as of this writing.
+**Transport (AC6) — RESOLVED: multipart `bundle` binary part.** The zip is sent as a `multipart/form-data` binary part named `bundle`, declared server-side as `@ConnectParameter(name = "bundle", type = ParameterType.Binary, minVersion = 262)`; the resource `@ConnectSignature` parameters are `{uiBundleDeployRequest, bundle}` (method `submitDeploy`). Locked 2026-07-09 per the W-23384881 decision and implemented in PR #118209 (W-23384691, base `p/salesforce-pages/262-develop`), which also REMOVED `contentReference` (field + getters/setters + `@ConnectInputProperty`) and enumerated `BUNDLE_INPUT = "bundle"`. Base64-in-JSON and pre-staged `contentReference` were explicitly REJECTED alternatives. This confirms/validates the CLI's existing multipart `bundle` design (§2.2/§2.6) — the transport now matches the locked server contract and is no longer contingent on AC6. **Two caveats sit alongside the "resolved" claim:**
 
-**`POST` response — 202 Accepted** — representation `UiBundleDeployResponseRepresentation` (Apex `ConnectApi.UiBundleDeployResponse`):
+**`POST` response — 202 Accepted**
 
 ```
 { "jobId": "<BPO Id>", "status": "Queued" }
 ```
 
-**`GET` response (context only)** — representation `UiBundleDeployStatusRepresentation` (Apex `ConnectApi.UiBundleDeployStatus`), `suppressNullsOnSerialization = true` (null fields dropped):
+**`GET` response (context only)** — representation `UiBundleDeployStatusRepresentation`
 
 | Field           | When populated | Source (BPO col)              |
 | --------------- | -------------- | ----------------------------- |
@@ -194,17 +181,15 @@ Note: `minVersion = 262` (API v62.0); `allowsPortalUsers = false`; `supportedFor
 
 **HTTP status codes (from the upstream ACs):** 202 accept · 400 invalid payload · 403 missing citizen-dev permission (currently a no-op seam) · 404 on GET when the job doesn't exist OR is owned by another user (no existence leak; scoped by `CreatedById`).
 
-**Source of truth (artifacts):** repo `core-2206/core-262-public`, host `gitcore.soma.salesforce.com`, feature branch `p/salesforce-pages/262-develop` (merged via PR #111849, work item W-23174801 — NOT yet on `264-main`/`262-patch`). New modules: `core/salesforce-pages-connect-api` (resources/`IUiBundleDeployResource`, constants/`UiBundleDeployConstants`, family/`UiBundleDeployResourceFamily`, representations/`UiBundleDeploy{Request,Response,Status}Representation`) and `core/salesforce-pages-connect-impl` (resources/`UiBundleDeployResource`, service/`UiBundleDeployService`, `UiBundleDeploymentStore`/`UiBundleDeploymentUddStore`). Constants: `DEPLOYS_URL = "/connect/ui-bundle/deployments"`, `DEPLOY_REQUEST_INPUT = "uiBundleDeployRequest"`, `JOB_ID = "jobId"`.
-
 **Caveats:**
 
 - Endpoint is on a feature branch, not yet on main — subject to change before GA.
 - Permission gate (citizen-dev perm) and payload validation are TODO seams in the merged skeleton, not yet enforced.
-- `pageUrl` and `workspaceId` are scheduled for removal per DEC-120 (2026-07-09): page URL to be resolved at render time from developer name; workspace read via UDD off the UIBundle FK. Do NOT assume they are always populated on `Succeeded`.
+- `pageUrl` and `workspaceId` are scheduled for removal per DEC-120 (2026-07-09): page URL to be resolved at render time from developer name; workspace read via UDD off the UIBundle FK. The PR #118209 contract doc reinforces this — it restates the GET status shape omitting `pageUrl`/`workspaceId` per DEC-120. Do NOT assume they are always populated on `Succeeded`.
 
 **Access model:** this endpoint is accessible by standard (non-admin) users.
 
-**Server-side validation:** payload validation (size, content-type, reject-oversized-early, no execution of untrusted content) is specified server-side to be performed synchronously before enqueue, but is a not-yet-enforced seam in the current merged skeleton. A rejection can therefore surface as a synchronous HTTP 4xx error from the `POST` call itself, distinct from the async job-level `Failed` status (§3.2, REQ-110–111).
+**Server-side validation:** payload validation (size, content-type, reject-oversized-early, no execution of untrusted content) is specified server-side to be performed synchronously before enqueue
 
 ### 2.6 Output Shapes
 
@@ -281,7 +266,7 @@ Status values (`Queued`/`InProgress`/`Succeeded`/`Failed`) match the server-side
    - **Expected Behavior:** `Flags.directory({ exists: true })` raises its validation error before any network call and before compression; no `POST` is issued. Contents of the directory are not inspected for validity — only compressed and sent (REQ-302; REQ-112 still applies — the server is the sole content validator).
 
 5. **Server response body unexpectedly carries `status: "Failed"`**
-   - **Scenario:** the still-Draft Pkg A contract (§2.5) evolves to return a `Failed`-shaped `POST` body — not expected under today's contract, which documents only `Queued`.
+   - **Scenario:** the locked Core contract (§2.5) evolves to return a `Failed`-shaped `POST` body — not expected under today's contract, which documents only `Queued`.
    - **Expected Behavior:** human/JSON failure output per AC2 (108/109), exit 1 — handled defensively as a returned result object, not thrown. The CLI does not fail closed on an unexpected-but-well-formed body.
 
 ### 3.2 Error Handling
@@ -404,7 +389,7 @@ All customer-facing output messages — whether success text, info lines, or thr
 2. **Server/framework-supplied messages surfaced verbatim are pass-through, not authored strings.** A caught `error.message` from the org connection, an HTTP error body, or any other externally-sourced error text is relayed as-is (§2.3 AC3 REQ-111 requires verbatim surfacing) — it is **not** a hardcoded literal and is out of scope for this rule.
 3. **The `SfError` name/error-code (the second argument, e.g. `'UiBundleUploadValidationError'`) is a stable machine identifier, not customer-facing prose** — it stays inline.
 
-The command currently inlines three customer-facing strings that this rule requires moving into `messages/ui-bundle.upload.md`: the empty-bundle-dir `SfError` message (`'The bundle source directory is empty.'` in `compressDirectory`), the compression-failure `SfError` message (`'Failed to compress the bundle source directory.'`), and the `Failed`-status human block (`'✗ Upload failed'` and its `Job ID:` / `Message:` labels) — this is the "Upload failed" text the user specifically called out as residing separately in upload.ts. Note: `messages/ui-bundle.upload.md` already defines unused `# error.*` keys (`error.upload-failed`, `error.auth-failed`, `error.network-failed`, `error.validation-failed`) that the code does not currently reference — the guideline's intent is that authored output routes through such message keys rather than duplicating strings inline.
+The command currently inlines three customer-facing strings that this rule requires moving into `messages/ui-bundle.upload.md`: the empty-bundle-dir `SfError` message (`'The bundle source directory is empty.'` in `compressDirectory`), the compression-failure `SfError` message (`'Failed to compress the bundle source directory.'`), and the `Failed`-status human block (`'Upload failed'` and its `Job ID:` / `Message:` labels) — this is the "Upload failed" text the user specifically called out as residing separately in upload.ts. Note: `messages/ui-bundle.upload.md` already defines unused `# error.*` keys (`error.upload-failed`, `error.auth-failed`, `error.network-failed`, `error.validation-failed`) that the code does not currently reference — the guideline's intent is that authored output routes through such message keys rather than duplicating strings inline.
 
 ---
 
@@ -416,13 +401,3 @@ The command currently inlines three customer-facing strings that this rule requi
 4. **REQ-305.** No extraction into a shared TypeScript library — lives entirely in `plugin-ui-bundle-dev` for this release. → Acknowledged roadmap item, not merely a deferred maybe: library extraction is on the roadmap for Dreamforce or shortly after, with initial use cases being CLI-specific from agents, and the eventual goal of both a CLI and a library covering all entryways down the line.
 
 > **Moved into scope — REQ-302.** Previously "No local-directory source, no auto-compression — `--zip-file` only." Now **in scope**: `--bundle-dir` accepts an uncompressed local source directory and the CLI auto-compresses it via `@salesforce/source-deploy-retrieve` before the `POST` (§2.2 item 6, §2.4, §2.6). The REQ id is retained — still referenced by §2.2, §2.4, §2.6, and §3.1 — rather than dropped.
-
----
-
----
-
----
-
----
-
----

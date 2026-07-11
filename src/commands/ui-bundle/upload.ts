@@ -118,7 +118,7 @@ export default class UiBundleUpload extends SfCommand<UiBundleUploadResult> {
     // We send form.getBuffer() (the fully-assembled multipart Buffer) since jsforce's instanceof FormData check fails across differing form-data module copies.
     const form = new FormData();
     form.append('bundle', zipBuffer, { filename: zipFilename });
-    // 'pages' is a placeholder field name pending the finalized server contract.
+    // No server-side field maps to this yet; included as a CLI-side-only form field.
     form.append('pages', String(flags['use-salesforce-pages']));
 
     let response: { jobId: string; status: string; message?: string };
