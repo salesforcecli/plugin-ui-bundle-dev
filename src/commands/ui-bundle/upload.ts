@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { basename, join, relative, sep } from 'node:path';
 import FormData from 'form-data';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
@@ -29,10 +29,14 @@ const messages = Messages.loadMessages('@salesforce/plugin-ui-bundle-dev', 'ui-b
 /** Recursively collect absolute paths of every file under a directory. */
 function collectFiles(root: string): string[] {
   const files: string[] = [];
-  for (const entry of readdirSync(root, { withFileTypes: true })) {
-    const full = join(root, entry.name);
-    if (entry.isDirectory()) files.push(...collectFiles(full));
-    else if (entry.isFile()) files.push(full);
+  for (const name of readdirSync(root)) {
+    // Skip dotfiles and dot-directories (e.g. .env, .git) — never bundled.
+    if (name.startsWith('.')) continue;
+    const full = join(root, name);
+    // statSync follows symlinks to their target, so symlinked files/dirs are bundled correctly.
+    const stat = statSync(full);
+    if (stat.isDirectory()) files.push(...collectFiles(full));
+    else if (stat.isFile()) files.push(full);
   }
   return files;
 }
@@ -117,6 +121,8 @@ export default class UiBundleUpload extends SfCommand<UiBundleUploadResult> {
     // Step 3: Build the multipart body and issue a single synchronous POST, no retry/poll loop.
     // We send form.getBuffer() (the fully-assembled multipart Buffer) since jsforce's instanceof FormData check fails across differing form-data module copies.
     const form = new FormData();
+    // deployRequest is required by the contract; no CLI flag maps to requestedName yet.
+    form.append('deployRequest', JSON.stringify({}), { contentType: 'application/json' });
     form.append('bundle', zipBuffer, { filename: zipFilename });
     // No server-side field maps to this yet; included as a CLI-side-only form field.
     form.append('pages', String(flags['use-salesforce-pages']));

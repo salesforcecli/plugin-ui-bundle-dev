@@ -45,8 +45,10 @@
 4. Use distinct CLI-side error names, separable from a server-reported `Failed` status, so JSON consumers can branch on `result.name` (REQ-110).
 5. Perform no client-side zip-content validation — a server-side concern (REQ-112).
 6. When `--bundle-dir` is supplied, compress the directory to a zip via `@salesforce/source-deploy-retrieve` before the `POST`; when `--zip-file` is supplied, send the file as-is (REQ-302).
-7. Ship the command in developer-preview state (`state = 'preview'`) so both `--help` and runtime surface the preview warning.
-8. The change is additive to the plugin's command surface — new `UiBundleUploadResult` type (REQ-113, 205), generated artifacts (`command-snapshot.json`, `COMMANDS.md` — REQ-202, 212), `README.md` section (REQ-209), and test fixtures (REQ-208) are all new or appended, with no existing `dev` command source modified. The one deliberate exception is `package.json`, which gains `@salesforce/source-deploy-retrieve` as a new runtime dependency (§2.4) — so the framing is additive-to-plugin plus one dependency addition, not strictly "nothing existing modified."
+7. When `--bundle-dir` is compressed, dotfiles and dot-directories (any path segment starting with `.` — e.g. `.env`, `.DS_Store`, `.git/`) are excluded from the resulting zip; `--zip-file` is unaffected (REQ-114).
+8. Ship the command in developer-preview state (`state = 'preview'`) so both `--help` and runtime surface the preview warning.
+9. The change is additive to the plugin's command surface — new `UiBundleUploadResult` type (REQ-113, 205), generated artifacts (`command-snapshot.json`, `COMMANDS.md` — REQ-202, 212), `README.md` section (REQ-209), and test fixtures (REQ-208) are all new or appended, with no existing `dev` command source modified. The one deliberate exception is `package.json`, which gains `@salesforce/source-deploy-retrieve` as a new runtime dependency (§2.4) — so the framing is additive-to-plugin plus one dependency addition, not strictly "nothing existing modified."
+10. When `--bundle-dir` is compressed, symlinked files and symlinked directories are resolved to their target (followed, not skipped) during the recursive directory walk, so they appear in the resulting zip like any other file or directory; `--zip-file` is unaffected (REQ-115).
 
 ### 2.3 Acceptance Criteria
 
@@ -68,7 +70,7 @@
 
 **AC3 (REQ-110–112) — Error semantics**
 
-- [ ] **110.** The _actual_ synchronous-failure path: an HTTP-level 4xx/5xx response from the `POST` call itself (no job id, no valid job-shaped body — e.g. the server's own early size/content-type rejection per §2.5, or auth failure, or no HTTP response at all) → thrown `SfError` with a distinct CLI-side name (`UiBundleUploadAuthError`/`UiBundleUploadNetworkError`/`UiBundleUploadValidationError`), separate from a server `Failed` status result object (108/109).
+- [ ] **110.** The _actual_ synchronous-failure path: an HTTP-level 4xx/5xx response from the `POST` call itself (no job id, no valid job-shaped body — e.g. the server's own early size/content-type rejection per §2.5, or auth failure, or no HTTP response at all) → thrown `SfError` with a distinct CLI-side name (`UiBundleUploadAuthError`/`UiBundleUploadNetworkError`/`UiBundleUploadValidationError`), separate from a server `Failed` status result object (108/109). Caveat: per §2.5's Known Limitations, the size/content-type rejection sub-case is not yet live — it's a defensive/forward-looking path, not one that can be exercised against the current endpoint. The auth-failure and no-HTTP-response causes in this same path remain valid today.
 - [ ] **111.** Server error message — whether from an HTTP error body (110) or, defensively, a `Failed.message` (108/109) — surfaced verbatim, no rewriting or truncation.
 - [ ] **112.** No client-side zip-content validation, ever.
 
@@ -79,6 +81,18 @@
 **AC5 — Non-regression**
 
 - [ ] Covered by the Non-Regression checklist in §5.2; every item there is falsifiable via `git diff` or test-suite parity.
+
+**AC7 (REQ-114) — Dotfile exclusion**
+
+- [ ] **114a.** A `--bundle-dir` source containing a top-level and/or nested dotfile (e.g. `.env`, `assets/.hidden`) → the dotfile is excluded from the compressed zip; sibling non-dotfile files in the same directory are still included.
+- [ ] **114b.** A `--bundle-dir` source containing a dot-directory (e.g. `.git/` with files inside it) → the entire dot-directory subtree is excluded (not traversed, not zipped).
+- [ ] **114c.** `--zip-file` is out of scope for this AC — it is sent as-is, unaffected, per REQ-112.
+
+**AC8 (REQ-115) — Symlink resolution**
+
+- [ ] **115a.** A `--bundle-dir` source containing a symlinked file → the symlink is followed, and its target's content is included in the compressed zip at the symlink's path (not the file's original name/location).
+- [ ] **115b.** A `--bundle-dir` source containing a symlinked directory → its contents are recursed into and included in the compressed zip, the same as a real directory at that path.
+- [ ] **115c.** A `--bundle-dir` source containing a dangling/broken symlink (target does not exist) → the compression step fails, propagating the filesystem error (`ENOENT`), rather than silently omitting the entry from the zip.
 
 ### 2.4 CLI Command Contract
 
@@ -149,15 +163,37 @@ Only the `POST` is in scope for this command; the `GET` below is shown for conte
 | `POST` | `/services/data/v62.0/connect/ui-bundle/deployments`         | Yes — the one call this command makes.                  |
 | `GET`  | `/services/data/v62.0/connect/ui-bundle/deployments/{jobId}` | No — status polling, context/comparison only (REQ-301). |
 
-Note: `minVersion = 262` (API v62.0); `allowsPortalUsers = false`; `supportedFormats = {JSON}`; Apex family `ConnectApi.UiBundleDeploy`.
+Note: `minVersion = 262` (API v62.0); `allowsPortalUsers = false`; `supportedFormats = {JSON}`; Apex family `ConnectApi.UiBundleDeploy`; `Content-Type: multipart/form-data`; Cost: `Expensive`.
 
-**`POST` request** — the JSON metadata accompanying the binary is the input representation `UiBundleDeployRequestRepresentation`, serialized under the wire name `uiBundleDeployRequest` (code constant `DEPLOY_REQUEST_INPUT`; the PR #118209 contract doc informally shorthands it `deployRequest`, but the wired name is `uiBundleDeployRequest`). Per PR #118209 (AC6) the representation now carries ONLY `requestedName`:
+**`POST` request** — the request is `multipart/form-data` with exactly two required parts: `deployRequest` (`application/json`) and `bundle` (binary, e.g. `application/zip`). `deployRequest` is the actual wire name of the JSON metadata part — confirmed unambiguously by the UI Bundle Deploy API Contract Reference's raw multipart body example (`Content-Disposition: form-data; name="deployRequest"`) and its request-parts table — serialized from the input representation `UiBundleDeployRequestRepresentation` (code constant `DEPLOY_REQUEST_INPUT`). An earlier pass of this spec claimed the wired name was `uiBundleDeployRequest`, with `deployRequest` dismissed as merely an informal PR-doc shorthand; that claim is superseded by the Contract Reference. Per PR #118209 (AC6) the representation now carries ONLY `requestedName`:
 
 | Field           | Type   | Required?              | Notes                                            |
 | --------------- | ------ | ---------------------- | ------------------------------------------------ |
 | `requestedName` | string | optional (recommended) | Human-readable page label → BPO `RequestedName`. |
 
-**Transport (AC6) — RESOLVED: multipart `bundle` binary part.** The zip is sent as a `multipart/form-data` binary part named `bundle`, declared server-side as `@ConnectParameter(name = "bundle", type = ParameterType.Binary, minVersion = 262)`; the resource `@ConnectSignature` parameters are `{uiBundleDeployRequest, bundle}` (method `submitDeploy`). Locked 2026-07-09 per the W-23384881 decision and implemented in PR #118209 (W-23384691, base `p/salesforce-pages/262-develop`), which also REMOVED `contentReference` (field + getters/setters + `@ConnectInputProperty`) and enumerated `BUNDLE_INPUT = "bundle"`. Base64-in-JSON and pre-staged `contentReference` were explicitly REJECTED alternatives. This confirms/validates the CLI's existing multipart `bundle` design (§2.2/§2.6) — the transport now matches the locked server contract and is no longer contingent on AC6. **Two caveats sit alongside the "resolved" claim:**
+**Example request:**
+
+```
+curl -X POST \
+  "https://<instance>.salesforce.com/services/data/v62.0/connect/ui-bundle/deployments" \
+  -H "Authorization: Bearer $SF_SESSION_TOKEN" \
+  -F 'deployRequest={"requestedName":"Sales Dashboard"};type=application/json' \
+  -F "bundle=@sales-dashboard.zip;type=application/zip"
+```
+
+Raw multipart body shape (illustrating the two part names/content-types directly):
+
+```
+Content-Disposition: form-data; name="deployRequest"
+Content-Type: application/json
+
+{"requestedName":"Sales Dashboard"}
+------boundary123
+Content-Disposition: form-data; name="bundle"; filename="sales-dashboard.zip"
+Content-Type: application/zip
+```
+
+**Transport (AC6) — RESOLVED: multipart `bundle` binary part.** The zip is sent as a `multipart/form-data` binary part named `bundle`, declared server-side as `@ConnectParameter(name = "bundle", type = ParameterType.Binary, minVersion = 262)`; the resource `@ConnectSignature` parameters are `{deployRequest, bundle}` (method `submitDeploy`). Locked 2026-07-09 per the W-23384881 decision and implemented in PR #118209 (W-23384691, base `p/salesforce-pages/262-develop`), which also REMOVED `contentReference` (field + getters/setters + `@ConnectInputProperty`) and enumerated `BUNDLE_INPUT = "bundle"`. Base64-in-JSON and pre-staged `contentReference` were explicitly REJECTED alternatives. This confirms/validates the CLI's existing multipart `bundle` design (§2.2/§2.6) — the transport now matches the locked server contract and is no longer contingent on AC6. **Two caveats sit alongside the "resolved" claim:**
 
 **`POST` response — 202 Accepted**
 
@@ -167,29 +203,52 @@ Note: `minVersion = 262` (API v62.0); `allowsPortalUsers = false`; `supportedFor
 
 **`GET` response (context only)** — representation `UiBundleDeployStatusRepresentation`
 
+Example response (`InProgress`):
+
+```
+{
+  "jobId": "0Ax000000000001",
+  "requestedName": "Sales Dashboard",
+  "status": "InProgress",
+  "uiBundleId": null,
+  "error": null
+}
+```
+
 | Field           | When populated | Source (BPO col)              |
 | --------------- | -------------- | ----------------------------- |
 | `jobId`         | always         | `Id`                          |
 | `requestedName` | always         | `Label`                       |
 | `status`        | always         | mapped enum                   |
-| `pageUrl`       | Succeeded only | `PageUrl`                     |
 | `uiBundleId`    | Succeeded only | `UiBundleIdentifier` (9YE id) |
-| `workspaceId`   | Succeeded only | `CmsWorkspaceIdentifier`      |
 | `error`         | Failed only    | `ErrorDetail` (plain text)    |
 
 **Status enum (frozen contract):** `Queued | InProgress | Succeeded | Failed`. The entity uses `Success`/`Fail` internally; the service translates at the contract boundary (`UiBundleDeployService#toContractStatus`).
 
-**HTTP status codes (from the upstream ACs):** 202 accept · 400 invalid payload · 403 missing citizen-dev permission (currently a no-op seam) · 404 on GET when the job doesn't exist OR is owned by another user (no existence leak; scoped by `CreatedById`).
+**HTTP status codes (eventual contract shape, from the upstream ACs):** 202 accept · 400 invalid payload · 403 missing citizen-dev permission · 404 on GET when the job doesn't exist OR is owned by another user (no existence leak; scoped by `CreatedById`). Per the Known Limitations below, 400 and 403 are not live today — see **Server-side validation** for the current, as-implemented behavior.
 
 **Caveats:**
 
 - Endpoint is on a feature branch, not yet on main — subject to change before GA.
-- Permission gate (citizen-dev perm) and payload validation are TODO seams in the merged skeleton, not yet enforced.
-- `pageUrl` and `workspaceId` are scheduled for removal per DEC-120 (2026-07-09): page URL to be resolved at render time from developer name; workspace read via UDD off the UIBundle FK. The PR #118209 contract doc reinforces this — it restates the GET status shape omitting `pageUrl`/`workspaceId` per DEC-120. Do NOT assume they are always populated on `Succeeded`.
+- `pageUrl` and `workspaceId` are already absent from the current contract — the UI Bundle Deploy API Contract Reference's GET example response and field table include only `jobId`, `requestedName`, `status`, `uiBundleId`, `error`. This reflects the DEC-120 (2026-07-09) rationale as historical context: page URL is to be resolved at render time from developer name, and workspace is read via UDD off the UIBundle FK. Do NOT assume `pageUrl`/`workspaceId` appear in any current response.
 
 **Access model:** this endpoint is accessible by standard (non-admin) users.
 
-**Server-side validation:** payload validation (size, content-type, reject-oversized-early, no execution of untrusted content) is specified server-side to be performed synchronously before enqueue
+**Server-side validation — Known Limitations (as of this writing):**
+
+- Bundle payload validation (format/size/content-type/metadata-type) is **not yet implemented** — the endpoint currently accepts any binary payload without rejecting malformed zips. The 400/403 codes above are the eventual contract shape, not today's live behavior.
+- Citizen-dev permission enforcement is **not yet implemented** — no 403 is returned for unauthorized callers yet.
+- Do not assume today's accepted payloads will remain valid once validation lands; always send a well-formed UI Bundle zip and a non-empty `requestedName`.
+
+**Source references** (UI Bundle Deploy API Contract Reference):
+
+- Resource: `salesforce-pages-connect-impl/java/src/salesforce/pages/connect/impl/resources/UiBundleDeployResource.java`
+- Interface/annotations: `salesforce-pages-connect-api/java/src/salesforce/pages/connect/api/resources/IUiBundleDeployResource.java`
+- Constants (path, param names): `salesforce-pages-connect-api/java/src/salesforce/pages/connect/api/constants/UiBundleDeployConstants.java`
+- Request rep: `salesforce-pages-connect-api/java/src/salesforce/pages/connect/api/representations/UiBundleDeployRequestRepresentation.java`
+- Response rep: `salesforce-pages-connect-api/java/src/salesforce/pages/connect/api/representations/UiBundleDeployResponseRepresentation.java`
+- Status rep: `salesforce-pages-connect-api/java/src/salesforce/pages/connect/api/representations/UiBundleDeployStatusRepresentation.java`
+- Service (validation/permission stubs): `salesforce-pages-connect-impl/java/src/salesforce/pages/connect/impl/service/UiBundleDeployService.java`
 
 ### 2.6 Output Shapes
 
@@ -253,7 +312,7 @@ Status values (`Queued`/`InProgress`/`Succeeded`/`Failed`) match the server-side
 2. **A non-zip file passed as `--zip-file`**
 
    - **Scenario:** a real, existing file that is not a valid zip is supplied.
-   - **Expected Behavior:** the CLI never inspects zip contents (REQ-112). `Flags.file({ exists: true })` only checks the path exists, not that it's a valid zip. The bundle is sent as-is; the server is the sole validator, and a bad payload surfaces as a synchronous server-side rejection (HTTP 4xx, §3.2), never a CLI-side content check.
+   - **Expected Behavior:** the CLI never inspects zip contents (REQ-112). `Flags.file({ exists: true })` only checks the path exists, not that it's a valid zip. The bundle is sent as-is; the server is the intended sole validator, but per §2.5's Known Limitations, bundle payload validation is not yet implemented server-side — today the malformed zip is silently accepted (`202 Accepted` / `Queued`), with no CLI-visible error at all. This is a Known Limitation, not a designed behavior. Once server-side validation lands, a bad payload is expected to surface as a synchronous server-side rejection (HTTP 4xx, §3.2), never a CLI-side content check.
 
 3. **Neither / both of `--zip-file` and `--bundle-dir` supplied**
 
@@ -266,14 +325,29 @@ Status values (`Queued`/`InProgress`/`Succeeded`/`Failed`) match the server-side
    - **Expected Behavior:** `Flags.directory({ exists: true })` raises its validation error before any network call and before compression; no `POST` is issued. Contents of the directory are not inspected for validity — only compressed and sent (REQ-302; REQ-112 still applies — the server is the sole content validator).
 
 5. **Server response body unexpectedly carries `status: "Failed"`**
+
    - **Scenario:** the locked Core contract (§2.5) evolves to return a `Failed`-shaped `POST` body — not expected under today's contract, which documents only `Queued`.
    - **Expected Behavior:** human/JSON failure output per AC2 (108/109), exit 1 — handled defensively as a returned result object, not thrown. The CLI does not fail closed on an unexpected-but-well-formed body.
+
+6. **`--bundle-dir` source containing dotfiles or dot-directories**
+
+   - **Scenario:** the source directory passed to `--bundle-dir` contains dotfiles (e.g. `.env`, `.DS_Store`, `assets/.hidden`) or dot-directories (e.g. `.git/` with files inside it).
+   - **Expected Behavior:** the entire dot-directory subtree is excluded (not traversed, not zipped), and dotfiles are excluded at every level of the recursive walk. Sibling non-dotfile files in the same directory are still included. This is filtering (not validation), so no warning or error is emitted — the zip is produced with dotfiles/dot-directories silently omitted. `--zip-file` is unaffected — sent as-is per REQ-112.
+
+7. **`--bundle-dir` source containing a symlinked file or symlinked directory**
+
+   - **Scenario:** the source directory passed to `--bundle-dir` contains a symlink pointing at a file (e.g. `linked.js -> ../shared/real.js`) or at a directory (e.g. `linked-dir -> ../shared/real-dir`).
+   - **Expected Behavior:** the recursive directory walk resolves the symlink to its target (via `statSync`, which follows symlinks by default) rather than skipping it. A symlinked file is included in the compressed zip at the symlink's path with its target's content; a symlinked directory is recursed into and its contents included the same as a real directory. This applies at every level of the walk, same as dotfile exclusion (case 6) — but symlinks are resolved, not filtered.
+
+8. **`--bundle-dir` source containing a dangling/broken symlink**
+   - **Scenario:** the source directory passed to `--bundle-dir` contains a symlink whose target does not exist (e.g. deleted after the symlink was created).
+   - **Expected Behavior:** `statSync` throws `ENOENT` when it attempts to follow the symlink to a nonexistent target. The error propagates and the compression step fails — the CLI does not catch it or silently omit the dangling entry from the zip. This is a deliberate fail-loud choice, not an oversight.
 
 ### 3.2 Error Handling
 
 1. **HTTP 4xx/5xx server rejection from the `POST` itself (size/content-type/validation)**
 
-   - **When:** the server synchronously rejects the request — e.g. its early size/content-type check (§2.5) — returning an HTTP error with no job id and no job-shaped body.
+   - **When:** the server synchronously rejects the request — e.g. its early size/content-type check (§2.5) — returning an HTTP error with no job id and no job-shaped body. Caveat: per §2.5's Known Limitations, this size/content-type sub-case is not yet live against the current endpoint — it's a defensive/forward-looking path, kept here for when server-side validation lands.
    - **Display:** thrown `UiBundleUploadValidationError` (`SfError` from `@salesforce/core`), server message surfaced verbatim (REQ-111), no rewriting or truncation.
    - **Action:** exit 1; no result object emitted. This is the _actual_ synchronous-failure path (REQ-110), distinct from the defensive `Failed` result object (§3.1 case 5 / AC2 108–109).
 
@@ -290,9 +364,15 @@ Status values (`Queued`/`InProgress`/`Succeeded`/`Failed`) match the server-side
    - **Action:** exit 1, no network result object.
 
 4. **Missing or unresolvable required flags**
+
    - **When:** neither/both of `--zip-file`/`--bundle-dir` supplied → `FailedFlagValidationError` from the `exactlyOne` relationship; `--use-salesforce-pages` omitted → `FailedFlagValidationError` (flag parser); `--target-org` omitted with no default org → `NoDefaultEnvError` (org resolver, distinct mechanism — see `dev.nut.ts:58`).
    - **Display:** the framework's flag/org-resolver validation error.
    - **Action:** fail before any network call (REQ-102/102b/104/105), exit 1.
+
+5. **`--bundle-dir` source containing a dangling/broken symlink**
+   - **When:** the recursive directory walk (`collectFiles`) calls `statSync` on a symlink whose target does not exist.
+   - **Display:** `statSync` throws a raw Node.js `ENOENT` filesystem error. Neither `collectFiles` nor `compressDirectory` wraps this in a try/catch, so it is **not** one of the two custom `SfError`s `compressDirectory` throws elsewhere (`error.bundle-dir-empty` for an empty directory, `error.compression-failed` for a missing `writer.buffer`) — it propagates unmodified out of `run()`. It reaches oclif/`sf-plugins-core`'s generic `SfCommand.catch()` handler, which wraps it in a generic `SfCommandError` (name defaults to the raw error's own name, `Error`) and, since the error's `code` is the string `'ENOENT'` rather than a number, resolves the exit code to `1` via the default branch of `computeErrorCode`.
+   - **Action:** exit 1; the CLI does not catch this and does not silently omit the dangling entry from the zip. Deliberate fail-loud choice (§3.1 case 8), not an oversight.
 
 > **No client-side zip-content validation, ever (REQ-112).** Content safety is a server-side concern (§2.5 server-side validation); the CLI never inspects, unzips, or scans the payload.
 
@@ -319,6 +399,8 @@ Status values (`Queued`/`InProgress`/`Succeeded`/`Failed`) match the server-side
 - [ ] Non-existent `--zip-file` path → `Flags.file({ exists: true })` validation error, no network call.
 - [ ] Non-existent / not-a-directory `--bundle-dir` path → `Flags.directory({ exists: true })` validation error, no network call.
 - [ ] `--bundle-dir` given → CLI compresses the directory (via `@salesforce/source-deploy-retrieve`) and the multipart `bundle` part is a zip identical in shape to the `--zip-file` path.
+- [ ] `--bundle-dir` source containing dotfiles/dot-directories → compressed zip excludes them, sibling files still included (REQ-114).
+- [ ] `--bundle-dir` source containing a symlinked file and a symlinked directory → compressed zip includes both, resolved to their target content (REQ-115).
 - [ ] `--zip-file` given → file sent as-is, no re-compression pass.
 - [ ] `Queued` response → human success block and `--json` shape (§2.6).
 - [ ] `Failed` response (defensive) → human failure block and `--json` shape (§2.6).
