@@ -10,11 +10,11 @@
     "@salesforce/core": "^8.25.1",
     "@salesforce/kit": "^3.2.4",
     "@salesforce/sf-plugins-core": "^12.2.6",
-    "@salesforce/source-deploy-retrieve": "^12.37.1",
     "@salesforce/ui-bundle": "^1.118.4",
     "chokidar": "^3.6.0",
     "form-data": "^4.0.5",
     "http-proxy": "^1.18.1",
+    "jszip": "^3.10.1",
     "micromatch": "^4.0.8",
     "open": "^10.1.0",
     "path-to-regexp": "^8.3.0"
@@ -28,7 +28,6 @@
     "@types/micromatch": "^4.0.10",
     "dotenv": "^17.3.1",
     "eslint-plugin-sf-plugin": "^1.20.33",
-    "jszip": "^3.10.1",
     "oclif": "^4.22.68",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"

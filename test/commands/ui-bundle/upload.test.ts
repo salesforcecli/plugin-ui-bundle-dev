@@ -19,7 +19,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect } from 'chai';
 import { TestContext, MockTestOrgData } from '@salesforce/core/testSetup';
-import { Org, Messages } from '@salesforce/core';
+import { Messages } from '@salesforce/core';
 import { stubSfCommandUx } from '@salesforce/sf-plugins-core';
 import JSZip from 'jszip';
 import UiBundleUpload from '../../../src/commands/ui-bundle/upload.js';
@@ -289,7 +289,7 @@ describe('ui-bundle:upload command unit tests', () => {
       expect(result).to.deep.equal({ jobId: '0BXxx0000000001', status: 'Queued' } as UiBundleUploadResult);
       expect(requestStub.calledOnce).to.be.true;
       expect(uxStubs.log.args.flat()).to.deep.include('Upload queued successfully.');
-      expect(uxStubs.log.args.flat()).to.deep.include('Job ID: 0BXxx0000000001.');
+      expect(uxStubs.log.args.flat()).to.deep.include('Job ID: 0BXxx0000000001');
       expect(uxStubs.logToStderr.called).to.be.false;
 
       // The multipart body includes a `deployRequest` JSON part alongside the `bundle` part.
@@ -474,11 +474,10 @@ describe('ui-bundle:upload command unit tests', () => {
       }
     });
 
-    it('org connection failure -> throws UiBundleUploadAuthError, message verbatim', async () => {
-      // Stub only the explicit-args call (getConnection(undefined)); the flag parser's
-      // own no-args getConnection() calls during --target-org resolution stay untouched.
-      const getConnectionStub = $$.SANDBOX.stub(Org.prototype, 'getConnection').callThrough();
-      getConnectionStub.withArgs(undefined).throws(new Error('Failed to refresh access token'));
+    it('auth error via INVALID_SESSION_ID errorCode -> throws UiBundleUploadAuthError, message verbatim', async () => {
+      const authError = new Error('Session expired or invalid') as Error & { errorCode: string };
+      authError.errorCode = 'INVALID_SESSION_ID';
+      $$.fakeConnectionRequest = $$.SANDBOX.stub().rejects(authError);
       stubSfCommandUx($$.SANDBOX);
 
       try {
@@ -490,7 +489,44 @@ describe('ui-bundle:upload command unit tests', () => {
       } catch (e) {
         const err = e as Error & { name: string; message: string };
         expect(err.name).to.equal('UiBundleUploadAuthError');
-        expect(err.message).to.include('Failed to refresh access token');
+        expect(err.message).to.include('Session expired or invalid');
+      }
+    });
+
+    it('auth error via ERROR_HTTP_401 errorCode -> throws UiBundleUploadAuthError, message verbatim', async () => {
+      const authError = new Error('Unauthorized') as Error & { errorCode: string };
+      authError.errorCode = 'ERROR_HTTP_401';
+      $$.fakeConnectionRequest = $$.SANDBOX.stub().rejects(authError);
+      stubSfCommandUx($$.SANDBOX);
+
+      try {
+        await UiBundleUpload.run(
+          ['--zip-file', zipPath, '--use-salesforce-pages', '--target-org', testOrg.username],
+          import.meta.url
+        );
+        expect.fail('should have thrown');
+      } catch (e) {
+        const err = e as Error & { name: string; message: string };
+        expect(err.name).to.equal('UiBundleUploadAuthError');
+        expect(err.message).to.include('Unauthorized');
+      }
+    });
+
+    it('auth error via refresh-failure message -> throws UiBundleUploadAuthError, message verbatim', async () => {
+      const refreshError = new Error('Unable to refresh session due to: invalid grant');
+      $$.fakeConnectionRequest = $$.SANDBOX.stub().rejects(refreshError);
+      stubSfCommandUx($$.SANDBOX);
+
+      try {
+        await UiBundleUpload.run(
+          ['--zip-file', zipPath, '--use-salesforce-pages', '--target-org', testOrg.username],
+          import.meta.url
+        );
+        expect.fail('should have thrown');
+      } catch (e) {
+        const err = e as Error & { name: string; message: string };
+        expect(err.name).to.equal('UiBundleUploadAuthError');
+        expect(err.message).to.include('Unable to refresh session due to:');
       }
     });
   });

@@ -254,15 +254,10 @@ Example response (`InProgress`):
 
 > **Output format is governed solely by the `--json` flag.** With `--json`, the command emits ONLY the JSON result object (no human-readable text) — on both the success and the failure path. Without `--json`, the command emits ONLY the human-readable formatted text blocks shown below (to stdout on success, stderr on failure) and never emits JSON — again on both paths. There is no mode that mixes the two.
 
-The `Packaging bundle source...` step is path-dependent: with `--bundle-dir` it is the real SDR compression pass (directory → zip, REQ-302); with `--zip-file` there is nothing to package, so the step is trivial/no-op (the file is read and sent as-is). The `Staging and initiating upload...` step is identical for both paths.
-
 **Human — success (`--bundle-dir`, compression happens):**
 
 ```
-→ Upload UI Bundle to org
-
-Packaging bundle source... done
-Staging and initiating upload... done
+Upload UI Bundle to org
 
 Upload queued successfully.
 Job ID: 0BXxx0000000001
@@ -271,9 +266,7 @@ Job ID: 0BXxx0000000001
 **Human — success (`--zip-file`, no compression):**
 
 ```
-→ Upload UI Bundle to org
-
-Staging and initiating upload... done
+Upload UI Bundle to org
 
 Upload queued successfully.
 Job ID: 0BXxx0000000001
@@ -282,10 +275,7 @@ Job ID: 0BXxx0000000001
 **Human — failure (defensive; see callout below, text sourced from `messages/ui-bundle.upload.md` per §6.3):**
 
 ```
-→ Upload UI Bundle to org
-
-Packaging bundle source... done
-Staging and initiating upload... done
+Upload UI Bundle to org
 
 Upload failed
   Job ID:   0BXxx0000000001

@@ -52,7 +52,7 @@ Upload queued successfully.
 
 # info.job-id
 
-Job ID: %s.
+Job ID: %s
 
 # error.upload-failed
 
@@ -60,22 +60,6 @@ Upload failed
   Job ID:   %s
   Message:  %s
 
-# error.auth-failed
-
-Failed to authenticate with the target org: %s.
-
-# error.network-failed
-
-Network request to upload the UI Bundle failed: %s.
-
-# error.validation-failed
-
-The org rejected the upload request: %s.
-
 # error.bundle-dir-empty
 
 The bundle source directory is empty.
-
-# error.compression-failed
-
-Failed to compress the bundle source directory.

@@ -19,8 +19,7 @@ import { basename, join, relative, sep } from 'node:path';
 import FormData from 'form-data';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages, SfError } from '@salesforce/core';
-// ZipWriter isn't re-exported from SDR's package root; import it from its module directly.
-import { ZipWriter } from '@salesforce/source-deploy-retrieve/lib/src/convert/streams.js';
+import JSZip from 'jszip';
 import type { UiBundleUploadResult } from '../../config/types.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
@@ -41,26 +40,22 @@ function collectFiles(root: string): string[] {
   return files;
 }
 
-/** Compress a source directory into a zip Buffer using SDR's ZipWriter. */
+/** Compress a source directory into a zip Buffer using jszip. */
 async function compressDirectory(dir: string): Promise<Buffer> {
-  const writer = new ZipWriter();
+  const zip = new JSZip();
+  let fileCount = 0;
   for (const file of collectFiles(dir)) {
     // Entry paths inside a zip are always posix; normalize Windows separators.
     const entryPath = relative(dir, file).split(sep).join('/');
-    writer.addToZip(readFileSync(file), entryPath);
+    zip.file(entryPath, readFileSync(file));
+    fileCount++;
   }
   // An empty directory produces no zip entries; reject rather than POST an empty bundle.
-  if (writer.fileCount === 0) {
+  if (fileCount === 0) {
     throw new SfError(messages.getMessage('error.bundle-dir-empty'), 'UiBundleUploadValidationError');
   }
-  // ZipWriter is a Writable; finalize via end() and read .buffer once it drains.
-  await new Promise<void>((resolve, reject) => {
-    writer.end((err?: Error) => (err ? reject(err) : resolve()));
-  });
-  if (!writer.buffer) {
-    throw new SfError(messages.getMessage('error.compression-failed'), 'UiBundleUploadValidationError');
-  }
-  return writer.buffer;
+  // JSZip's generateAsync resolves with a Buffer or rejects; no silent-failure path exists.
+  return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 3 } });
 }
 
 export default class UiBundleUpload extends SfCommand<UiBundleUploadResult> {
@@ -96,13 +91,7 @@ export default class UiBundleUpload extends SfCommand<UiBundleUploadResult> {
     const { flags } = await this.parse(UiBundleUpload);
 
     // Step 1: Resolve the org connection.
-    let orgConnection: ReturnType<(typeof flags)['target-org']['getConnection']>;
-    try {
-      orgConnection = flags['target-org'].getConnection(undefined);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new SfError(errorMessage, 'UiBundleUploadAuthError');
-    }
+    const orgConnection = flags['target-org'].getConnection(undefined);
 
     // Step 2: Stage the zip. Contents are never validated here; that's a server-side concern.
     // --bundle-dir is compressed on the fly; --zip-file is read and sent as-is.
@@ -136,9 +125,17 @@ export default class UiBundleUpload extends SfCommand<UiBundleUploadResult> {
         headers: form.getHeaders(),
       });
     } catch (error) {
-      // jsforce HTTP errors carry an `errorCode`; anything else means the request never reached the server.
+      // jsforce marks a bad/expired session with these codes or this refresh-failure message; anything else with an errorCode is a server-side rejection, otherwise it never reached the server.
       const errorMessage = error instanceof Error ? error.message : String(error);
-      if (error && typeof error === 'object' && 'errorCode' in error) {
+      const errorCode =
+        error && typeof error === 'object' && 'errorCode' in error ? String(error.errorCode) : undefined;
+      if (errorCode && ['INVALID_SESSION_ID', 'ERROR_HTTP_401', 'ERROR_HTTP_403'].includes(errorCode)) {
+        throw new SfError(errorMessage, 'UiBundleUploadAuthError');
+      }
+      if (errorMessage.startsWith('Unable to refresh session due to:')) {
+        throw new SfError(errorMessage, 'UiBundleUploadAuthError');
+      }
+      if (errorCode) {
         throw new SfError(errorMessage, 'UiBundleUploadValidationError');
       }
       throw new SfError(errorMessage, 'UiBundleUploadNetworkError');
