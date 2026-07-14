@@ -36,7 +36,7 @@ When specified, the UI Bundle is uploaded for use with Salesforce Pages.
 
 - Upload a UI Bundle to Salesforce Pages using your default org:
 
-  <%= config.bin %> <%= command.id %> --zip-file my-compressed-bundle --use-salesforce-pages
+  <%= config.bin %> <%= command.id %> --zip-file my-compressed-bundle.zip --use-salesforce-pages
 
 - Upload an uncompressed source directory (auto-compressed by the CLI):
 
@@ -44,7 +44,7 @@ When specified, the UI Bundle is uploaded for use with Salesforce Pages.
 
 - Upload to a specific org by alias:
 
-  <%= config.bin %> <%= command.id %> --zip-file my-compressed-bundle --use-salesforce-pages --target-org my-org
+  <%= config.bin %> <%= command.id %> --zip-file my-compressed-bundle.zip --use-salesforce-pages --target-org my-org
 
 # info.upload-queued
 
