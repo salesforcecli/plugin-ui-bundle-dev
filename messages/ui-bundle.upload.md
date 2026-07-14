@@ -66,12 +66,12 @@ API version %s isn't supported by this command; --api-version must be %s or late
 
 # error.uiBundleUploadAuthError
 
-%s
+Authentication error: %s
 
 # error.uiBundleUploadNetworkError
 
-%s
+Network error: %s
 
 # error.uiBundleUploadValidationError
 
-%s
+Validation error: %s
