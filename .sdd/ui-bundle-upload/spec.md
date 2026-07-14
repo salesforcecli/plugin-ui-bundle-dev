@@ -49,6 +49,8 @@
 8. Ship the command in developer-preview state (`state = 'preview'`) so both `--help` and runtime surface the preview warning.
 9. The change is additive to the plugin's command surface — new `UiBundleUploadResult` type (REQ-113, 205), generated artifacts (`command-snapshot.json`, `COMMANDS.md` — REQ-202, 212), `README.md` section (REQ-209), and test fixtures (REQ-208) are all new or appended, with no existing `dev` command source modified. The one deliberate exception is `package.json`, which gains `@salesforce/source-deploy-retrieve` as a new runtime dependency (§2.4) — so the framing is additive-to-plugin plus one dependency addition, not strictly "nothing existing modified."
 10. When `--bundle-dir` is compressed, symlinked files and symlinked directories are resolved to their target (followed, not skipped) during the recursive directory walk, so they appear in the resulting zip like any other file or directory; `--zip-file` is unaffected (REQ-115).
+11. Provide an optional `--bundle-name` flag that maps to the `requestedName` field in the Connect API's `deployRequest` JSON part; when omitted, default to the base name of `--bundle-dir` or `--zip-file`, with any `.zip` extension stripped (case-insensitive), falling back to the unstripped filename if stripping leaves an empty string (REQ-116).
+12. Provide an optional `--api-version` flag (via `Flags.orgApiVersion()`) that is passed into `getConnection()`; if the user explicitly passes `--api-version` on the command line AND the numeric major version is below 67, throw a dedicated error before any network call; omitted or defaulted values are never checked (REQ-117).
 
 ### 2.3 Acceptance Criteria
 
@@ -94,6 +96,20 @@
 - [ ] **115b.** A `--bundle-dir` source containing a symlinked directory → its contents are recursed into and included in the compressed zip, the same as a real directory at that path.
 - [ ] **115c.** A `--bundle-dir` source containing a dangling/broken symlink (target does not exist) → the compression step fails, propagating the filesystem error (`ENOENT`), rather than silently omitting the entry from the zip.
 
+**AC9 (REQ-116) — Bundle-name flag and default-derivation**
+
+- [ ] **116a.** `--bundle-name my-custom-name` explicitly provided → `requestedName` in the `deployRequest` JSON part equals `"my-custom-name"` verbatim.
+- [ ] **116b.** `--bundle-dir ./my-bundle-src` with no `--bundle-name` → `requestedName` defaults to the directory's base name (`"my-bundle-src"`), unmodified (no `.zip` suffix to strip).
+- [ ] **116c.** `--zip-file my-archive.zip` with no `--bundle-name` → `requestedName` defaults to the file's base name with the `.zip` extension stripped, case-insensitively (`"my-archive"`).
+- [ ] **116d.** `--zip-file .zip` (a file literally named `.zip` or `.ZIP`) with no `--bundle-name` → `requestedName` falls back to the unstripped filename (`".zip"` or `".ZIP"`), not an empty string, so the multipart `deployRequest` JSON never sends `{"requestedName":""}`.
+
+**AC10 (REQ-117) — API-version flag and floor enforcement**
+
+- [ ] **117a.** `--api-version 66.0` explicitly passed on the command line → throws `UiBundleUploadApiVersionError` mentioning both `66.0` and the floor `67` before any org-connection resolution or network call.
+- [ ] **117b.** `--api-version 67.0` (at the floor, not below) → does not throw, proceeds to a normal `Queued` result.
+- [ ] **117c.** `--api-version` omitted entirely (the flag's own default resolution kicks in, potentially resolving from the target-org's config, or to `undefined`) → no version check is applied, regardless of what the effective resolved value is, even if it would be below 67. Only explicit CLI input is gated.
+- [ ] **117d.** The resolved `flags['api-version']` value (which may be `undefined`) is passed into `flags['target-org'].getConnection(flags['api-version'])`, regardless of whether the version was explicit or defaulted.
+
 ### 2.4 CLI Command Contract
 
 **Command state:** `public static readonly state = 'preview';` on the command class. This marks the command as developer-preview, so oclif prints `This command is in preview.` in `--help` output and `sf-plugins-core` emits the runtime warning `⚠ This command is currently in developer preview. Developer preview commands will likely change before shipping, use at your own risk. Don't use developer preview commands in your scripts.` on every invocation.
@@ -104,6 +120,8 @@
 | `--bundle-dir`           | `-d` | `Flags.directory({ exists: true })` | exactly-one (with `--zip-file`)   | Uncompressed UI Bundle source directory; CLI auto-compresses it before upload (§2.6, REQ-302). Declares `exactlyOne: ['zip-file', 'bundle-dir']`. `-d` is free — `dev` uses `b/n/o/p/u`, `upload` uses `o/z`, so no collision.                                                                                                                                                                             |
 | `--use-salesforce-pages` | —    | `Flags.boolean({ required: true })` | yes                               | No short char — avoids `-p` collision with `dev`'s `--port`. The AC6 transport is now resolved (multipart `bundle`, §2.5), so this flag is no longer transport-contingent. But there is still no corresponding server-side field — PR #118209 did NOT add a `usePages`/`useSalesforcePages` field — so it remains a CLI-side concept only; the flag→server-field mapping is a separate, still-open matter. |
 | `--target-org`           | `-o` | `Flags.requiredOrg()`               | yes                               | Same pattern as `dev.ts`; supplies its own messages.                                                                                                                                                                                                                                                                                                                                                       |
+| `--api-version`          | —    | `Flags.orgApiVersion()`             | no                                | Same factory as `plugin-data`'s `data:search` command. No short char. Resolved value passed into `getConnection()`. Explicit CLI input below 67 is rejected before any network call; omitted/defaulted values are never checked (REQ-117).                                                                                                                                                                 |
+| `--bundle-name`          | —    | `Flags.string()`                    | no                                | No short char. Maps to the `requestedName` field in the `deployRequest` JSON part (REQ-116). Defaults to the base name of `--bundle-dir` or `--zip-file`, with any `.zip` extension stripped (case-insensitive); falls back to the unstripped filename if stripping leaves an empty string.                                                                                                                |
 
 **Exactly-one-of semantics:** `--zip-file` and `--bundle-dir` each declare `exactlyOne: ['zip-file', 'bundle-dir']`. The resulting validation, enforced by the oclif flag parser before any network call:
 
@@ -121,32 +139,42 @@ This command is in preview.
 Upload a UI Bundle to your org.
 
 USAGE
-  $ sf ui-bundle upload (-z <value> | -d <value>) --use-salesforce-pages -o <value> [--json] [--flags-dir <value>]
+  $ sf ui-bundle upload --use-salesforce-pages -o <value> [--json] [--flags-dir <value>] [-z <value>] [-d <value>]
+    [--api-version <value>] [--bundle-name <value>]
 
 FLAGS
-  -z, --zip-file=<value>       Path to the UI Bundle source to upload.
-  -d, --bundle-dir=<value>     Path to an uncompressed UI Bundle source directory; the CLI compresses it before upload.
-      --use-salesforce-pages   (required) Toggle whether this UI Bundle should be uploaded to Salesforce Pages.
-  -o, --target-org=<value>     (required) Username or alias of the target org.
+  -d, --bundle-dir=<value>   Path to an uncompressed UI Bundle source directory; the CLI compresses it before upload.
+  -o, --target-org=<value>   (required) Username or alias of the target org. Not required if the `target-org`
+                             configuration variable is already set.
+  -z, --zip-file=<value>     Path to the UI Bundle source to upload.
+      --api-version=<value>  Override the api version used for api requests made by this command
+      --bundle-name=<value>  Name to associate with the uploaded UI Bundle.
+      --use-salesforce-pages (required) Toggle whether this UI Bundle should be uploaded to Salesforce Pages.
 
 GLOBAL FLAGS
   --flags-dir=<value>  Import flag values from a directory.
-  --json                Format output as json.
+  --json               Format output as json.
 
 DESCRIPTION
-Use this command to upload a React-based UI Bundle to your Salesforce org. Provide the bundle source as either a
-compressed ZIP file (--zip-file) or an uncompressed source directory (--bundle-dir), which the CLI compresses for
-you. This can be used by both admin and non-admin users.
-The upload is asynchronous. View the UI bundle in your org to verify completion.
+  Upload a UI Bundle to your org.
+
+  Use this command to upload a React-based UI Bundle to your Salesforce org. Provide the bundle source as either a
+  compressed ZIP file (--zip-file) or an uncompressed source directory (--bundle-dir), which the CLI compresses for you.
+  This can be used by both admin and non-admin users.
+
+  The upload is asynchronous. View the UI bundle in your org to verify completion.
 
 EXAMPLES
   Upload a UI Bundle to Salesforce Pages using your default org:
+
     $ sf ui-bundle upload --zip-file my-compressed-bundle --use-salesforce-pages
 
   Upload an uncompressed source directory (auto-compressed by the CLI):
+
     $ sf ui-bundle upload --bundle-dir ./my-bundle-src --use-salesforce-pages
 
   Upload to a specific org by alias:
+
     $ sf ui-bundle upload --zip-file my-compressed-bundle --use-salesforce-pages --target-org my-org
 ```
 
@@ -167,9 +195,9 @@ Note: `minVersion = 262` (API v62.0); `allowsPortalUsers = false`; `supportedFor
 
 **`POST` request** — the request is `multipart/form-data` with exactly two required parts: `deployRequest` (`application/json`) and `bundle` (binary, e.g. `application/zip`). `deployRequest` is the actual wire name of the JSON metadata part — confirmed unambiguously by the UI Bundle Deploy API Contract Reference's raw multipart body example (`Content-Disposition: form-data; name="deployRequest"`) and its request-parts table — serialized from the input representation `UiBundleDeployRequestRepresentation` (code constant `DEPLOY_REQUEST_INPUT`). An earlier pass of this spec claimed the wired name was `uiBundleDeployRequest`, with `deployRequest` dismissed as merely an informal PR-doc shorthand; that claim is superseded by the Contract Reference. Per PR #118209 (AC6) the representation now carries ONLY `requestedName`:
 
-| Field           | Type   | Required?              | Notes                                            |
-| --------------- | ------ | ---------------------- | ------------------------------------------------ |
-| `requestedName` | string | optional (recommended) | Human-readable page label → BPO `RequestedName`. |
+| Field           | Type   | Required?              | Notes                                                                                                                                                                                                                                                                                     |
+| --------------- | ------ | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `requestedName` | string | optional (recommended) | Human-readable page label → BPO `RequestedName`. Now populated from the CLI's `--bundle-name` flag (REQ-116); when omitted, defaults to the base name of `--bundle-dir` or `--zip-file`, with any `.zip` extension stripped (resolving the gap where this field had no CLI-side mapping). |
 
 **Example request:**
 
@@ -330,8 +358,18 @@ Status values (`Queued`/`InProgress`/`Succeeded`/`Failed`) match the server-side
    - **Expected Behavior:** the recursive directory walk resolves the symlink to its target (via `statSync`, which follows symlinks by default) rather than skipping it. A symlinked file is included in the compressed zip at the symlink's path with its target's content; a symlinked directory is recursed into and its contents included the same as a real directory. This applies at every level of the walk, same as dotfile exclusion (case 6) — but symlinks are resolved, not filtered.
 
 8. **`--bundle-dir` source containing a dangling/broken symlink**
+
    - **Scenario:** the source directory passed to `--bundle-dir` contains a symlink whose target does not exist (e.g. deleted after the symlink was created).
    - **Expected Behavior:** `statSync` throws `ENOENT` when it attempts to follow the symlink to a nonexistent target. The error propagates and the compression step fails — the CLI does not catch it or silently omit the dangling entry from the zip. This is a deliberate fail-loud choice, not an oversight.
+
+9. **`--zip-file` literally named `.zip` or `.ZIP`**
+
+   - **Scenario:** the user passes `--zip-file .zip` (or `.ZIP`), a file whose entire base name is the `.zip` extension.
+   - **Expected Behavior:** the default-name derivation logic strips the `.zip` extension case-insensitively, leaving an empty string. The fallback rule then uses the unstripped filename (`.zip` or `.ZIP`) as the `requestedName` in the multipart `deployRequest` JSON part, rather than sending an empty string (REQ-116). This is a deliberate edge-case fallback, not a bug.
+
+10. **Explicit `--api-version` below the floor of 67**
+    - **Scenario:** the user passes `--api-version 66.0` (or any major version below 67) on the command line.
+    - **Expected Behavior:** the command throws `UiBundleUploadApiVersionError` before any org-connection resolution or network call, citing both the rejected version and the floor (§3.2 case 6, AC10 117a). This is a product decision: only explicit CLI input is gated; an omitted or defaulted value (e.g., from the target-org's own API version config, or the flag's own default resolution) is never checked, even if the effective resolved version would also be below 67. The asymmetry is intentional, not an oversight.
 
 ### 3.2 Error Handling
 
@@ -360,9 +398,15 @@ Status values (`Queued`/`InProgress`/`Succeeded`/`Failed`) match the server-side
    - **Action:** fail before any network call (REQ-102/102b/104/105), exit 1.
 
 5. **`--bundle-dir` source containing a dangling/broken symlink**
+
    - **When:** the recursive directory walk (`collectFiles`) calls `statSync` on a symlink whose target does not exist.
    - **Display:** `statSync` throws a raw Node.js `ENOENT` filesystem error. Neither `collectFiles` nor `compressDirectory` wraps this in a try/catch, so it is **not** one of the two custom `SfError`s `compressDirectory` throws elsewhere (`error.bundle-dir-empty` for an empty directory, `error.compression-failed` for a missing `writer.buffer`) — it propagates unmodified out of `run()`. It reaches oclif/`sf-plugins-core`'s generic `SfCommand.catch()` handler, which wraps it in a generic `SfCommandError` (name defaults to the raw error's own name, `Error`) and, since the error's `code` is the string `'ENOENT'` rather than a number, resolves the exit code to `1` via the default branch of `computeErrorCode`.
    - **Action:** exit 1; the CLI does not catch this and does not silently omit the dangling entry from the zip. Deliberate fail-loud choice (§3.1 case 8), not an oversight.
+
+6. **Explicit `--api-version` below the minimum floor**
+   - **When:** the user explicitly passes `--api-version` on the command line AND the numeric major version is below 67 (the constant `MINIMUM_SUPPORTED_API_VERSION`).
+   - **Display:** thrown `UiBundleUploadApiVersionError`, message citing both the rejected version and the floor (`"API version 66.0 isn't supported by this command; --api-version must be 67 or later."`).
+   - **Action:** exit 1, no network call made. This check applies only to explicit CLI input; omitted or defaulted values (e.g., from the flag's own default resolution, potentially pulling from the target-org's config or resolving to `undefined`) are never checked, even if the effective resolved version would also be below 67 (§3.1 case 10, AC10 117c).
 
 > **No client-side zip-content validation, ever (REQ-112).** Content safety is a server-side concern (§2.5 server-side validation); the CLI never inspects, unzips, or scans the payload.
 
@@ -392,9 +436,16 @@ Status values (`Queued`/`InProgress`/`Succeeded`/`Failed`) match the server-side
 - [ ] `--bundle-dir` source containing dotfiles/dot-directories → compressed zip excludes them, sibling files still included (REQ-114).
 - [ ] `--bundle-dir` source containing a symlinked file and a symlinked directory → compressed zip includes both, resolved to their target content (REQ-115).
 - [ ] `--zip-file` given → file sent as-is, no re-compression pass.
+- [ ] `--bundle-name my-custom-name` explicitly provided → `requestedName` in the multipart `deployRequest` JSON equals `"my-custom-name"` verbatim (AC9 116a).
+- [ ] `--bundle-dir` with no `--bundle-name` → `requestedName` defaults to the directory's base name (AC9 116b).
+- [ ] `--zip-file foo.zip` with no `--bundle-name` → `requestedName` defaults to `"foo"` (AC9 116c).
+- [ ] `--zip-file .zip` (edge case: entire name is the extension) with no `--bundle-name` → `requestedName` falls back to `".zip"`, not empty (AC9 116d).
+- [ ] `--api-version 66.0` explicitly passed → throws `UiBundleUploadApiVersionError` before any network call (AC10 117a).
+- [ ] `--api-version 67.0` (at the floor) → does not throw, proceeds to `Queued` (AC10 117b).
+- [ ] `--api-version` omitted (defaulted) → no version check applied; resolved value passed into `getConnection()` (AC10 117c/117d).
 - [ ] `Queued` response → human success block and `--json` shape (§2.6).
 - [ ] `Failed` response (defensive) → human failure block and `--json` shape (§2.6).
-- [ ] Each CLI-side `SfError` name asserted: `UiBundleUploadValidationError` / `UiBundleUploadNetworkError` / `UiBundleUploadAuthError`.
+- [ ] Each CLI-side `SfError` name asserted: `UiBundleUploadValidationError` / `UiBundleUploadNetworkError` / `UiBundleUploadAuthError` / `UiBundleUploadApiVersionError`.
 - [ ] Preview-state warning emitted (`state = 'preview'`) — not suppressed under `--json`'s result payload.
 - [ ] No customer-facing output literal is inlined in `upload.ts` — all such output resolves via `messages.getMessage()` per §6.3.
 - [ ] Lint, build, and license-header checks clean on all new `.ts` files.
@@ -459,7 +510,7 @@ All customer-facing output messages — whether success text, info lines, or thr
 
 1. **All customer-facing output messages are defined in `messages/ui-bundle.upload.md` and referenced via `messages.getMessage()`.** Never inline customer-facing strings as string literals in the command source. This extends the oclif/sf-plugins-core convention for summaries/descriptions/examples to all runtime output the user sees.
 2. **Server/framework-supplied messages surfaced verbatim are pass-through, not authored strings.** A caught `error.message` from the org connection, an HTTP error body, or any other externally-sourced error text is relayed as-is (§2.3 AC3 REQ-111 requires verbatim surfacing) — it is **not** a hardcoded literal and is out of scope for this rule.
-3. **The `SfError` name/error-code (the second argument, e.g. `'UiBundleUploadValidationError'`) is a stable machine identifier, not customer-facing prose** — it stays inline.
+3. **Thrown errors are constructed via `messages.createError(key, tokens)`, and the stable machine-readable error name is derived automatically from the message key.** Per `@salesforce/core`'s `Messages.createError()` convention: strip the `error.` prefix from the key, uppercase the first letter, and the remainder of the key must end in a properly-cased literal `Error` — e.g. key `error.uiBundleUploadValidationError` derives the `name` `UiBundleUploadValidationError`. The error name is not passed as a separate literal; it's computed from the key itself, so the message file and the thrown error's name stay consistent.
 
 The command currently inlines three customer-facing strings that this rule requires moving into `messages/ui-bundle.upload.md`: the empty-bundle-dir `SfError` message (`'The bundle source directory is empty.'` in `compressDirectory`), the compression-failure `SfError` message (`'Failed to compress the bundle source directory.'`), and the `Failed`-status human block (`'Upload failed'` and its `Job ID:` / `Message:` labels) — this is the "Upload failed" text the user specifically called out as residing separately in upload.ts. Note: `messages/ui-bundle.upload.md` already defines unused `# error.*` keys (`error.upload-failed`, `error.auth-failed`, `error.network-failed`, `error.validation-failed`) that the code does not currently reference — the guideline's intent is that authored output routes through such message keys rather than duplicating strings inline.
 

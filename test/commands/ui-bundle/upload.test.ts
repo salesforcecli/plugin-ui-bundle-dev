@@ -16,7 +16,7 @@
 
 import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { expect } from 'chai';
 import { TestContext, MockTestOrgData } from '@salesforce/core/testSetup';
 import { Messages } from '@salesforce/core';
@@ -295,7 +295,101 @@ describe('ui-bundle:upload command unit tests', () => {
       // The multipart body includes a `deployRequest` JSON part alongside the `bundle` part.
       const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]).toString('utf8');
       expect(sent).to.include(DEPLOY_REQUEST_DISPOSITION);
-      expect(sent).to.include('Content-Type: application/json\r\n\r\n{}');
+      // requestedName defaults to the zip fixture's base name with the .zip extension stripped.
+      const expectedName = basename(zipPath).replace(/\.zip$/i, '');
+      expect(sent).to.include(`Content-Type: application/json\r\n\r\n{"requestedName":"${expectedName}"}`);
+    });
+
+    it('--bundle-name explicitly provided -> requestedName equals the flag value verbatim', async () => {
+      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000007', status: 'Queued' });
+      $$.fakeConnectionRequest = requestStub;
+      stubSfCommandUx($$.SANDBOX);
+
+      await UiBundleUpload.run(
+        [
+          '--zip-file',
+          zipPath,
+          '--use-salesforce-pages',
+          '--target-org',
+          testOrg.username,
+          '--bundle-name',
+          'my-custom-bundle-name',
+        ],
+        import.meta.url
+      );
+
+      expect(requestStub.calledOnce).to.be.true;
+      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]).toString('utf8');
+      expect(sent).to.include('Content-Type: application/json\r\n\r\n{"requestedName":"my-custom-bundle-name"}');
+    });
+
+    it('--bundle-dir with no --bundle-name -> requestedName defaults to the bundle dir basename', async () => {
+      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000008', status: 'Queued' });
+      $$.fakeConnectionRequest = requestStub;
+      stubSfCommandUx($$.SANDBOX);
+      const bundleDir = createBundleDirFixture();
+
+      await UiBundleUpload.run(
+        ['--bundle-dir', bundleDir, '--use-salesforce-pages', '--target-org', testOrg.username],
+        import.meta.url
+      );
+
+      expect(requestStub.calledOnce).to.be.true;
+      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]).toString('utf8');
+      // Directories have no .zip suffix to strip; the basename is used as-is.
+      const expectedName = basename(bundleDir);
+      expect(sent).to.include(`Content-Type: application/json\r\n\r\n{"requestedName":"${expectedName}"}`);
+    });
+
+    it('--zip-file named ".zip" -> requestedName falls back to the unstripped filename, not empty', async () => {
+      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000011', status: 'Queued' });
+      $$.fakeConnectionRequest = requestStub;
+      stubSfCommandUx($$.SANDBOX);
+      const dotZipPath = join(tmpdir(), '.zip');
+      writeFileSync(dotZipPath, Buffer.from([0x50, 0x4b, 0x03, 0x04]));
+
+      await UiBundleUpload.run(
+        ['--zip-file', dotZipPath, '--use-salesforce-pages', '--target-org', testOrg.username],
+        import.meta.url
+      );
+
+      expect(requestStub.calledOnce).to.be.true;
+      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]).toString('utf8');
+      expect(sent).to.include('Content-Type: application/json\r\n\r\n{"requestedName":".zip"}');
+    });
+
+    it('--api-version below the minimum floor -> throws UiBundleUploadApiVersionError, no network call', async () => {
+      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000009', status: 'Queued' });
+      $$.fakeConnectionRequest = requestStub;
+      stubSfCommandUx($$.SANDBOX);
+
+      try {
+        await UiBundleUpload.run(
+          ['--zip-file', zipPath, '--use-salesforce-pages', '--target-org', testOrg.username, '--api-version', '66.0'],
+          import.meta.url
+        );
+        expect.fail('should have thrown');
+      } catch (e) {
+        const err = e as Error & { name: string; message: string };
+        expect(err.name).to.equal('UiBundleUploadApiVersionError');
+        expect(err.message).to.include('66.0');
+        expect(err.message).to.include('67');
+      }
+      expect(requestStub.called).to.be.false;
+    });
+
+    it('--api-version at the minimum floor -> does not throw, proceeds to a Queued result', async () => {
+      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000010', status: 'Queued' });
+      $$.fakeConnectionRequest = requestStub;
+      stubSfCommandUx($$.SANDBOX);
+
+      const result = await UiBundleUpload.run(
+        ['--zip-file', zipPath, '--use-salesforce-pages', '--target-org', testOrg.username, '--api-version', '67.0'],
+        import.meta.url
+      );
+
+      expect(result).to.deep.equal({ jobId: '0BXxx0000000010', status: 'Queued' } as UiBundleUploadResult);
+      expect(requestStub.calledOnce).to.be.true;
     });
 
     it('--zip-file -> sends the file as-is (a zip) in the bundle part, no re-compression', async () => {

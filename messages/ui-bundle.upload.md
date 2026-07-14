@@ -4,33 +4,29 @@ Upload a UI Bundle to your org.
 
 # description
 
-Use this command to upload a React-based UI Bundle to your Salesforce org. Provide the bundle source as either a compressed ZIP file (--zip-file) or an uncompressed source directory (--bundle-dir). This command will compress it for you. This can be used by both admin and non-admin users.
+Use this command to upload a React-based UI Bundle to your Salesforce org. Provide the bundle source as either a compressed ZIP file (--zip-file) or an uncompressed source directory (--bundle-dir). This command compresses the directory for you. This command can be used by both admin and non-admin users.
 
 The upload is asynchronous. View the UI bundle in your org to verify upload completion.
 
 # flags.zip-file.summary
 
-Path to the UI Bundle source to upload.
-
-# flags.zip-file.description
-
-The path to a compressed ZIP file containing the UI Bundle source.
+Path to the compressed UI Bundle source to upload.
 
 # flags.bundle-dir.summary
 
-Path to an uncompressed UI Bundle source directory. 
-
-# flags.bundle-dir.description
-
-The path to an uncompressed directory containing the UI Bundle source. This command compresses the directory into a ZIP file before uploading. 
+Path to an uncompressed UI Bundle source directory. This command compresses the directory into a ZIP file before uploading. 
 
 # flags.use-salesforce-pages.summary
 
-Toggle whether this UI Bundle should be uploaded to Salesforce Pages. Currently this is a required flag as only Salesforce Pages uploads are supported.
+Upload UI Bundle to Salesforce Pages. This is a required flag as only Salesforce Pages uploads are currently supported.
 
-# flags.use-salesforce-pages.description
+# flags.bundle-name.summary
 
-When specified, the UI Bundle is uploaded for use with Salesforce Pages.
+Name to associate with the uploaded UI Bundle.
+
+# flags.bundle-name.description
+
+A human-readable name for the UI Bundle. If not specified, defaults to the base name of --bundle-dir or --zip-file, with any .zip extension removed.
 
 # examples
 
@@ -63,3 +59,19 @@ Upload failed
 # error.bundle-dir-empty
 
 The bundle source directory is empty.
+
+# error.uiBundleUploadApiVersionError
+
+API version %s isn't supported by this command; --api-version must be %s or later.
+
+# error.uiBundleUploadAuthError
+
+%s
+
+# error.uiBundleUploadNetworkError
+
+%s
+
+# error.uiBundleUploadValidationError
+
+%s

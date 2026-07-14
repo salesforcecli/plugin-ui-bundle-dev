@@ -72,12 +72,15 @@ Upload a UI Bundle to your org.
 ```
 USAGE
   $ sf ui-bundle upload --use-salesforce-pages -o <value> [--json] [--flags-dir <value>] [-z <value>] [-d <value>]
+    [--api-version <value>] [--bundle-name <value>]
 
 FLAGS
   -d, --bundle-dir=<value>   Path to an uncompressed UI Bundle source directory; the CLI compresses it before upload.
   -o, --target-org=<value>   (required) Username or alias of the target org. Not required if the `target-org`
                              configuration variable is already set.
   -z, --zip-file=<value>     Path to the UI Bundle source to upload.
+      --api-version=<value>  Override the api version used for api requests made by this command
+      --bundle-name=<value>  Name to associate with the uploaded UI Bundle.
       --use-salesforce-pages (required) Toggle whether this UI Bundle should be uploaded to Salesforce Pages.
 
 GLOBAL FLAGS
@@ -116,6 +119,11 @@ FLAG DESCRIPTIONS
 
     The path to a compressed ZIP file containing the UI Bundle source. The CLI doesn't validate the contents of the zip
     file — that's a server-side concern.
+
+  --bundle-name=<value>  Name to associate with the uploaded UI Bundle.
+
+    A human-readable name for the UI Bundle. If not specified, defaults to the base name of --bundle-dir or --zip-file,
+    with any .zip extension removed.
 
   --use-salesforce-pages  Toggle whether this UI Bundle should be uploaded to Salesforce Pages.
 
