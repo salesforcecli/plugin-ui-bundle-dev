@@ -62,7 +62,7 @@ The bundle source directory is empty.
 
 # error.uiBundleUploadApiVersionError
 
-Resolved API version %s isn't supported by this command; --api-version must be %s or later.
+API version %s isn't supported by this command; --api-version must be %s or later.
 
 # error.uiBundleUploadAuthError
 
