@@ -93,19 +93,20 @@ export default class UiBundleUpload extends SfCommand<UiBundleUploadResult> {
   };
 
   public async run(): Promise<UiBundleUploadResult> {
-    const { flags, metadata } = await this.parse(UiBundleUpload);
-
-    // Only gate explicit user input; a defaulted (org-config or undefined) value is never checked.
-    const apiVersionExplicit = flags['api-version'] !== undefined && !metadata.flags['api-version']?.setFromDefault;
-    if (apiVersionExplicit && parseInt(flags['api-version']!, 10) < MINIMUM_SUPPORTED_API_VERSION) {
-      throw messages.createError('error.uiBundleUploadApiVersionError', [
-        flags['api-version']!,
-        String(MINIMUM_SUPPORTED_API_VERSION),
-      ]);
-    }
+    const { flags } = await this.parse(UiBundleUpload);
 
     // Step 1: Resolve the org connection.
     const orgConnection = flags['target-org'].getConnection(flags['api-version']);
+
+    // Check the connection's resolved API version (explicit flag, org-config default, or auto-negotiated)
+    // against the floor before doing any zip staging or network work.
+    const apiVersion = parseInt(orgConnection.getApiVersion(), 10);
+    if (apiVersion < MINIMUM_SUPPORTED_API_VERSION) {
+      throw messages.createError('error.uiBundleUploadApiVersionError', [
+        orgConnection.getApiVersion(),
+        String(MINIMUM_SUPPORTED_API_VERSION),
+      ]);
+    }
 
     // Step 2: Stage the zip. Contents are never validated here; that's a server-side concern.
     // --bundle-dir is compressed on the fly; --zip-file is read and sent as-is.
@@ -131,8 +132,6 @@ export default class UiBundleUpload extends SfCommand<UiBundleUploadResult> {
     const form = new FormData();
     form.append('deployRequest', JSON.stringify({ requestedName: bundleName }), { contentType: 'application/json' });
     form.append('bundle', zipBuffer, { filename: zipFilename });
-    // No server-side field maps to this yet; included as a CLI-side-only form field.
-    form.append('pages', String(flags['use-salesforce-pages']));
 
     let response: { jobId: string; status: string; message?: string };
     try {

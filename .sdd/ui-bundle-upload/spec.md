@@ -50,7 +50,7 @@
 9. The change is additive to the plugin's command surface — new `UiBundleUploadResult` type (REQ-113, 205), generated artifacts (`command-snapshot.json`, `COMMANDS.md` — REQ-202, 212), `README.md` section (REQ-209), and test fixtures (REQ-208) are all new or appended, with no existing `dev` command source modified. The one deliberate exception is `package.json`, which gains `@salesforce/source-deploy-retrieve` as a new runtime dependency (§2.4) — so the framing is additive-to-plugin plus one dependency addition, not strictly "nothing existing modified."
 10. When `--bundle-dir` is compressed, symlinked files and symlinked directories are resolved to their target (followed, not skipped) during the recursive directory walk, so they appear in the resulting zip like any other file or directory; `--zip-file` is unaffected (REQ-115).
 11. Provide an optional `--bundle-name` flag that maps to the `requestedName` field in the Connect API's `deployRequest` JSON part; when omitted, default to the base name of `--bundle-dir` or `--zip-file`, with any `.zip` extension stripped (case-insensitive), falling back to the unstripped filename if stripping leaves an empty string (REQ-116).
-12. Provide an optional `--api-version` flag (via `Flags.orgApiVersion()`) that is passed into `getConnection()`; if the user explicitly passes `--api-version` on the command line AND the numeric major version is below 67, throw a dedicated error before any network call; omitted or defaulted values are never checked (REQ-117).
+12. Provide an optional `--api-version` flag (via `Flags.orgApiVersion()`) that is passed into `getConnection()`; after resolving the connection, check the connection's resolved `getApiVersion()` value (whether it came from the explicit flag, the target-org's own config default, or auto-negotiation) and throw a dedicated error before any zip staging or network call if the numeric major version is below 67 (REQ-117).
 
 ### 2.3 Acceptance Criteria
 
@@ -105,10 +105,10 @@
 
 **AC10 (REQ-117) — API-version flag and floor enforcement**
 
-- [ ] **117a.** `--api-version 66.0` explicitly passed on the command line → throws `UiBundleUploadApiVersionError` mentioning both `66.0` and the floor `67` before any org-connection resolution or network call.
+- [ ] **117a.** `--api-version 66.0` explicitly passed on the command line → the resolved connection's `getApiVersion()` reflects `66.0`, which is below the floor, so the command throws `UiBundleUploadApiVersionError` mentioning both the resolved version and the floor `67`, after connection resolution but before any zip staging or network call.
 - [ ] **117b.** `--api-version 67.0` (at the floor, not below) → does not throw, proceeds to a normal `Queued` result.
-- [ ] **117c.** `--api-version` omitted entirely (the flag's own default resolution kicks in, potentially resolving from the target-org's config, or to `undefined`) → no version check is applied, regardless of what the effective resolved value is, even if it would be below 67. Only explicit CLI input is gated.
-- [ ] **117d.** The resolved `flags['api-version']` value (which may be `undefined`) is passed into `flags['target-org'].getConnection(flags['api-version'])`, regardless of whether the version was explicit or defaulted.
+- [ ] **117c.** `--api-version` omitted entirely (the flag's own default resolution kicks in, potentially resolving from the target-org's config, or to `undefined`) → the connection still resolves to some effective API version (org-config default or auto-negotiated), and that resolved value is checked against the floor unconditionally, the same as an explicit flag value.
+- [ ] **117d.** The resolved `flags['api-version']` value (which may be `undefined`) is passed into `flags['target-org'].getConnection(flags['api-version'])`; the floor check then reads `orgConnection.getApiVersion()` — the connection's own resolved value — rather than re-checking the raw flag input, regardless of whether the version was explicit or defaulted.
 
 ### 2.4 CLI Command Contract
 
@@ -120,7 +120,7 @@
 | `--bundle-dir`           | `-d` | `Flags.directory({ exists: true })` | exactly-one (with `--zip-file`)   | Uncompressed UI Bundle source directory; CLI auto-compresses it before upload (§2.6, REQ-302). Declares `exactlyOne: ['zip-file', 'bundle-dir']`. `-d` is free — `dev` uses `b/n/o/p/u`, `upload` uses `o/z`, so no collision.                                                                                                                                                                             |
 | `--use-salesforce-pages` | —    | `Flags.boolean({ required: true })` | yes                               | No short char — avoids `-p` collision with `dev`'s `--port`. The AC6 transport is now resolved (multipart `bundle`, §2.5), so this flag is no longer transport-contingent. But there is still no corresponding server-side field — PR #118209 did NOT add a `usePages`/`useSalesforcePages` field — so it remains a CLI-side concept only; the flag→server-field mapping is a separate, still-open matter. |
 | `--target-org`           | `-o` | `Flags.requiredOrg()`               | yes                               | Same pattern as `dev.ts`; supplies its own messages.                                                                                                                                                                                                                                                                                                                                                       |
-| `--api-version`          | —    | `Flags.orgApiVersion()`             | no                                | Same factory as `plugin-data`'s `data:search` command. No short char. Resolved value passed into `getConnection()`. Explicit CLI input below 67 is rejected before any network call; omitted/defaulted values are never checked (REQ-117).                                                                                                                                                                 |
+| `--api-version`          | —    | `Flags.orgApiVersion()`             | no                                | Same factory as `plugin-data`'s `data:search` command. No short char. Resolved value passed into `getConnection()`; the connection's own resolved `getApiVersion()` (explicit flag, org-config default, or auto-negotiated) is then checked against the floor of 67 before any network call, unconditionally (REQ-117).                                                                                    |
 | `--bundle-name`          | —    | `Flags.string()`                    | no                                | No short char. Maps to the `requestedName` field in the `deployRequest` JSON part (REQ-116). Defaults to the base name of `--bundle-dir` or `--zip-file`, with any `.zip` extension stripped (case-insensitive); falls back to the unstripped filename if stripping leaves an empty string.                                                                                                                |
 
 **Exactly-one-of semantics:** `--zip-file` and `--bundle-dir` each declare `exactlyOne: ['zip-file', 'bundle-dir']`. The resulting validation, enforced by the oclif flag parser before any network call:
@@ -367,9 +367,9 @@ Status values (`Queued`/`InProgress`/`Succeeded`/`Failed`) match the server-side
    - **Scenario:** the user passes `--zip-file .zip` (or `.ZIP`), a file whose entire base name is the `.zip` extension.
    - **Expected Behavior:** the default-name derivation logic strips the `.zip` extension case-insensitively, leaving an empty string. The fallback rule then uses the unstripped filename (`.zip` or `.ZIP`) as the `requestedName` in the multipart `deployRequest` JSON part, rather than sending an empty string (REQ-116). This is a deliberate edge-case fallback, not a bug.
 
-10. **Explicit `--api-version` below the floor of 67**
-    - **Scenario:** the user passes `--api-version 66.0` (or any major version below 67) on the command line.
-    - **Expected Behavior:** the command throws `UiBundleUploadApiVersionError` before any org-connection resolution or network call, citing both the rejected version and the floor (§3.2 case 6, AC10 117a). This is a product decision: only explicit CLI input is gated; an omitted or defaulted value (e.g., from the target-org's own API version config, or the flag's own default resolution) is never checked, even if the effective resolved version would also be below 67. The asymmetry is intentional, not an oversight.
+10. **Resolved API version below the floor of 67**
+    - **Scenario:** after `flags['target-org'].getConnection(flags['api-version'])` resolves the connection, `orgConnection.getApiVersion()` reports a major version below 67 — whether that resolved value came from an explicit `--api-version 66.0` on the command line, the target-org's own config default, or auto-negotiation with the org.
+    - **Expected Behavior:** the command throws `UiBundleUploadApiVersionError` immediately after connection resolution, before any zip staging or network call, citing both the resolved version and the floor (§3.2 case 6, AC10 117a). This is a product decision: the check is unconditional on the connection's resolved version, with no special-casing for explicit vs. defaulted flag input.
 
 ### 3.2 Error Handling
 
@@ -403,10 +403,10 @@ Status values (`Queued`/`InProgress`/`Succeeded`/`Failed`) match the server-side
    - **Display:** `statSync` throws a raw Node.js `ENOENT` filesystem error. Neither `collectFiles` nor `compressDirectory` wraps this in a try/catch, so it is **not** one of the two custom `SfError`s `compressDirectory` throws elsewhere (`error.bundle-dir-empty` for an empty directory, `error.compression-failed` for a missing `writer.buffer`) — it propagates unmodified out of `run()`. It reaches oclif/`sf-plugins-core`'s generic `SfCommand.catch()` handler, which wraps it in a generic `SfCommandError` (name defaults to the raw error's own name, `Error`) and, since the error's `code` is the string `'ENOENT'` rather than a number, resolves the exit code to `1` via the default branch of `computeErrorCode`.
    - **Action:** exit 1; the CLI does not catch this and does not silently omit the dangling entry from the zip. Deliberate fail-loud choice (§3.1 case 8), not an oversight.
 
-6. **Explicit `--api-version` below the minimum floor**
-   - **When:** the user explicitly passes `--api-version` on the command line AND the numeric major version is below 67 (the constant `MINIMUM_SUPPORTED_API_VERSION`).
-   - **Display:** thrown `UiBundleUploadApiVersionError`, message citing both the rejected version and the floor (`"API version 66.0 isn't supported by this command; --api-version must be 67 or later."`).
-   - **Action:** exit 1, no network call made. This check applies only to explicit CLI input; omitted or defaulted values (e.g., from the flag's own default resolution, potentially pulling from the target-org's config or resolving to `undefined`) are never checked, even if the effective resolved version would also be below 67 (§3.1 case 10, AC10 117c).
+6. **Resolved connection API version below the minimum floor**
+   - **When:** after connection resolution, `orgConnection.getApiVersion()`'s numeric major version is below 67 (the constant `MINIMUM_SUPPORTED_API_VERSION`) — regardless of whether that resolved value traces back to an explicit `--api-version` flag, the target-org's own config default, or auto-negotiation.
+   - **Display:** thrown `UiBundleUploadApiVersionError`, message citing both the resolved version and the floor (`"Resolved API version 66.0 isn't supported by this command; --api-version must be 67 or later."`).
+   - **Action:** exit 1, no zip staging or network call made. This check is unconditional on the connection's resolved version — there is no special-casing for explicit vs. defaulted flag input (§3.1 case 10, AC10 117c).
 
 > **No client-side zip-content validation, ever (REQ-112).** Content safety is a server-side concern (§2.5 server-side validation); the CLI never inspects, unzips, or scans the payload.
 
@@ -440,9 +440,9 @@ Status values (`Queued`/`InProgress`/`Succeeded`/`Failed`) match the server-side
 - [ ] `--bundle-dir` with no `--bundle-name` → `requestedName` defaults to the directory's base name (AC9 116b).
 - [ ] `--zip-file foo.zip` with no `--bundle-name` → `requestedName` defaults to `"foo"` (AC9 116c).
 - [ ] `--zip-file .zip` (edge case: entire name is the extension) with no `--bundle-name` → `requestedName` falls back to `".zip"`, not empty (AC9 116d).
-- [ ] `--api-version 66.0` explicitly passed → throws `UiBundleUploadApiVersionError` before any network call (AC10 117a).
+- [ ] `--api-version 66.0` explicitly passed → resolved connection's `getApiVersion()` is below the floor, throws `UiBundleUploadApiVersionError` before any zip staging or network call (AC10 117a).
 - [ ] `--api-version 67.0` (at the floor) → does not throw, proceeds to `Queued` (AC10 117b).
-- [ ] `--api-version` omitted (defaulted) → no version check applied; resolved value passed into `getConnection()` (AC10 117c/117d).
+- [ ] `--api-version` omitted (defaulted) → resolved value passed into `getConnection()`, and the connection's resolved `getApiVersion()` is still checked against the floor unconditionally (AC10 117c/117d).
 - [ ] `Queued` response → human success block and `--json` shape (§2.6).
 - [ ] `Failed` response (defensive) → human failure block and `--json` shape (§2.6).
 - [ ] Each CLI-side `SfError` name asserted: `UiBundleUploadValidationError` / `UiBundleUploadNetworkError` / `UiBundleUploadAuthError` / `UiBundleUploadApiVersionError`.

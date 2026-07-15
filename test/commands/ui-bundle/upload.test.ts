@@ -19,7 +19,7 @@ import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { expect } from 'chai';
 import { TestContext, MockTestOrgData } from '@salesforce/core/testSetup';
-import { Messages } from '@salesforce/core';
+import { Messages, Connection } from '@salesforce/core';
 import { stubSfCommandUx } from '@salesforce/sf-plugins-core';
 import JSZip from 'jszip';
 import UiBundleUpload from '../../../src/commands/ui-bundle/upload.js';
@@ -119,6 +119,27 @@ const DEPLOY_REQUEST_DISPOSITION = 'Content-Disposition: form-data; name="deploy
 
 describe('ui-bundle:upload command unit tests', () => {
   const $$ = new TestContext();
+
+  // Default resolved API version for every stubbed connection in this file. @salesforce/core's
+  // test harness hardcodes the mocked `/services/data` response — used by `retrieveMaxApiVersion`
+  // during `Connection.create()` — to `{ version: '42.0' }` (see `stubContext` in
+  // node_modules/@salesforce/core/lib/testSetup.js). That's below MINIMUM_SUPPORTED_API_VERSION (67)
+  // and isn't reachable via `$$.fakeConnectionRequest` (the hardcoded case short-circuits before
+  // that hook runs). Stub `useLatestApiVersion` — the step `Connection.create()` runs before the
+  // command ever calls `getApiVersion()` — so a connection resolves to a supported version by
+  // default; tests exercising response mapping, dotfile filtering, symlinks, etc. never touch the
+  // floor check. A test that needs a specific *resolved* (as opposed to explicitly-flagged) version
+  // reassigns `resolvedApiVersion` before invoking the command. Explicit `--api-version` flags still
+  // take priority: `Org.getConnection(apiVersion)` calls the real `setApiVersion` afterward, which
+  // this stub doesn't touch.
+  let resolvedApiVersion = '67.0';
+
+  beforeEach(() => {
+    resolvedApiVersion = '67.0';
+    $$.SANDBOX.stub(Connection.prototype, 'useLatestApiVersion').callsFake(async function (this: Connection) {
+      this.setApiVersion(resolvedApiVersion);
+    });
+  });
 
   afterEach(() => {
     $$.restore();
@@ -389,6 +410,46 @@ describe('ui-bundle:upload command unit tests', () => {
       );
 
       expect(result).to.deep.equal({ jobId: '0BXxx0000000010', status: 'Queued' } as UiBundleUploadResult);
+      expect(requestStub.calledOnce).to.be.true;
+    });
+
+    it('omitted --api-version, connection resolves below the minimum floor -> throws UiBundleUploadApiVersionError, no network call', async () => {
+      // Simulates an org-config default or auto-negotiated version below the floor, with no
+      // --api-version flag on the command line at all. Before this change, only an explicit
+      // --api-version input was checked; the resolved-version check must now catch this too.
+      resolvedApiVersion = '66.0';
+      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000012', status: 'Queued' });
+      $$.fakeConnectionRequest = requestStub;
+      stubSfCommandUx($$.SANDBOX);
+
+      try {
+        await UiBundleUpload.run(
+          ['--zip-file', zipPath, '--use-salesforce-pages', '--target-org', testOrg.username],
+          import.meta.url
+        );
+        expect.fail('should have thrown');
+      } catch (e) {
+        const err = e as Error & { name: string; message: string };
+        expect(err.name).to.equal('UiBundleUploadApiVersionError');
+        expect(err.message).to.include('66.0');
+        expect(err.message).to.include('67');
+      }
+      expect(requestStub.called).to.be.false;
+    });
+
+    it('omitted --api-version, connection resolves at/above the minimum floor -> does not throw, proceeds to a Queued result', async () => {
+      // Sanity check for the shared default: an omitted flag with a supported resolved version
+      // (the beforeEach default of 67.0) must behave like every other non-version-specific test.
+      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000013', status: 'Queued' });
+      $$.fakeConnectionRequest = requestStub;
+      stubSfCommandUx($$.SANDBOX);
+
+      const result = await UiBundleUpload.run(
+        ['--zip-file', zipPath, '--use-salesforce-pages', '--target-org', testOrg.username],
+        import.meta.url
+      );
+
+      expect(result).to.deep.equal({ jobId: '0BXxx0000000013', status: 'Queued' } as UiBundleUploadResult);
       expect(requestStub.calledOnce).to.be.true;
     });
 
