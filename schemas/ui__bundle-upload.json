@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/UiBundleUploadResult",
+  "definitions": {
+    "UiBundleUploadResult": {
+      "type": "object",
+      "properties": {
+        "jobId": {
+          "type": "string",
+          "description": "ID of the enqueued upload job"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Queued", "InProgress", "Succeeded", "Failed"],
+          "description": "Status of the upload job"
+        },
+        "message": {
+          "type": "string",
+          "description": "Server-provided message, present on Failed status"
+        }
+      },
+      "required": ["jobId", "status"],
+      "additionalProperties": false,
+      "description": "Command execution result"
+    }
+  }
+}

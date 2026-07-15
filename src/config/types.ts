@@ -31,6 +31,18 @@ export type UiBundleDevResult = {
 };
 
 /**
+ * Command execution result
+ */
+export type UiBundleUploadResult = {
+  /** ID of the enqueued upload job */
+  jobId: string;
+  /** Status of the upload job */
+  status: 'Queued' | 'InProgress' | 'Succeeded' | 'Failed';
+  /** Server-provided message, present on Failed status */
+  message?: string;
+};
+
+/**
  * Dev server configuration options
  * Options for starting and managing the dev server process
  */

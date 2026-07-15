@@ -12,7 +12,9 @@
     "@salesforce/sf-plugins-core": "^12.2.6",
     "@salesforce/ui-bundle": "^1.118.4",
     "chokidar": "^3.6.0",
+    "form-data": "^4.0.5",
     "http-proxy": "^1.18.1",
+    "jszip": "^3.10.1",
     "micromatch": "^4.0.8",
     "open": "^10.1.0",
     "path-to-regexp": "^8.3.0"

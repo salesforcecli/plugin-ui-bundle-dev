@@ -193,3 +193,26 @@ export function createProjectWithDevServer(
 
   return { projectDir, uiBundleDir };
 }
+
+/**
+ * Create a placeholder zip fixture for `ui-bundle upload` NUTs. Written inside
+ * the session dir so the session's own cleanup sweep removes it automatically.
+ */
+export function createZipFixture(session: TestSession, fileName = 'ui-bundle.zip'): string {
+  const zipPath = join(session.dir, fileName);
+  writeFileSync(zipPath, Buffer.from([0x50, 0x4b, 0x03, 0x04]));
+  return zipPath;
+}
+
+/**
+ * Create an uncompressed UI Bundle source directory for `ui-bundle upload`
+ * `--bundle-dir` NUTs. Written inside the session dir so the session's own
+ * cleanup sweep removes it automatically. Returns the directory path.
+ */
+export function createBundleDirFixture(session: TestSession, dirName = 'ui-bundle-src'): string {
+  const dir = join(session.dir, dirName);
+  mkdirSync(join(dir, 'src'), { recursive: true });
+  writeFileSync(join(dir, 'index.html'), '<html></html>');
+  writeFileSync(join(dir, 'src', 'app.js'), 'console.log("hi");');
+  return dir;
+}

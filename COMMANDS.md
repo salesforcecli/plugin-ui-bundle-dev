@@ -3,6 +3,7 @@
 <!-- commands -->
 
 - [`sf ui-bundle dev`](#sf-ui-bundle-dev)
+- [`sf ui-bundle upload`](#sf-ui-bundle-upload)
 
 ## `sf ui-bundle dev`
 
@@ -62,6 +63,71 @@ EXAMPLES
   Start with debug logging enabled by specifying the SF_LOG_LEVEL environment variable before running the command:
 
     $ SF_LOG_LEVEL=debug sf ui-bundle dev --target-org myorg
+```
+
+## `sf ui-bundle upload`
+
+Upload a UI Bundle to your org.
+
+```
+USAGE
+  $ sf ui-bundle upload --use-salesforce-pages -o <value> [--json] [--flags-dir <value>] [-z <value>] [-d <value>]
+    [--api-version <value>] [--bundle-name <value>]
+
+FLAGS
+  -d, --bundle-dir=<value>   Path to an uncompressed UI Bundle source directory; the CLI compresses it before upload.
+  -o, --target-org=<value>   (required) Username or alias of the target org. Not required if the `target-org`
+                             configuration variable is already set.
+  -z, --zip-file=<value>     Path to the UI Bundle source to upload.
+      --api-version=<value>  Override the api version used for api requests made by this command
+      --bundle-name=<value>  Name to associate with the uploaded UI Bundle.
+      --use-salesforce-pages (required) Toggle whether this UI Bundle should be uploaded to Salesforce Pages.
+
+GLOBAL FLAGS
+  --flags-dir=<value>  Import flag values from a directory.
+  --json               Format output as json.
+
+DESCRIPTION
+  Upload a UI Bundle to your org.
+
+  Use this command to upload a React-based UI Bundle to your Salesforce org. Provide the bundle source as either a
+  compressed ZIP file (--zip-file) or an uncompressed source directory (--bundle-dir), which the CLI compresses for you.
+  This can be used by both admin and non-admin users.
+
+  The upload is asynchronous. View the UI bundle in your org to verify completion.
+
+EXAMPLES
+  Upload a UI Bundle to Salesforce Pages using your default org:
+
+    $ sf ui-bundle upload --zip-file my-compressed-bundle --use-salesforce-pages
+
+  Upload an uncompressed source directory (auto-compressed by the CLI):
+
+    $ sf ui-bundle upload --bundle-dir ./my-bundle-src --use-salesforce-pages
+
+  Upload to a specific org by alias:
+
+    $ sf ui-bundle upload --zip-file my-compressed-bundle --use-salesforce-pages --target-org my-org
+
+FLAG DESCRIPTIONS
+  -d, --bundle-dir=<value>  Path to an uncompressed UI Bundle source directory; the CLI compresses it before upload.
+
+    The path to an uncompressed directory containing the UI Bundle source. The CLI compresses the directory into a ZIP
+    file before uploading. The CLI doesn't validate the contents of the directory — that's a server-side concern.
+
+  -z, --zip-file=<value>  Path to the UI Bundle source to upload.
+
+    The path to a compressed ZIP file containing the UI Bundle source. The CLI doesn't validate the contents of the zip
+    file — that's a server-side concern.
+
+  --bundle-name=<value>  Name to associate with the uploaded UI Bundle.
+
+    A human-readable name for the UI Bundle. If not specified, defaults to the base name of --bundle-dir or --zip-file,
+    with any .zip extension removed.
+
+  --use-salesforce-pages  Toggle whether this UI Bundle should be uploaded to Salesforce Pages.
+
+    When set, the UI Bundle is uploaded for use with Salesforce Pages.
 ```
 
 <!-- commandsstop -->
