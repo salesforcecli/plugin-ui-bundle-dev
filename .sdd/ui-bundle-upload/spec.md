@@ -12,6 +12,8 @@
 
 **Command state:** the command ships in developer-preview state — `public static readonly state = 'preview';` on the command class. `sf-plugins-core` therefore emits a runtime warning on every invocation and oclif prints a preview banner in `--help` (§2.4).
 
+**Command visibility:** the command also declares `public static readonly hidden = true;`. This suppresses it from `--help`'s command listing and from topic help, and — since `hidden` is generated-tooling-aware — from `oclif readme`'s auto-generated `COMMANDS.md`. It remains directly invocable (`sf ui-bundle upload ...` still runs normally), still renders its own `--help` page when named directly, and still appears in `command-snapshot.json`, since the snapshot generator does not filter on `hidden` (§2.4). `README.md`'s `### sf ui-bundle upload` subsection is hand-maintained prose, not `oclif readme` output, so `hidden` has no automatic effect there — see §2.4's Command visibility note for how that asymmetry is handled.
+
 **What it enables:**
 
 - Standard (non-admin) users can persist a React UI Bundle without the Metadata API, which requires admin-only `ModifyMetadata`/`ModifyAllData` at the framework level.
@@ -47,6 +49,7 @@
 6. When `--bundle-dir` is supplied, compress the directory to a zip via `@salesforce/source-deploy-retrieve` before the `POST`; when `--zip-file` is supplied, send the file as-is (REQ-302).
 7. When `--bundle-dir` is compressed, dotfiles and dot-directories (any path segment starting with `.` — e.g. `.env`, `.DS_Store`, `.git/`) are excluded from the resulting zip; `--zip-file` is unaffected (REQ-114).
 8. Ship the command in developer-preview state (`state = 'preview'`) so both `--help` and runtime surface the preview warning.
+   8a. Ship the command hidden (`hidden = true`) so it is omitted from `--help`'s command listing and from tool-generated `COMMANDS.md`, while remaining fully invocable, still rendering its own `--help` page when named directly, and remaining present in `command-snapshot.json`. `README.md`'s hand-written `upload` subsection is a deliberate exception — see §2.4.
 9. The change is additive to the plugin's command surface — new `UiBundleUploadResult` type (REQ-113, 205), generated artifacts (`command-snapshot.json`, `COMMANDS.md` — REQ-202, 212), `README.md` section (REQ-209), and test fixtures (REQ-208) are all new or appended, with no existing `dev` command source modified. The one deliberate exception is `package.json`, which gains `@salesforce/source-deploy-retrieve` as a new runtime dependency (§2.4) — so the framing is additive-to-plugin plus one dependency addition, not strictly "nothing existing modified."
 10. When `--bundle-dir` is compressed, symlinked files and symlinked directories are resolved to their target (followed, not skipped) during the recursive directory walk, so they appear in the resulting zip like any other file or directory; `--zip-file` is unaffected (REQ-115).
 11. Provide an optional `--bundle-name` flag that maps to the `requestedName` field in the Connect API's `deployRequest` JSON part; when omitted, default to the base name of `--bundle-dir` or `--zip-file`, with any `.zip` extension stripped (case-insensitive), falling back to the unstripped filename if stripping leaves an empty string (REQ-116).
@@ -110,9 +113,25 @@
 - [ ] **117c.** `--api-version` omitted entirely (the flag's own default resolution kicks in, potentially resolving from the target-org's config, or to `undefined`) → the connection still resolves to some effective API version (org-config default or auto-negotiated), and that resolved value is checked against the floor unconditionally, the same as an explicit flag value.
 - [ ] **117d.** The resolved `flags['api-version']` value (which may be `undefined`) is passed into `flags['target-org'].getConnection(flags['api-version'])`; the floor check then reads `orgConnection.getApiVersion()` — the connection's own resolved value — rather than re-checking the raw flag input, regardless of whether the version was explicit or defaulted.
 
+**AC11 — Command visibility**
+
+- [ ] **118a.** `sf ui-bundle --help` and `sf help ui-bundle` → the command listing omits `upload` (`hidden = true` suppresses it from topic/command listings), while `dev` still appears.
+- [ ] **118b.** `sf ui-bundle upload --help`, invoked directly by name → still renders the full help page documented in §2.4's `--help` block below (`hidden` doesn't block direct invocation of help for a named command).
+- [ ] **118c.** `sf ui-bundle upload -z <fixture> --use-salesforce-pages -o <org>` → runs identically to a non-hidden command (`hidden` has no runtime/behavioral effect on `run()`); the developer-preview warning (AC per line 460 below) still emits.
+- [ ] **118d.** `command-snapshot.json` → still contains the `ui-bundle:upload` element (§3.2); the snapshot generator does not filter on `hidden`.
+- [ ] **118e.** `COMMANDS.md`, regenerated via `oclif readme` → contains no `upload` TOC entry and no `## \`sf ui-bundle upload\``section (the generator filters`!c.hidden`); `dev`'s entry is unaffected.
+
 ### 2.4 CLI Command Contract
 
 **Command state:** `public static readonly state = 'preview';` on the command class. This marks the command as developer-preview, so oclif prints `This command is in preview.` in `--help` output and `sf-plugins-core` emits the runtime warning `⚠ This command is currently in developer preview. Developer preview commands will likely change before shipping, use at your own risk. Don't use developer preview commands in your scripts.` on every invocation.
+
+**Command visibility:** `public static readonly hidden = true;` on the command class, alongside `state`. Effects, traced through oclif's own filtering (confirmed against `@oclif/core`/`oclif` source at implementation time):
+
+- `sf ui-bundle --help` and `sf help` (topic/command listings) omit `upload` — `@oclif/core`'s `Help` class filters `commands.filter((c) => this.opts.all || !c.hidden)`.
+- `oclif readme` (the `version` script backing `COMMANDS.md` generation, plan Phase 3 Step 3.4) also filters `!c.hidden` when building its command list — so a hidden command's section and TOC entry are **not emitted** into `COMMANDS.md` on regeneration.
+- `sf ui-bundle upload --help`, invoked directly against the specific command, still renders that command's own help page — `hidden` suppresses it from listings, not from being described when named explicitly.
+- The command remains fully invocable (`sf ui-bundle upload -z ... --use-salesforce-pages -o ...` behaves identically to a non-hidden command) and still appears in `command-snapshot.json` — `@oclif/plugin-command-snapshot`'s `SnapshotCommand#commands` only filters dev-plugin commands and self-referencing aliases, not `hidden`.
+- `README.md`'s `### sf ui-bundle upload` subsection (plan Phase 3 Step 3.3) is hand-maintained prose, not tool-generated, so `hidden` has no automatic effect on it — see §5.2's revised Non-Regression Checklist guidance below for how this asymmetry is handled.
 
 | Flag                     | Char | Type                                | Required                          | Notes                                                                                                                                                                                                                                                                                                                                                                                                      |
 | ------------------------ | ---- | ----------------------------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -131,7 +150,7 @@
 
 Global `--json` / `--flags-dir` inherited from `SfCommand`.
 
-**`--help`:**
+**`--help`** (only rendered when the command is named directly — `sf ui-bundle --help`/`sf help ui-bundle` omit `upload` entirely per AC11 118a, since `hidden` suppresses listing, not direct lookup):
 
 ```
 This command is in preview.
@@ -447,6 +466,7 @@ Status values (`Queued`/`InProgress`/`Succeeded`/`Failed`) match the server-side
 - [ ] `Failed` response (defensive) → human failure block and `--json` shape (§2.6).
 - [ ] Each CLI-side `SfError` name asserted: `UiBundleUploadError` / `UiBundleUploadNetworkError` / `UiBundleUploadAuthError` / `UiBundleUploadApiVersionError`.
 - [ ] Preview-state warning emitted (`state = 'preview'`) — not suppressed under `--json`'s result payload.
+- [ ] `upload` is omitted from `sf ui-bundle --help`'s command listing (`hidden = true`, AC11 118a); `sf ui-bundle upload --help`, invoked directly, still renders its full help page (AC11 118b).
 - [ ] No customer-facing output literal is inlined in `upload.ts` — all such output resolves via `messages.getMessage()` per §6.3.
 - [ ] Lint, build, and license-header checks clean on all new `.ts` files.
 
@@ -457,7 +477,8 @@ Tiered like `dev.nut.ts` — Tier 1 (`dev.nut.ts:33-71`, no-auth flag-parse chec
 - [ ] Tier 1: flag-parse / validation cases run without auth — including neither/both of `--zip-file`/`--bundle-dir` (exactly-one) and missing `--use-salesforce-pages`.
 - [ ] Tier 2: real-org `POST` path returns and reports a `Queued` job id, for both the `--zip-file` and `--bundle-dir` (auto-compressed) sources.
 - [ ] Tier 2 confirmed to throw (not silently skip) when `TESTKIT_AUTH_URL` is unset.
-- [ ] `command-snapshot.json` / `COMMANDS.md` show only tool-generated diffs — zero hand-edits.
+- [ ] `command-snapshot.json` shows only a tool-generated diff (new `ui-bundle:upload` element, `hidden` has no effect on the snapshot) — zero hand-edits.
+- [ ] `COMMANDS.md`, regenerated via `oclif readme`, shows **no new `upload` content** — no TOC entry, no `## \`sf ui-bundle upload\``section — since`hidden = true`suppresses it from the generator's command list (AC11 118e); confirm via`git diff COMMANDS.md` showing zero diff after regeneration.
 
 **Non-Regression Checklist** — adding `upload` must not touch the existing `dev` command. **Zero diff required** on:
 

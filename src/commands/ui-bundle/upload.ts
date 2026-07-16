@@ -71,6 +71,7 @@ async function compressDirectory(dir: string): Promise<Buffer> {
 
 export default class UiBundleUpload extends SfCommand<UiBundleUploadResult> {
   public static readonly state = 'preview';
+  public static readonly hidden = true;
   public static readonly summary = messages.getMessage('summary');
   public static readonly description = messages.getMessage('description');
   public static readonly examples = messages.getMessages('examples');
