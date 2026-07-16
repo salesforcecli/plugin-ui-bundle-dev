@@ -72,6 +72,6 @@ Authentication error: %s
 
 Network error: %s
 
-# error.uiBundleUploadValidationError
+# error.uiBundleUploadError
 
-Validation error: %s
+Error: %s

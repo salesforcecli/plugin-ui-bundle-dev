@@ -489,11 +489,12 @@ describe('ui-bundle:upload command unit tests', () => {
       expect(sent.length).to.be.greaterThan(100);
     });
 
-    it('--bundle-dir with dotfiles -> dotfiles and dot-directories are filtered out', async () => {
-      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000005', status: 'Queued' });
+    it('--bundle-dir -> every zip entry is nested under a <basename(dir)>/ wrapper directory', async () => {
+      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000014', status: 'Queued' });
       $$.fakeConnectionRequest = requestStub;
       stubSfCommandUx($$.SANDBOX);
-      const bundleDir = createBundleDirWithDotfilesFixture();
+      const bundleDir = createBundleDirFixture();
+      const wrapperDir = basename(bundleDir);
 
       await UiBundleUpload.run(
         ['--bundle-dir', bundleDir, '--use-salesforce-pages', '--target-org', testOrg.username],
@@ -505,9 +506,34 @@ describe('ui-bundle:upload command unit tests', () => {
       const zip = await JSZip.loadAsync(sent);
       const entries = Object.keys(zip.files);
 
-      // Assert non-dotfiles are present.
-      expect(entries).to.include('index.html');
-      expect(entries).to.include('src/app.js');
+      // The Connect API rejects zips whose entries live at the root; every entry must be nested
+      // under a single common top-level directory. We use the bundle dir's basename for it.
+      expect(entries).to.include(`${wrapperDir}/index.html`);
+      expect(entries).to.include(`${wrapperDir}/src/app.js`);
+      // No entry lives at the zip root.
+      expect(entries.every((e) => e.startsWith(`${wrapperDir}/`))).to.be.true;
+    });
+
+    it('--bundle-dir with dotfiles -> dotfiles and dot-directories are filtered out', async () => {
+      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000005', status: 'Queued' });
+      $$.fakeConnectionRequest = requestStub;
+      stubSfCommandUx($$.SANDBOX);
+      const bundleDir = createBundleDirWithDotfilesFixture();
+      const wrapperDir = basename(bundleDir);
+
+      await UiBundleUpload.run(
+        ['--bundle-dir', bundleDir, '--use-salesforce-pages', '--target-org', testOrg.username],
+        import.meta.url
+      );
+
+      expect(requestStub.calledOnce).to.be.true;
+      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]);
+      const zip = await JSZip.loadAsync(sent);
+      const entries = Object.keys(zip.files);
+
+      // Assert non-dotfiles are present, nested under the wrapper directory.
+      expect(entries).to.include(`${wrapperDir}/index.html`);
+      expect(entries).to.include(`${wrapperDir}/src/app.js`);
 
       // Assert dotfiles and dot-directory contents are absent.
       expect(entries.some((e) => e.includes('.env'))).to.be.false;
@@ -521,6 +547,7 @@ describe('ui-bundle:upload command unit tests', () => {
         this.skip();
         return;
       }
+      const wrapperDir = basename(bundleDir);
 
       const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000006', status: 'Queued' });
       $$.fakeConnectionRequest = requestStub;
@@ -536,18 +563,18 @@ describe('ui-bundle:upload command unit tests', () => {
       const zip = await JSZip.loadAsync(sent);
       const entries = Object.keys(zip.files);
 
-      // Non-symlink entries are still present.
-      expect(entries).to.include('index.html');
-      expect(entries).to.include('src/app.js');
+      // Non-symlink entries are still present, nested under the wrapper directory.
+      expect(entries).to.include(`${wrapperDir}/index.html`);
+      expect(entries).to.include(`${wrapperDir}/src/app.js`);
 
       // The symlinked file and the symlinked directory's nested file are both bundled.
-      expect(entries).to.include('linked.js');
-      expect(entries).to.include('linked-dir/nested.js');
+      expect(entries).to.include(`${wrapperDir}/linked.js`);
+      expect(entries).to.include(`${wrapperDir}/linked-dir/nested.js`);
 
-      const linkedFileContent = await zip.files['linked.js'].async('string');
+      const linkedFileContent = await zip.files[`${wrapperDir}/linked.js`].async('string');
       expect(linkedFileContent).to.equal('console.log("linked file");');
 
-      const linkedDirFileContent = await zip.files['linked-dir/nested.js'].async('string');
+      const linkedDirFileContent = await zip.files[`${wrapperDir}/linked-dir/nested.js`].async('string');
       expect(linkedDirFileContent).to.equal('console.log("linked dir");');
     });
 

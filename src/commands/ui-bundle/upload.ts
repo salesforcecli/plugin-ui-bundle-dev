@@ -43,19 +43,27 @@ function collectFiles(root: string): string[] {
   return files;
 }
 
-/** Compress a source directory into a zip Buffer using jszip. */
+/**
+ * Compress a source directory into a zip Buffer using jszip.
+ *
+ * Every entry is nested under a single top-level wrapper directory (the source directory's
+ * basename), since the Connect API's ui-bundle deploy endpoint rejects zips whose entries live
+ * at the zip root — it requires all entries to share one common top-level directory, but doesn't
+ * care what that directory is named.
+ */
 async function compressDirectory(dir: string): Promise<Buffer> {
   const zip = new JSZip();
+  const wrapperDir = basename(dir);
   let fileCount = 0;
   for (const file of collectFiles(dir)) {
     // Entry paths inside a zip are always posix; normalize Windows separators.
-    const entryPath = relative(dir, file).split(sep).join('/');
+    const entryPath = `${wrapperDir}/${relative(dir, file).split(sep).join('/')}`;
     zip.file(entryPath, readFileSync(file));
     fileCount++;
   }
   // An empty directory produces no zip entries; reject rather than POST an empty bundle.
   if (fileCount === 0) {
-    throw messages.createError('error.uiBundleUploadValidationError', [messages.getMessage('error.bundle-dir-empty')]);
+    throw messages.createError('error.uiBundleUploadError', [messages.getMessage('error.bundle-dir-empty')]);
   }
   // JSZip's generateAsync resolves with a Buffer or rejects; no silent-failure path exists.
   return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 3 } });
@@ -153,7 +161,7 @@ export default class UiBundleUpload extends SfCommand<UiBundleUploadResult> {
         throw messages.createError('error.uiBundleUploadAuthError', [errorMessage]);
       }
       if (errorCode) {
-        throw messages.createError('error.uiBundleUploadValidationError', [errorMessage]);
+        throw messages.createError('error.uiBundleUploadError', [errorMessage]);
       }
       throw messages.createError('error.uiBundleUploadNetworkError', [errorMessage]);
     }
