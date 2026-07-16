@@ -1,3 +1,9 @@
+## [1.2.3](https://github.com/salesforcecli/plugin-ui-bundle-dev/compare/1.2.2...1.2.3) (2026-07-16)
+
+### Bug Fixes
+
+- set upload command to hidden by default ([#63](https://github.com/salesforcecli/plugin-ui-bundle-dev/issues/63)) ([eadd32f](https://github.com/salesforcecli/plugin-ui-bundle-dev/commit/eadd32ff3890ee2e4240ee48b534df1fefae67e4))
+
 ## [1.2.2](https://github.com/salesforcecli/plugin-ui-bundle-dev/compare/1.2.1...1.2.2) (2026-03-31)
 
 ### Bug Fixes
