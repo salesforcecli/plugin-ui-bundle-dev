@@ -145,6 +145,13 @@ describe('ui-bundle:upload command unit tests', () => {
     $$.restore();
   });
 
+  describe('command metadata', () => {
+    it('is hidden and marked preview', () => {
+      expect(UiBundleUpload.state).to.equal('preview');
+      expect(UiBundleUpload.hidden).to.equal(true);
+    });
+  });
+
   /* ------------------------------------------------------------------ *
    *  Flag-validation-only cases — fail during this.parse(), before any *
    *  org resolution or network interaction. No connection stubbing.    *
