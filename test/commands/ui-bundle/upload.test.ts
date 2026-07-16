@@ -618,7 +618,7 @@ describe('ui-bundle:upload command unit tests', () => {
       }
     });
 
-    it('HTTP error with errorCode -> throws UiBundleUploadValidationError, message verbatim', async () => {
+    it('HTTP error with errorCode -> throws UiBundleUploadError, message verbatim', async () => {
       const serverError = new Error('The org rejected the bundle: unsupported file type') as Error & {
         errorCode: string;
       };
@@ -634,7 +634,7 @@ describe('ui-bundle:upload command unit tests', () => {
         expect.fail('should have thrown');
       } catch (e) {
         const err = e as Error & { name: string; message: string };
-        expect(err.name).to.equal('UiBundleUploadValidationError');
+        expect(err.name).to.equal('UiBundleUploadError');
         expect(err.message).to.include('The org rejected the bundle: unsupported file type');
       }
     });

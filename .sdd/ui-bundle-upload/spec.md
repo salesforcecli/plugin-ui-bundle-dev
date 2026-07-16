@@ -72,7 +72,7 @@
 
 **AC3 (REQ-110–112) — Error semantics**
 
-- [ ] **110.** The _actual_ synchronous-failure path: an HTTP-level 4xx/5xx response from the `POST` call itself (no job id, no valid job-shaped body — e.g. the server's own early size/content-type rejection per §2.5, or auth failure, or no HTTP response at all) → thrown `SfError` with a distinct CLI-side name (`UiBundleUploadAuthError`/`UiBundleUploadNetworkError`/`UiBundleUploadValidationError`), separate from a server `Failed` status result object (108/109). Caveat: per §2.5's Known Limitations, the size/content-type rejection sub-case is not yet live — it's a defensive/forward-looking path, not one that can be exercised against the current endpoint. The auth-failure and no-HTTP-response causes in this same path remain valid today.
+- [ ] **110.** The _actual_ synchronous-failure path: an HTTP-level 4xx/5xx response from the `POST` call itself (no job id, no valid job-shaped body — e.g. the server's own early size/content-type rejection per §2.5, or auth failure, or no HTTP response at all) → thrown `SfError` with a distinct CLI-side name (`UiBundleUploadAuthError`/`UiBundleUploadNetworkError`/`UiBundleUploadError`), separate from a server `Failed` status result object (108/109). Caveat: per §2.5's Known Limitations, the size/content-type rejection sub-case is not yet live — it's a defensive/forward-looking path, not one that can be exercised against the current endpoint. The auth-failure and no-HTTP-response causes in this same path remain valid today.
 - [ ] **111.** Server error message — whether from an HTTP error body (110) or, defensively, a `Failed.message` (108/109) — surfaced verbatim, no rewriting or truncation.
 - [ ] **112.** No client-side zip-content validation, ever.
 
@@ -376,7 +376,7 @@ Status values (`Queued`/`InProgress`/`Succeeded`/`Failed`) match the server-side
 1. **HTTP 4xx/5xx server rejection from the `POST` itself (size/content-type/validation)**
 
    - **When:** the server synchronously rejects the request — e.g. its early size/content-type check (§2.5) — returning an HTTP error with no job id and no job-shaped body. Caveat: per §2.5's Known Limitations, this size/content-type sub-case is not yet live against the current endpoint — it's a defensive/forward-looking path, kept here for when server-side validation lands.
-   - **Display:** thrown `UiBundleUploadValidationError` (`SfError` from `@salesforce/core`), server message surfaced verbatim (REQ-111), no rewriting or truncation.
+   - **Display:** thrown `UiBundleUploadError` (`SfError` from `@salesforce/core`), server message surfaced verbatim (REQ-111), no rewriting or truncation.
    - **Action:** exit 1; no result object emitted. This is the _actual_ synchronous-failure path (REQ-110), distinct from the defensive `Failed` result object (§3.1 case 5 / AC2 108–109).
 
 2. **Auth failure**
@@ -445,7 +445,7 @@ Status values (`Queued`/`InProgress`/`Succeeded`/`Failed`) match the server-side
 - [ ] `--api-version` omitted (defaulted) → resolved value passed into `getConnection()`, and the connection's resolved `getApiVersion()` is still checked against the floor unconditionally (AC10 117c/117d).
 - [ ] `Queued` response → human success block and `--json` shape (§2.6).
 - [ ] `Failed` response (defensive) → human failure block and `--json` shape (§2.6).
-- [ ] Each CLI-side `SfError` name asserted: `UiBundleUploadValidationError` / `UiBundleUploadNetworkError` / `UiBundleUploadAuthError` / `UiBundleUploadApiVersionError`.
+- [ ] Each CLI-side `SfError` name asserted: `UiBundleUploadError` / `UiBundleUploadNetworkError` / `UiBundleUploadAuthError` / `UiBundleUploadApiVersionError`.
 - [ ] Preview-state warning emitted (`state = 'preview'`) — not suppressed under `--json`'s result payload.
 - [ ] No customer-facing output literal is inlined in `upload.ts` — all such output resolves via `messages.getMessage()` per §6.3.
 - [ ] Lint, build, and license-header checks clean on all new `.ts` files.

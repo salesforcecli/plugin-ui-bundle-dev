@@ -84,7 +84,7 @@ None of the remaining non-goals (301/303/304/305) require a dedicated implementa
 - One short line, not a paragraph.
 - No requirement/AC/spec-ID citations (no `REQ-112`, `AC2`, `§2.5`, etc.) — state the reasoning directly instead.
 
-**Output message style for `upload.ts`:** all customer-facing output messages — success text, info lines, or thrown `SfError` message strings — are defined in `messages/ui-bundle.upload.md` and referenced via `messages.getMessage()` (spec §6.3), never inlined as string literals. Two carve-outs: (a) server/framework messages surfaced verbatim (a caught `error.message`) are pass-through, not authored strings (Step 2.8); (b) the `SfError` name/error-code second argument (e.g. `'UiBundleUploadValidationError'`) stays inline as a machine identifier, not customer-facing prose.
+**Output message style for `upload.ts`:** all customer-facing output messages — success text, info lines, or thrown `SfError` message strings — are defined in `messages/ui-bundle.upload.md` and referenced via `messages.getMessage()` (spec §6.3), never inlined as string literals. Two carve-outs: (a) server/framework messages surfaced verbatim (a caught `error.message`) are pass-through, not authored strings (Step 2.8); (b) the `SfError` name/error-code second argument (e.g. `'UiBundleUploadError'`) stays inline as a machine identifier, not customer-facing prose.
 
 **Non-regression checkpoint 1** (see §6 below) — run here, after Step 2.8, before touching any packaging file.
 
