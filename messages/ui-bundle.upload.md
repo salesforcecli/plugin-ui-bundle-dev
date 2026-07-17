@@ -26,7 +26,7 @@ Name to associate with the uploaded UI Bundle.
 
 # flags.bundle-name.description
 
-A human-readable name for the UI Bundle. If not specified, defaults to the base name of --bundle-dir or --zip-file, with any .zip extension removed.
+A human-readable name for the UI Bundle. If not specified, defaults to the base name of --bundle-dir or --zip-file, with any .zip extension removed. When used with --bundle-dir, this name also becomes the zip's top-level directory name, so it must start with a letter and contain only letters, numbers, and underscores after that.
 
 # examples
 
@@ -59,6 +59,10 @@ Upload failed
 # error.bundle-dir-empty
 
 The bundle source directory is empty.
+
+# error.bundle-dir-name-invalid
+
+The bundle name '%s' isn't valid: it must start with a letter, and contain only letters, numbers, and underscores after that. This name is used both as the requested bundle name and as the zip's top-level directory name, and your org rejects any other characters there. Pass a valid name explicitly with --bundle-name, or rename the --bundle-dir directory.
 
 # error.uiBundleUploadApiVersionError
 
