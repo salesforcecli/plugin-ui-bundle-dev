@@ -1,3 +1,9 @@
+## [1.2.4](https://github.com/salesforcecli/plugin-ui-bundle-dev/compare/1.2.3...1.2.4) (2026-07-18)
+
+### Bug Fixes
+
+- @W-23480808 - map parent folder for all entries in compression and add additional bundle name validation ([#64](https://github.com/salesforcecli/plugin-ui-bundle-dev/issues/64)) ([764db81](https://github.com/salesforcecli/plugin-ui-bundle-dev/commit/764db814e901f0aec6616edb06053160fbf2f43f))
+
 ## [1.2.3](https://github.com/salesforcecli/plugin-ui-bundle-dev/compare/1.2.2...1.2.3) (2026-07-16)
 
 ### Bug Fixes
