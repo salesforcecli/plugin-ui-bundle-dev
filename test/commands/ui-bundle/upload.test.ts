@@ -41,12 +41,28 @@ function createZipFixture(): string {
 /**
  * Materialize an uncompressed source directory for the `--bundle-dir` path.
  * A couple of nested files are enough to exercise SDR's recursive compression.
+ *
+ * The mkdtemp prefix is deliberately hyphen-free: `compressDirectory` (by default, absent
+ * --bundle-name) uses the directory's basename as the zip's top-level wrapper directory, which
+ * must satisfy the server's allowlist ([A-Za-z][A-Za-z0-9_]*). Node's mkdtemp suffix is always
+ * alphanumeric, so a hyphen-free prefix keeps the basename allowlist-valid for tests that aren't
+ * specifically exercising the naming guard.
  */
 function createBundleDirFixture(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'upload-test-dir-'));
+  const dir = mkdtempSync(join(tmpdir(), 'uploadtestdir'));
   mkdirSync(join(dir, 'src'));
   writeFileSync(join(dir, 'index.html'), '<html></html>');
   writeFileSync(join(dir, 'src', 'app.js'), 'console.log("hi");');
+  return dir;
+}
+
+/**
+ * Materialize an uncompressed source directory whose basename fails the server's directory-name
+ * allowlist (contains hyphens), to exercise the --bundle-dir naming guard.
+ */
+function createHyphenatedBundleDirFixture(): string {
+  const dir = mkdtempSync(join(tmpdir(), 'upload-test-dir-'));
+  writeFileSync(join(dir, 'index.html'), '<html></html>');
   return dir;
 }
 
@@ -55,7 +71,7 @@ function createBundleDirFixture(): string {
  * Used to verify the dotfile filter path.
  */
 function createBundleDirWithDotfilesFixture(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'upload-test-dir-dotfiles-'));
+  const dir = mkdtempSync(join(tmpdir(), 'uploadtestdirdotfiles'));
   mkdirSync(join(dir, 'src'));
   mkdirSync(join(dir, '.git'));
   writeFileSync(join(dir, 'index.html'), '<html></html>');
@@ -75,7 +91,7 @@ function createBundleDirWithDotfilesFixture(): string {
  * unprivileged Windows CI without Developer Mode), so callers can skip the test.
  */
 function createBundleDirWithSymlinksFixture(): string | undefined {
-  const dir = mkdtempSync(join(tmpdir(), 'upload-test-dir-symlinks-'));
+  const dir = mkdtempSync(join(tmpdir(), 'uploadtestdirsymlinks'));
   mkdirSync(join(dir, 'src'));
   writeFileSync(join(dir, 'index.html'), '<html></html>');
   writeFileSync(join(dir, 'src', 'app.js'), 'console.log("hi");');
@@ -369,6 +385,83 @@ describe('ui-bundle:upload command unit tests', () => {
       expect(sent).to.include(`Content-Type: application/json\r\n\r\n{"requestedName":"${expectedName}"}`);
     });
 
+    it('--bundle-dir with a hyphenated basename and no --bundle-name -> throws UiBundleUploadError, no network call', async () => {
+      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000015', status: 'Queued' });
+      $$.fakeConnectionRequest = requestStub;
+      stubSfCommandUx($$.SANDBOX);
+      const bundleDir = createHyphenatedBundleDirFixture();
+
+      try {
+        await UiBundleUpload.run(
+          ['--bundle-dir', bundleDir, '--use-salesforce-pages', '--target-org', testOrg.username],
+          import.meta.url
+        );
+        expect.fail('should have thrown');
+      } catch (e) {
+        const err = e as Error & { name: string; message: string };
+        expect(err.name).to.equal('UiBundleUploadError');
+        expect(err.message).to.include(basename(bundleDir));
+      }
+      expect(requestStub.called).to.be.false;
+    });
+
+    it('--bundle-dir with a hyphenated basename and a valid --bundle-name -> reconciles the wrapper dir with --bundle-name', async () => {
+      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000016', status: 'Queued' });
+      $$.fakeConnectionRequest = requestStub;
+      stubSfCommandUx($$.SANDBOX);
+      const bundleDir = createHyphenatedBundleDirFixture();
+
+      await UiBundleUpload.run(
+        [
+          '--bundle-dir',
+          bundleDir,
+          '--use-salesforce-pages',
+          '--target-org',
+          testOrg.username,
+          '--bundle-name',
+          'my_valid_bundle',
+        ],
+        import.meta.url
+      );
+
+      expect(requestStub.calledOnce).to.be.true;
+      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]);
+      const sentText = sent.toString('utf8');
+      expect(sentText).to.include('Content-Type: application/json\r\n\r\n{"requestedName":"my_valid_bundle"}');
+      // The zip's top-level wrapper directory matches --bundle-name, not the hyphenated dir basename.
+      const zip = await JSZip.loadAsync(sent);
+      const entries = Object.keys(zip.files);
+      expect(entries).to.include('my_valid_bundle/index.html');
+    });
+
+    it('--bundle-dir with an invalid --bundle-name (leading digit) -> throws UiBundleUploadError, no network call', async () => {
+      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000017', status: 'Queued' });
+      $$.fakeConnectionRequest = requestStub;
+      stubSfCommandUx($$.SANDBOX);
+      const bundleDir = createBundleDirFixture();
+
+      try {
+        await UiBundleUpload.run(
+          [
+            '--bundle-dir',
+            bundleDir,
+            '--use-salesforce-pages',
+            '--target-org',
+            testOrg.username,
+            '--bundle-name',
+            '2048-app',
+          ],
+          import.meta.url
+        );
+        expect.fail('should have thrown');
+      } catch (e) {
+        const err = e as Error & { name: string; message: string };
+        expect(err.name).to.equal('UiBundleUploadError');
+        expect(err.message).to.include('2048-app');
+      }
+      expect(requestStub.called).to.be.false;
+    });
+
     it('--zip-file named ".zip" -> requestedName falls back to the unstripped filename, not empty', async () => {
       const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000011', status: 'Queued' });
       $$.fakeConnectionRequest = requestStub;
@@ -496,11 +589,12 @@ describe('ui-bundle:upload command unit tests', () => {
       expect(sent.length).to.be.greaterThan(100);
     });
 
-    it('--bundle-dir with dotfiles -> dotfiles and dot-directories are filtered out', async () => {
-      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000005', status: 'Queued' });
+    it('--bundle-dir -> every zip entry is nested under a <basename(dir)>/ wrapper directory', async () => {
+      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000014', status: 'Queued' });
       $$.fakeConnectionRequest = requestStub;
       stubSfCommandUx($$.SANDBOX);
-      const bundleDir = createBundleDirWithDotfilesFixture();
+      const bundleDir = createBundleDirFixture();
+      const wrapperDir = basename(bundleDir);
 
       await UiBundleUpload.run(
         ['--bundle-dir', bundleDir, '--use-salesforce-pages', '--target-org', testOrg.username],
@@ -512,9 +606,34 @@ describe('ui-bundle:upload command unit tests', () => {
       const zip = await JSZip.loadAsync(sent);
       const entries = Object.keys(zip.files);
 
-      // Assert non-dotfiles are present.
-      expect(entries).to.include('index.html');
-      expect(entries).to.include('src/app.js');
+      // The Connect API rejects zips whose entries live at the root; every entry must be nested
+      // under a single common top-level directory. We use the bundle dir's basename for it.
+      expect(entries).to.include(`${wrapperDir}/index.html`);
+      expect(entries).to.include(`${wrapperDir}/src/app.js`);
+      // No entry lives at the zip root.
+      expect(entries.every((e) => e.startsWith(`${wrapperDir}/`))).to.be.true;
+    });
+
+    it('--bundle-dir with dotfiles -> dotfiles and dot-directories are filtered out', async () => {
+      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000005', status: 'Queued' });
+      $$.fakeConnectionRequest = requestStub;
+      stubSfCommandUx($$.SANDBOX);
+      const bundleDir = createBundleDirWithDotfilesFixture();
+      const wrapperDir = basename(bundleDir);
+
+      await UiBundleUpload.run(
+        ['--bundle-dir', bundleDir, '--use-salesforce-pages', '--target-org', testOrg.username],
+        import.meta.url
+      );
+
+      expect(requestStub.calledOnce).to.be.true;
+      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]);
+      const zip = await JSZip.loadAsync(sent);
+      const entries = Object.keys(zip.files);
+
+      // Assert non-dotfiles are present, nested under the wrapper directory.
+      expect(entries).to.include(`${wrapperDir}/index.html`);
+      expect(entries).to.include(`${wrapperDir}/src/app.js`);
 
       // Assert dotfiles and dot-directory contents are absent.
       expect(entries.some((e) => e.includes('.env'))).to.be.false;
@@ -528,6 +647,7 @@ describe('ui-bundle:upload command unit tests', () => {
         this.skip();
         return;
       }
+      const wrapperDir = basename(bundleDir);
 
       const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000006', status: 'Queued' });
       $$.fakeConnectionRequest = requestStub;
@@ -543,18 +663,18 @@ describe('ui-bundle:upload command unit tests', () => {
       const zip = await JSZip.loadAsync(sent);
       const entries = Object.keys(zip.files);
 
-      // Non-symlink entries are still present.
-      expect(entries).to.include('index.html');
-      expect(entries).to.include('src/app.js');
+      // Non-symlink entries are still present, nested under the wrapper directory.
+      expect(entries).to.include(`${wrapperDir}/index.html`);
+      expect(entries).to.include(`${wrapperDir}/src/app.js`);
 
       // The symlinked file and the symlinked directory's nested file are both bundled.
-      expect(entries).to.include('linked.js');
-      expect(entries).to.include('linked-dir/nested.js');
+      expect(entries).to.include(`${wrapperDir}/linked.js`);
+      expect(entries).to.include(`${wrapperDir}/linked-dir/nested.js`);
 
-      const linkedFileContent = await zip.files['linked.js'].async('string');
+      const linkedFileContent = await zip.files[`${wrapperDir}/linked.js`].async('string');
       expect(linkedFileContent).to.equal('console.log("linked file");');
 
-      const linkedDirFileContent = await zip.files['linked-dir/nested.js'].async('string');
+      const linkedDirFileContent = await zip.files[`${wrapperDir}/linked-dir/nested.js`].async('string');
       expect(linkedDirFileContent).to.equal('console.log("linked dir");');
     });
 
@@ -598,7 +718,7 @@ describe('ui-bundle:upload command unit tests', () => {
       }
     });
 
-    it('HTTP error with errorCode -> throws UiBundleUploadValidationError, message verbatim', async () => {
+    it('HTTP error with errorCode -> throws UiBundleUploadError, message verbatim', async () => {
       const serverError = new Error('The org rejected the bundle: unsupported file type') as Error & {
         errorCode: string;
       };
@@ -614,7 +734,7 @@ describe('ui-bundle:upload command unit tests', () => {
         expect.fail('should have thrown');
       } catch (e) {
         const err = e as Error & { name: string; message: string };
-        expect(err.name).to.equal('UiBundleUploadValidationError');
+        expect(err.name).to.equal('UiBundleUploadError');
         expect(err.message).to.include('The org rejected the bundle: unsupported file type');
       }
     });

@@ -28,6 +28,9 @@ const messages = Messages.loadMessages('@salesforce/plugin-ui-bundle-dev', 'ui-b
 // Versions below this floor aren't supported by the UI Bundle deploy endpoint.
 const MINIMUM_SUPPORTED_API_VERSION = 67;
 
+// Bundle names must start with a letter and can contain other letters, digits, or underscores
+const BUNDLE_DIR_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_]*$/;
+
 /** Recursively collect absolute paths of every file under a directory. */
 function collectFiles(root: string): string[] {
   const files: string[] = [];
@@ -43,19 +46,27 @@ function collectFiles(root: string): string[] {
   return files;
 }
 
-/** Compress a source directory into a zip Buffer using jszip. */
-async function compressDirectory(dir: string): Promise<Buffer> {
+/**
+ * Compress a source directory into a zip Buffer using jszip.
+ *
+ * Every entry is nested under a single top-level wrapper directory, since the Connect API's
+ * ui-bundle deploy endpoint rejects zips whose entries live at the zip root — it requires all
+ * entries to share one common top-level directory. The caller must supply a `wrapperDir` that
+ * already satisfies the server's directory-name allowlist (UiBundleDeployService.validateZip);
+ * this function doesn't validate it.
+ */
+async function compressDirectory(dir: string, wrapperDir: string): Promise<Buffer> {
   const zip = new JSZip();
   let fileCount = 0;
   for (const file of collectFiles(dir)) {
     // Entry paths inside a zip are always posix; normalize Windows separators.
-    const entryPath = relative(dir, file).split(sep).join('/');
+    const entryPath = `${wrapperDir}/${relative(dir, file).split(sep).join('/')}`;
     zip.file(entryPath, readFileSync(file));
     fileCount++;
   }
   // An empty directory produces no zip entries; reject rather than POST an empty bundle.
   if (fileCount === 0) {
-    throw messages.createError('error.uiBundleUploadValidationError', [messages.getMessage('error.bundle-dir-empty')]);
+    throw messages.createError('error.uiBundleUploadError', [messages.getMessage('error.bundle-dir-empty')]);
   }
   // JSZip's generateAsync resolves with a Buffer or rejects; no silent-failure path exists.
   return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 3 } });
@@ -114,19 +125,25 @@ export default class UiBundleUpload extends SfCommand<UiBundleUploadResult> {
     const bundleDir = flags['bundle-dir'];
     let zipBuffer: Buffer;
     let zipFilename: string;
+    let bundleName: string;
     if (bundleDir) {
-      zipBuffer = await compressDirectory(bundleDir);
-      zipFilename = `${basename(bundleDir)}.zip`;
+      bundleName = flags['bundle-name'] ?? basename(bundleDir);
+      if (!BUNDLE_DIR_NAME_PATTERN.test(bundleName)) {
+        throw messages.createError('error.uiBundleUploadError', [
+          messages.getMessage('error.bundle-dir-name-invalid', [bundleName]),
+        ]);
+      }
+      zipBuffer = await compressDirectory(bundleDir, bundleName);
+      zipFilename = `${bundleName}.zip`;
     } else {
       const zipFile = flags['zip-file']!;
       zipBuffer = readFileSync(zipFile);
       zipFilename = basename(zipFile);
+      // Defaults to the zip's base name (extension stripped) when --bundle-name is omitted.
+      // Falls back to the unstripped filename if stripping would leave an empty string (e.g. a file literally named ".zip").
+      const strippedZipFilename = zipFilename.replace(/\.zip$/i, '');
+      bundleName = flags['bundle-name'] ?? (strippedZipFilename || zipFilename);
     }
-
-    // Defaults to the bundle source's base name (zip extension stripped) when --bundle-name is omitted.
-    // Falls back to the unstripped filename if stripping would leave an empty string (e.g. a file literally named ".zip").
-    const strippedZipFilename = zipFilename.replace(/\.zip$/i, '');
-    const bundleName = flags['bundle-name'] ?? (strippedZipFilename || zipFilename);
 
     // Step 3: Build the multipart body and issue a single synchronous POST, no retry/poll loop.
     // We send form.getBuffer() (the fully-assembled multipart Buffer) since jsforce's instanceof FormData check fails across differing form-data module copies.
@@ -154,7 +171,7 @@ export default class UiBundleUpload extends SfCommand<UiBundleUploadResult> {
         throw messages.createError('error.uiBundleUploadAuthError', [errorMessage]);
       }
       if (errorCode) {
-        throw messages.createError('error.uiBundleUploadValidationError', [errorMessage]);
+        throw messages.createError('error.uiBundleUploadError', [errorMessage]);
       }
       throw messages.createError('error.uiBundleUploadNetworkError', [errorMessage]);
     }
