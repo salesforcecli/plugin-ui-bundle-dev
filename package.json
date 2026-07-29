@@ -6,10 +6,10 @@
   "bugs": "https://github.com/forcedotcom/cli/issues",
   "dependencies": {
     "@inquirer/select": "^5.0.2",
-    "@oclif/core": "^4",
-    "@salesforce/core": "^8.25.1",
-    "@salesforce/kit": "^3.2.4",
-    "@salesforce/sf-plugins-core": "^12.2.6",
+    "@oclif/core": "^4.11.4",
+    "@salesforce/core": "^9.0.0",
+    "@salesforce/kit": "^4.0.0",
+    "@salesforce/sf-plugins-core": "^13.0.0",
     "@salesforce/ui-bundle": "^1.118.4",
     "chokidar": "^3.6.0",
     "form-data": "^4.0.5",
@@ -33,7 +33,7 @@
     "typescript": "^5.5.4"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.0.0"
   },
   "files": [
     "/lib",
