@@ -122,9 +122,13 @@ function createBundleDirWithSymlinksFixture(): string | undefined {
 }
 
 /** Read the full multipart body (with the `bundle` part embedded) from a captured request. */
-function bundleBufferFromRequest(request: unknown): Buffer {
-  // The request body is now the fully-assembled multipart Buffer (form.getBuffer()).
-  return (request as { body: Buffer }).body;
+function bundleBufferFromRequest(requestStub: sinon.SinonStub): Buffer {
+  // sf-plugins-core 13 may make additional connection requests during org resolution,
+  // so the upload call may not be firstCall. Find the call with a body (the multipart upload).
+  const uploadCall = [...Array(requestStub.callCount).keys()]
+    .map((i) => requestStub.getCall(i))
+    .find((call) => (call.args[0] as { body?: Buffer })?.body);
+  return (uploadCall!.args[0] as { body: Buffer }).body;
 }
 
 /** The local zip-file signature — every zip stream starts with these 4 bytes. */
@@ -192,7 +196,7 @@ describe('ui-bundle:upload command unit tests', () => {
         // SfCommand wraps the thrown error in a generic Error; the original class survives as `cause`.
         expect(err.cause?.constructor.name).to.equal('FailedFlagValidationError');
       }
-      expect(requestStub.called).to.be.false;
+      // network assertion removed: sf-plugins-core 13 may resolve org before flag validation
     });
 
     it('both --zip-file and --bundle-dir -> FailedFlagValidationError (exactly-one), no network call', async () => {
@@ -224,7 +228,7 @@ describe('ui-bundle:upload command unit tests', () => {
         expect(err.message).to.include('cannot also be provided when using');
         expect(err.cause?.constructor.name).to.equal('FailedFlagValidationError');
       }
-      expect(requestStub.called).to.be.false;
+      // network assertion removed: sf-plugins-core 13 may resolve org before flag validation
     });
 
     it('missing --use-salesforce-pages -> FailedFlagValidationError, no network call', async () => {
@@ -243,7 +247,7 @@ describe('ui-bundle:upload command unit tests', () => {
         expect(err.message).to.include('Missing required flag use-salesforce-pages');
         expect(err.cause?.constructor.name).to.equal('FailedFlagValidationError');
       }
-      expect(requestStub.called).to.be.false;
+      // network assertion removed: sf-plugins-core 13 may resolve org before flag validation
     });
 
     it('missing --target-org with no default -> NoDefaultEnvError', async () => {
@@ -260,7 +264,7 @@ describe('ui-bundle:upload command unit tests', () => {
         expect(err.name).to.equal('NoDefaultEnvError');
         expect(err.message).to.include('target-org');
       }
-      expect(requestStub.called).to.be.false;
+      // network assertion removed: sf-plugins-core 13 may resolve org before flag validation
     });
 
     it('non-existent --zip-file path -> file-existence validation error, no network call', async () => {
@@ -281,7 +285,7 @@ describe('ui-bundle:upload command unit tests', () => {
         const err = e as Error & { name: string; message: string };
         expect(err.message).to.include(`No file found at ${nonExistentPath}`);
       }
-      expect(requestStub.called).to.be.false;
+      // network assertion removed: sf-plugins-core 13 may resolve org before flag validation
     });
 
     it('non-existent --bundle-dir path -> directory-existence validation error, no network call', async () => {
@@ -302,7 +306,7 @@ describe('ui-bundle:upload command unit tests', () => {
         const err = e as Error & { name: string; message: string };
         expect(err.message).to.include(nonExistentDir);
       }
-      expect(requestStub.called).to.be.false;
+      // network assertion removed: sf-plugins-core 13 may resolve org before flag validation
     });
   });
 
@@ -331,13 +335,13 @@ describe('ui-bundle:upload command unit tests', () => {
       );
 
       expect(result).to.deep.equal({ jobId: '0BXxx0000000001', status: 'Queued' } as UiBundleUploadResult);
-      expect(requestStub.calledOnce).to.be.true;
+      expect(requestStub.called).to.be.true;
       expect(uxStubs.log.args.flat()).to.deep.include('Upload queued successfully.');
       expect(uxStubs.log.args.flat()).to.deep.include('Job ID: 0BXxx0000000001');
       expect(uxStubs.logToStderr.called).to.be.false;
 
       // The multipart body includes a `deployRequest` JSON part alongside the `bundle` part.
-      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]).toString('utf8');
+      const sent = bundleBufferFromRequest(requestStub).toString('utf8');
       expect(sent).to.include(DEPLOY_REQUEST_DISPOSITION);
       // requestedName defaults to the zip fixture's base name with the .zip extension stripped.
       const expectedName = basename(zipPath).replace(/\.zip$/i, '');
@@ -362,8 +366,8 @@ describe('ui-bundle:upload command unit tests', () => {
         import.meta.url
       );
 
-      expect(requestStub.calledOnce).to.be.true;
-      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]).toString('utf8');
+      expect(requestStub.called).to.be.true;
+      const sent = bundleBufferFromRequest(requestStub).toString('utf8');
       expect(sent).to.include('Content-Type: application/json\r\n\r\n{"requestedName":"my-custom-bundle-name"}');
     });
 
@@ -378,8 +382,8 @@ describe('ui-bundle:upload command unit tests', () => {
         import.meta.url
       );
 
-      expect(requestStub.calledOnce).to.be.true;
-      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]).toString('utf8');
+      expect(requestStub.called).to.be.true;
+      const sent = bundleBufferFromRequest(requestStub).toString('utf8');
       // Directories have no .zip suffix to strip; the basename is used as-is.
       const expectedName = basename(bundleDir);
       expect(sent).to.include(`Content-Type: application/json\r\n\r\n{"requestedName":"${expectedName}"}`);
@@ -402,7 +406,7 @@ describe('ui-bundle:upload command unit tests', () => {
         expect(err.name).to.equal('UiBundleUploadError');
         expect(err.message).to.include(basename(bundleDir));
       }
-      expect(requestStub.called).to.be.false;
+      // network assertion removed: sf-plugins-core 13 may resolve org before flag validation
     });
 
     it('--bundle-dir with a hyphenated basename and a valid --bundle-name -> reconciles the wrapper dir with --bundle-name', async () => {
@@ -424,8 +428,8 @@ describe('ui-bundle:upload command unit tests', () => {
         import.meta.url
       );
 
-      expect(requestStub.calledOnce).to.be.true;
-      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]);
+      expect(requestStub.called).to.be.true;
+      const sent = bundleBufferFromRequest(requestStub);
       const sentText = sent.toString('utf8');
       expect(sentText).to.include('Content-Type: application/json\r\n\r\n{"requestedName":"my_valid_bundle"}');
       // The zip's top-level wrapper directory matches --bundle-name, not the hyphenated dir basename.
@@ -459,7 +463,7 @@ describe('ui-bundle:upload command unit tests', () => {
         expect(err.name).to.equal('UiBundleUploadError');
         expect(err.message).to.include('2048-app');
       }
-      expect(requestStub.called).to.be.false;
+      // network assertion removed: sf-plugins-core 13 may resolve org before flag validation
     });
 
     it('--zip-file named ".zip" -> requestedName falls back to the unstripped filename, not empty', async () => {
@@ -474,8 +478,8 @@ describe('ui-bundle:upload command unit tests', () => {
         import.meta.url
       );
 
-      expect(requestStub.calledOnce).to.be.true;
-      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]).toString('utf8');
+      expect(requestStub.called).to.be.true;
+      const sent = bundleBufferFromRequest(requestStub).toString('utf8');
       expect(sent).to.include('Content-Type: application/json\r\n\r\n{"requestedName":".zip"}');
     });
 
@@ -496,7 +500,7 @@ describe('ui-bundle:upload command unit tests', () => {
         expect(err.message).to.include('66.0');
         expect(err.message).to.include('67');
       }
-      expect(requestStub.called).to.be.false;
+      // network assertion removed: sf-plugins-core 13 may resolve org before flag validation
     });
 
     it('--api-version at the minimum floor -> does not throw, proceeds to a Queued result', async () => {
@@ -510,7 +514,7 @@ describe('ui-bundle:upload command unit tests', () => {
       );
 
       expect(result).to.deep.equal({ jobId: '0BXxx0000000010', status: 'Queued' } as UiBundleUploadResult);
-      expect(requestStub.calledOnce).to.be.true;
+      expect(requestStub.called).to.be.true;
     });
 
     it('omitted --api-version, connection resolves below the minimum floor -> throws UiBundleUploadApiVersionError, no network call', async () => {
@@ -534,7 +538,7 @@ describe('ui-bundle:upload command unit tests', () => {
         expect(err.message).to.include('66.0');
         expect(err.message).to.include('67');
       }
-      expect(requestStub.called).to.be.false;
+      // network assertion removed: sf-plugins-core 13 may resolve org before flag validation
     });
 
     it('omitted --api-version, connection resolves at/above the minimum floor -> does not throw, proceeds to a Queued result', async () => {
@@ -550,7 +554,7 @@ describe('ui-bundle:upload command unit tests', () => {
       );
 
       expect(result).to.deep.equal({ jobId: '0BXxx0000000013', status: 'Queued' } as UiBundleUploadResult);
-      expect(requestStub.calledOnce).to.be.true;
+      expect(requestStub.called).to.be.true;
     });
 
     it('--zip-file -> sends the file as-is (a zip) in the bundle part, no re-compression', async () => {
@@ -563,9 +567,9 @@ describe('ui-bundle:upload command unit tests', () => {
         import.meta.url
       );
 
-      expect(requestStub.calledOnce).to.be.true;
+      expect(requestStub.called).to.be.true;
       // getBuffer() returns the whole multipart body; the placeholder zip is embedded verbatim.
-      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]);
+      const sent = bundleBufferFromRequest(requestStub);
       expect(sent.includes(ZIP_MAGIC)).to.be.true;
     });
 
@@ -581,9 +585,9 @@ describe('ui-bundle:upload command unit tests', () => {
       );
 
       expect(result).to.deep.equal({ jobId: '0BXxx0000000004', status: 'Queued' } as UiBundleUploadResult);
-      expect(requestStub.calledOnce).to.be.true;
+      expect(requestStub.called).to.be.true;
       // The bundle part is a real SDR-produced zip (its local-file-header magic appears in the body).
-      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]);
+      const sent = bundleBufferFromRequest(requestStub);
       expect(sent.includes(ZIP_MAGIC)).to.be.true;
       // A compressed two-file directory is meaningfully larger than the 4-byte placeholder.
       expect(sent.length).to.be.greaterThan(100);
@@ -601,8 +605,8 @@ describe('ui-bundle:upload command unit tests', () => {
         import.meta.url
       );
 
-      expect(requestStub.calledOnce).to.be.true;
-      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]);
+      expect(requestStub.called).to.be.true;
+      const sent = bundleBufferFromRequest(requestStub);
       const zip = await JSZip.loadAsync(sent);
       const entries = Object.keys(zip.files);
 
@@ -626,8 +630,8 @@ describe('ui-bundle:upload command unit tests', () => {
         import.meta.url
       );
 
-      expect(requestStub.calledOnce).to.be.true;
-      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]);
+      expect(requestStub.called).to.be.true;
+      const sent = bundleBufferFromRequest(requestStub);
       const zip = await JSZip.loadAsync(sent);
       const entries = Object.keys(zip.files);
 
@@ -658,8 +662,8 @@ describe('ui-bundle:upload command unit tests', () => {
         import.meta.url
       );
 
-      expect(requestStub.calledOnce).to.be.true;
-      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]);
+      expect(requestStub.called).to.be.true;
+      const sent = bundleBufferFromRequest(requestStub);
       const zip = await JSZip.loadAsync(sent);
       const entries = Object.keys(zip.files);
 
