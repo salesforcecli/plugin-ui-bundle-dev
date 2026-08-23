@@ -62,7 +62,7 @@ describe('ui-bundle:dev command integration', () => {
       fetchStub.resolves({
         ok: true,
         headers: mockHeaders,
-      } as Response);
+      });
 
       const result = await checkViteProxyActive('http://localhost:5173');
 
@@ -81,7 +81,7 @@ describe('ui-bundle:dev command integration', () => {
       fetchStub.resolves({
         ok: true,
         headers: mockHeaders,
-      } as Response);
+      });
 
       const result = await checkViteProxyActive('http://localhost:5173');
 
@@ -95,7 +95,7 @@ describe('ui-bundle:dev command integration', () => {
       fetchStub.resolves({
         ok: true,
         headers: mockHeaders,
-      } as Response);
+      });
 
       const result = await checkViteProxyActive('http://localhost:5173');
 
@@ -133,7 +133,7 @@ describe('ui-bundle:dev command integration', () => {
       fetchStub.resolves({
         ok: true,
         headers: mockHeaders,
-      } as Response);
+      });
 
       await checkViteProxyActive('http://localhost:5173');
 
@@ -148,7 +148,7 @@ describe('ui-bundle:dev command integration', () => {
       fetchStub.resolves({
         ok: true,
         headers: mockHeaders,
-      } as Response);
+      });
 
       await checkViteProxyActive('http://localhost:5173/?existing=param');
 
@@ -162,7 +162,7 @@ describe('ui-bundle:dev command integration', () => {
       fetchStub.resolves({
         ok: true,
         headers: mockHeaders,
-      } as Response);
+      });
 
       await checkViteProxyActive('http://localhost:5173');
 
