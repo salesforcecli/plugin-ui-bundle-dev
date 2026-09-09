@@ -4,6 +4,7 @@
   "compilerOptions": {
     "skipLibCheck": true,
     "module": "Preserve",
-    "moduleResolution": "Bundler"
+    "moduleResolution": "Bundler",
+    "types": ["node", "mocha"]
   }
 }
