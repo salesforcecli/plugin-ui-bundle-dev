@@ -12,94 +12,17 @@
       "count": 1
     }
   },
-  "test/commands/ui-bundle/_cleanup.nut.ts": {
-    "@typescript-eslint/no-unsafe-call": {
-      "count": 1
-    }
-  },
-  "test/commands/ui-bundle/dev.nut.ts": {
-    "@typescript-eslint/no-unsafe-call": {
-      "count": 19
-    }
-  },
   "test/commands/ui-bundle/dev.test.ts": {
     "@typescript-eslint/no-unnecessary-type-assertion": {
       "count": 6
-    },
-    "@typescript-eslint/no-unsafe-call": {
-      "count": 40
-    }
-  },
-  "test/commands/ui-bundle/devPort.nut.ts": {
-    "@typescript-eslint/no-unsafe-call": {
-      "count": 10
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
-  "test/commands/ui-bundle/devWithUrl.nut.ts": {
-    "@typescript-eslint/no-unsafe-call": {
-      "count": 19
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
-  "test/commands/ui-bundle/upload.nut.ts": {
-    "@typescript-eslint/no-unsafe-call": {
-      "count": 14
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 2
     }
   },
   "test/commands/ui-bundle/upload.test.ts": {
     "@typescript-eslint/no-unnecessary-type-assertion": {
       "count": 5
-    },
-    "@typescript-eslint/no-unsafe-call": {
-      "count": 37
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
-  "test/config/ManifestWatcher.test.ts": {
-    "@typescript-eslint/no-unsafe-call": {
-      "count": 30
-    }
-  },
-  "test/config/types.test.ts": {
-    "@typescript-eslint/no-unsafe-call": {
-      "count": 4
-    }
-  },
-  "test/config/uiBundleDiscovery.test.ts": {
-    "@typescript-eslint/no-unsafe-call": {
-      "count": 22
-    }
-  },
-  "test/error/DevServerErrorParser.test.ts": {
-    "@typescript-eslint/no-unsafe-call": {
-      "count": 16
-    }
-  },
-  "test/proxy/ProxyServer.test.ts": {
-    "@typescript-eslint/no-unsafe-call": {
-      "count": 25
     }
   },
   "test/server/DevServerManager.test.ts": {
-    "@typescript-eslint/no-unsafe-call": {
-      "count": 54
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 19
-    },
-    "@typescript-eslint/no-unsafe-return": {
-      "count": 3
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }
