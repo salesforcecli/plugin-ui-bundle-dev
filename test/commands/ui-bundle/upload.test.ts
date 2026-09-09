@@ -22,6 +22,7 @@ import { TestContext, MockTestOrgData } from '@salesforce/core/testSetup';
 import { Messages, Connection } from '@salesforce/core';
 import { stubSfCommandUx } from '@salesforce/sf-plugins-core';
 import JSZip from 'jszip';
+import type { SinonSandbox, SinonStub, SinonSpyCall } from 'sinon';
 import UiBundleUpload from '../../../src/commands/ui-bundle/upload.js';
 import type { UiBundleUploadResult } from '../../../src/config/types.js';
 
@@ -121,10 +122,46 @@ function createBundleDirWithSymlinksFixture(): string | undefined {
   return dir;
 }
 
-/** Read the full multipart body (with the `bundle` part embedded) from a captured request. */
-function bundleBufferFromRequest(request: unknown): Buffer {
-  // The request body is now the fully-assembled multipart Buffer (form.getBuffer()).
-  return (request as { body: Buffer }).body;
+/**
+ * The Connect API path segment unique to the ui-bundle deploy POST. It distinguishes the command's
+ * own request from the `SELECT ... FROM Organization` query that @salesforce/core (v9+) issues
+ * through `Connection.request` while resolving the target org — both land on the same
+ * `$$.fakeConnectionRequest` stub, so assertions must target the deploy call specifically.
+ */
+const DEPLOY_URL_FRAGMENT = '/connect/ui-bundle/deployments';
+
+/** Extract the request URL from a `Connection.request` argument (string form or request object). */
+function requestUrl(request: unknown): string {
+  if (typeof request === 'string') return request;
+  return String((request as { url?: string })?.url ?? '');
+}
+
+/**
+ * Build a `Connection.request` stub that answers the org-resolution Organization query with a
+ * benign record and answers the ui-bundle deploy POST with `deployResponse` — resolving it when
+ * it's a result object, rejecting with it when it's an Error. Routing on the URL keeps the two
+ * calls distinct so tests can assert on the deploy POST alone.
+ */
+function stubConnectionRequest(sandbox: SinonSandbox, deployResponse?: UiBundleUploadResult | Error): SinonStub {
+  return sandbox.stub().callsFake((request: unknown) => {
+    if (requestUrl(request).includes(DEPLOY_URL_FRAGMENT)) {
+      return deployResponse instanceof Error ? Promise.reject(deployResponse) : Promise.resolve(deployResponse);
+    }
+    // Org-resolution query (or any other core-internal request): a minimal, valid record set.
+    return Promise.resolve({ totalSize: 1, done: true, records: [{ Name: 'test-org' }] });
+  });
+}
+
+/** The single ui-bundle deploy POST captured by `requestStub` (undefined if it was never sent). */
+function deployCall(requestStub: SinonStub): SinonSpyCall | undefined {
+  return requestStub.getCalls().find((c) => requestUrl(c.args[0]).includes(DEPLOY_URL_FRAGMENT));
+}
+
+/** The fully-assembled multipart body Buffer (`form.getBuffer()`) from the deploy POST. */
+function deployBundleBuffer(requestStub: SinonStub): Buffer {
+  const call = deployCall(requestStub);
+  if (!call) throw new Error('expected a ui-bundle deploy POST to have been sent');
+  return (call.args[0] as { body: Buffer }).body;
 }
 
 /** The local zip-file signature — every zip stream starts with these 4 bytes. */
@@ -176,7 +213,7 @@ describe('ui-bundle:upload command unit tests', () => {
     it('neither --zip-file nor --bundle-dir -> FailedFlagValidationError (exactly-one), no network call', async () => {
       const testOrg = new MockTestOrgData();
       await $$.stubAuths(testOrg);
-      const requestStub = $$.SANDBOX.stub();
+      const requestStub = stubConnectionRequest($$.SANDBOX);
       $$.fakeConnectionRequest = requestStub;
       stubSfCommandUx($$.SANDBOX);
 
@@ -192,13 +229,13 @@ describe('ui-bundle:upload command unit tests', () => {
         // SfCommand wraps the thrown error in a generic Error; the original class survives as `cause`.
         expect(err.cause?.constructor.name).to.equal('FailedFlagValidationError');
       }
-      expect(requestStub.called).to.be.false;
+      expect(deployCall(requestStub)).to.be.undefined;
     });
 
     it('both --zip-file and --bundle-dir -> FailedFlagValidationError (exactly-one), no network call', async () => {
       const testOrg = new MockTestOrgData();
       await $$.stubAuths(testOrg);
-      const requestStub = $$.SANDBOX.stub();
+      const requestStub = stubConnectionRequest($$.SANDBOX);
       $$.fakeConnectionRequest = requestStub;
       stubSfCommandUx($$.SANDBOX);
       const zipPath = createZipFixture();
@@ -224,13 +261,13 @@ describe('ui-bundle:upload command unit tests', () => {
         expect(err.message).to.include('cannot also be provided when using');
         expect(err.cause?.constructor.name).to.equal('FailedFlagValidationError');
       }
-      expect(requestStub.called).to.be.false;
+      expect(deployCall(requestStub)).to.be.undefined;
     });
 
     it('missing --use-salesforce-pages -> FailedFlagValidationError, no network call', async () => {
       const testOrg = new MockTestOrgData();
       await $$.stubAuths(testOrg);
-      const requestStub = $$.SANDBOX.stub();
+      const requestStub = stubConnectionRequest($$.SANDBOX);
       $$.fakeConnectionRequest = requestStub;
       stubSfCommandUx($$.SANDBOX);
       const zipPath = createZipFixture();
@@ -243,11 +280,11 @@ describe('ui-bundle:upload command unit tests', () => {
         expect(err.message).to.include('Missing required flag use-salesforce-pages');
         expect(err.cause?.constructor.name).to.equal('FailedFlagValidationError');
       }
-      expect(requestStub.called).to.be.false;
+      expect(deployCall(requestStub)).to.be.undefined;
     });
 
     it('missing --target-org with no default -> NoDefaultEnvError', async () => {
-      const requestStub = $$.SANDBOX.stub();
+      const requestStub = stubConnectionRequest($$.SANDBOX);
       $$.fakeConnectionRequest = requestStub;
       stubSfCommandUx($$.SANDBOX);
       const zipPath = createZipFixture();
@@ -260,13 +297,13 @@ describe('ui-bundle:upload command unit tests', () => {
         expect(err.name).to.equal('NoDefaultEnvError');
         expect(err.message).to.include('target-org');
       }
-      expect(requestStub.called).to.be.false;
+      expect(deployCall(requestStub)).to.be.undefined;
     });
 
     it('non-existent --zip-file path -> file-existence validation error, no network call', async () => {
       const testOrg = new MockTestOrgData();
       await $$.stubAuths(testOrg);
-      const requestStub = $$.SANDBOX.stub();
+      const requestStub = stubConnectionRequest($$.SANDBOX);
       $$.fakeConnectionRequest = requestStub;
       stubSfCommandUx($$.SANDBOX);
       const nonExistentPath = join(tmpdir(), `does-not-exist-${Date.now()}.zip`);
@@ -281,13 +318,13 @@ describe('ui-bundle:upload command unit tests', () => {
         const err = e as Error & { name: string; message: string };
         expect(err.message).to.include(`No file found at ${nonExistentPath}`);
       }
-      expect(requestStub.called).to.be.false;
+      expect(deployCall(requestStub)).to.be.undefined;
     });
 
     it('non-existent --bundle-dir path -> directory-existence validation error, no network call', async () => {
       const testOrg = new MockTestOrgData();
       await $$.stubAuths(testOrg);
-      const requestStub = $$.SANDBOX.stub();
+      const requestStub = stubConnectionRequest($$.SANDBOX);
       $$.fakeConnectionRequest = requestStub;
       stubSfCommandUx($$.SANDBOX);
       const nonExistentDir = join(tmpdir(), `does-not-exist-dir-${Date.now()}`);
@@ -302,7 +339,7 @@ describe('ui-bundle:upload command unit tests', () => {
         const err = e as Error & { name: string; message: string };
         expect(err.message).to.include(nonExistentDir);
       }
-      expect(requestStub.called).to.be.false;
+      expect(deployCall(requestStub)).to.be.undefined;
     });
   });
 
@@ -321,7 +358,7 @@ describe('ui-bundle:upload command unit tests', () => {
     });
 
     it('Queued response -> correct return value and human log calls', async () => {
-      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000001', status: 'Queued' });
+      const requestStub = stubConnectionRequest($$.SANDBOX, { jobId: '0BXxx0000000001', status: 'Queued' });
       $$.fakeConnectionRequest = requestStub;
       const uxStubs = stubSfCommandUx($$.SANDBOX);
 
@@ -331,13 +368,13 @@ describe('ui-bundle:upload command unit tests', () => {
       );
 
       expect(result).to.deep.equal({ jobId: '0BXxx0000000001', status: 'Queued' } as UiBundleUploadResult);
-      expect(requestStub.calledOnce).to.be.true;
+      expect(deployCall(requestStub)).to.not.be.undefined;
       expect(uxStubs.log.args.flat()).to.deep.include('Upload queued successfully.');
       expect(uxStubs.log.args.flat()).to.deep.include('Job ID: 0BXxx0000000001');
       expect(uxStubs.logToStderr.called).to.be.false;
 
       // The multipart body includes a `deployRequest` JSON part alongside the `bundle` part.
-      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]).toString('utf8');
+      const sent = deployBundleBuffer(requestStub).toString('utf8');
       expect(sent).to.include(DEPLOY_REQUEST_DISPOSITION);
       // requestedName defaults to the zip fixture's base name with the .zip extension stripped.
       const expectedName = basename(zipPath).replace(/\.zip$/i, '');
@@ -345,7 +382,7 @@ describe('ui-bundle:upload command unit tests', () => {
     });
 
     it('--bundle-name explicitly provided -> requestedName equals the flag value verbatim', async () => {
-      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000007', status: 'Queued' });
+      const requestStub = stubConnectionRequest($$.SANDBOX, { jobId: '0BXxx0000000007', status: 'Queued' });
       $$.fakeConnectionRequest = requestStub;
       stubSfCommandUx($$.SANDBOX);
 
@@ -362,13 +399,13 @@ describe('ui-bundle:upload command unit tests', () => {
         import.meta.url
       );
 
-      expect(requestStub.calledOnce).to.be.true;
-      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]).toString('utf8');
+      expect(deployCall(requestStub)).to.not.be.undefined;
+      const sent = deployBundleBuffer(requestStub).toString('utf8');
       expect(sent).to.include('Content-Type: application/json\r\n\r\n{"requestedName":"my-custom-bundle-name"}');
     });
 
     it('--bundle-dir with no --bundle-name -> requestedName defaults to the bundle dir basename', async () => {
-      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000008', status: 'Queued' });
+      const requestStub = stubConnectionRequest($$.SANDBOX, { jobId: '0BXxx0000000008', status: 'Queued' });
       $$.fakeConnectionRequest = requestStub;
       stubSfCommandUx($$.SANDBOX);
       const bundleDir = createBundleDirFixture();
@@ -378,15 +415,15 @@ describe('ui-bundle:upload command unit tests', () => {
         import.meta.url
       );
 
-      expect(requestStub.calledOnce).to.be.true;
-      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]).toString('utf8');
+      expect(deployCall(requestStub)).to.not.be.undefined;
+      const sent = deployBundleBuffer(requestStub).toString('utf8');
       // Directories have no .zip suffix to strip; the basename is used as-is.
       const expectedName = basename(bundleDir);
       expect(sent).to.include(`Content-Type: application/json\r\n\r\n{"requestedName":"${expectedName}"}`);
     });
 
     it('--bundle-dir with a hyphenated basename and no --bundle-name -> throws UiBundleUploadError, no network call', async () => {
-      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000015', status: 'Queued' });
+      const requestStub = stubConnectionRequest($$.SANDBOX, { jobId: '0BXxx0000000015', status: 'Queued' });
       $$.fakeConnectionRequest = requestStub;
       stubSfCommandUx($$.SANDBOX);
       const bundleDir = createHyphenatedBundleDirFixture();
@@ -402,11 +439,11 @@ describe('ui-bundle:upload command unit tests', () => {
         expect(err.name).to.equal('UiBundleUploadError');
         expect(err.message).to.include(basename(bundleDir));
       }
-      expect(requestStub.called).to.be.false;
+      expect(deployCall(requestStub)).to.be.undefined;
     });
 
     it('--bundle-dir with a hyphenated basename and a valid --bundle-name -> reconciles the wrapper dir with --bundle-name', async () => {
-      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000016', status: 'Queued' });
+      const requestStub = stubConnectionRequest($$.SANDBOX, { jobId: '0BXxx0000000016', status: 'Queued' });
       $$.fakeConnectionRequest = requestStub;
       stubSfCommandUx($$.SANDBOX);
       const bundleDir = createHyphenatedBundleDirFixture();
@@ -424,8 +461,8 @@ describe('ui-bundle:upload command unit tests', () => {
         import.meta.url
       );
 
-      expect(requestStub.calledOnce).to.be.true;
-      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]);
+      expect(deployCall(requestStub)).to.not.be.undefined;
+      const sent = deployBundleBuffer(requestStub);
       const sentText = sent.toString('utf8');
       expect(sentText).to.include('Content-Type: application/json\r\n\r\n{"requestedName":"my_valid_bundle"}');
       // The zip's top-level wrapper directory matches --bundle-name, not the hyphenated dir basename.
@@ -435,7 +472,7 @@ describe('ui-bundle:upload command unit tests', () => {
     });
 
     it('--bundle-dir with an invalid --bundle-name (leading digit) -> throws UiBundleUploadError, no network call', async () => {
-      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000017', status: 'Queued' });
+      const requestStub = stubConnectionRequest($$.SANDBOX, { jobId: '0BXxx0000000017', status: 'Queued' });
       $$.fakeConnectionRequest = requestStub;
       stubSfCommandUx($$.SANDBOX);
       const bundleDir = createBundleDirFixture();
@@ -459,11 +496,11 @@ describe('ui-bundle:upload command unit tests', () => {
         expect(err.name).to.equal('UiBundleUploadError');
         expect(err.message).to.include('2048-app');
       }
-      expect(requestStub.called).to.be.false;
+      expect(deployCall(requestStub)).to.be.undefined;
     });
 
     it('--zip-file named ".zip" -> requestedName falls back to the unstripped filename, not empty', async () => {
-      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000011', status: 'Queued' });
+      const requestStub = stubConnectionRequest($$.SANDBOX, { jobId: '0BXxx0000000011', status: 'Queued' });
       $$.fakeConnectionRequest = requestStub;
       stubSfCommandUx($$.SANDBOX);
       const dotZipPath = join(tmpdir(), '.zip');
@@ -474,13 +511,13 @@ describe('ui-bundle:upload command unit tests', () => {
         import.meta.url
       );
 
-      expect(requestStub.calledOnce).to.be.true;
-      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]).toString('utf8');
+      expect(deployCall(requestStub)).to.not.be.undefined;
+      const sent = deployBundleBuffer(requestStub).toString('utf8');
       expect(sent).to.include('Content-Type: application/json\r\n\r\n{"requestedName":".zip"}');
     });
 
     it('--api-version below the minimum floor -> throws UiBundleUploadApiVersionError, no network call', async () => {
-      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000009', status: 'Queued' });
+      const requestStub = stubConnectionRequest($$.SANDBOX, { jobId: '0BXxx0000000009', status: 'Queued' });
       $$.fakeConnectionRequest = requestStub;
       stubSfCommandUx($$.SANDBOX);
 
@@ -496,11 +533,11 @@ describe('ui-bundle:upload command unit tests', () => {
         expect(err.message).to.include('66.0');
         expect(err.message).to.include('67');
       }
-      expect(requestStub.called).to.be.false;
+      expect(deployCall(requestStub)).to.be.undefined;
     });
 
     it('--api-version at the minimum floor -> does not throw, proceeds to a Queued result', async () => {
-      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000010', status: 'Queued' });
+      const requestStub = stubConnectionRequest($$.SANDBOX, { jobId: '0BXxx0000000010', status: 'Queued' });
       $$.fakeConnectionRequest = requestStub;
       stubSfCommandUx($$.SANDBOX);
 
@@ -510,7 +547,7 @@ describe('ui-bundle:upload command unit tests', () => {
       );
 
       expect(result).to.deep.equal({ jobId: '0BXxx0000000010', status: 'Queued' } as UiBundleUploadResult);
-      expect(requestStub.calledOnce).to.be.true;
+      expect(deployCall(requestStub)).to.not.be.undefined;
     });
 
     it('omitted --api-version, connection resolves below the minimum floor -> throws UiBundleUploadApiVersionError, no network call', async () => {
@@ -518,7 +555,7 @@ describe('ui-bundle:upload command unit tests', () => {
       // --api-version flag on the command line at all. Before this change, only an explicit
       // --api-version input was checked; the resolved-version check must now catch this too.
       resolvedApiVersion = '66.0';
-      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000012', status: 'Queued' });
+      const requestStub = stubConnectionRequest($$.SANDBOX, { jobId: '0BXxx0000000012', status: 'Queued' });
       $$.fakeConnectionRequest = requestStub;
       stubSfCommandUx($$.SANDBOX);
 
@@ -534,13 +571,13 @@ describe('ui-bundle:upload command unit tests', () => {
         expect(err.message).to.include('66.0');
         expect(err.message).to.include('67');
       }
-      expect(requestStub.called).to.be.false;
+      expect(deployCall(requestStub)).to.be.undefined;
     });
 
     it('omitted --api-version, connection resolves at/above the minimum floor -> does not throw, proceeds to a Queued result', async () => {
       // Sanity check for the shared default: an omitted flag with a supported resolved version
       // (the beforeEach default of 67.0) must behave like every other non-version-specific test.
-      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000013', status: 'Queued' });
+      const requestStub = stubConnectionRequest($$.SANDBOX, { jobId: '0BXxx0000000013', status: 'Queued' });
       $$.fakeConnectionRequest = requestStub;
       stubSfCommandUx($$.SANDBOX);
 
@@ -550,11 +587,11 @@ describe('ui-bundle:upload command unit tests', () => {
       );
 
       expect(result).to.deep.equal({ jobId: '0BXxx0000000013', status: 'Queued' } as UiBundleUploadResult);
-      expect(requestStub.calledOnce).to.be.true;
+      expect(deployCall(requestStub)).to.not.be.undefined;
     });
 
     it('--zip-file -> sends the file as-is (a zip) in the bundle part, no re-compression', async () => {
-      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000003', status: 'Queued' });
+      const requestStub = stubConnectionRequest($$.SANDBOX, { jobId: '0BXxx0000000003', status: 'Queued' });
       $$.fakeConnectionRequest = requestStub;
       stubSfCommandUx($$.SANDBOX);
 
@@ -563,14 +600,14 @@ describe('ui-bundle:upload command unit tests', () => {
         import.meta.url
       );
 
-      expect(requestStub.calledOnce).to.be.true;
+      expect(deployCall(requestStub)).to.not.be.undefined;
       // getBuffer() returns the whole multipart body; the placeholder zip is embedded verbatim.
-      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]);
+      const sent = deployBundleBuffer(requestStub);
       expect(sent.includes(ZIP_MAGIC)).to.be.true;
     });
 
     it('--bundle-dir -> compresses the directory (via SDR) into a zip bundle part', async () => {
-      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000004', status: 'Queued' });
+      const requestStub = stubConnectionRequest($$.SANDBOX, { jobId: '0BXxx0000000004', status: 'Queued' });
       $$.fakeConnectionRequest = requestStub;
       stubSfCommandUx($$.SANDBOX);
       const bundleDir = createBundleDirFixture();
@@ -581,16 +618,16 @@ describe('ui-bundle:upload command unit tests', () => {
       );
 
       expect(result).to.deep.equal({ jobId: '0BXxx0000000004', status: 'Queued' } as UiBundleUploadResult);
-      expect(requestStub.calledOnce).to.be.true;
+      expect(deployCall(requestStub)).to.not.be.undefined;
       // The bundle part is a real SDR-produced zip (its local-file-header magic appears in the body).
-      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]);
+      const sent = deployBundleBuffer(requestStub);
       expect(sent.includes(ZIP_MAGIC)).to.be.true;
       // A compressed two-file directory is meaningfully larger than the 4-byte placeholder.
       expect(sent.length).to.be.greaterThan(100);
     });
 
     it('--bundle-dir -> every zip entry is nested under a <basename(dir)>/ wrapper directory', async () => {
-      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000014', status: 'Queued' });
+      const requestStub = stubConnectionRequest($$.SANDBOX, { jobId: '0BXxx0000000014', status: 'Queued' });
       $$.fakeConnectionRequest = requestStub;
       stubSfCommandUx($$.SANDBOX);
       const bundleDir = createBundleDirFixture();
@@ -601,8 +638,8 @@ describe('ui-bundle:upload command unit tests', () => {
         import.meta.url
       );
 
-      expect(requestStub.calledOnce).to.be.true;
-      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]);
+      expect(deployCall(requestStub)).to.not.be.undefined;
+      const sent = deployBundleBuffer(requestStub);
       const zip = await JSZip.loadAsync(sent);
       const entries = Object.keys(zip.files);
 
@@ -615,7 +652,7 @@ describe('ui-bundle:upload command unit tests', () => {
     });
 
     it('--bundle-dir with dotfiles -> dotfiles and dot-directories are filtered out', async () => {
-      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000005', status: 'Queued' });
+      const requestStub = stubConnectionRequest($$.SANDBOX, { jobId: '0BXxx0000000005', status: 'Queued' });
       $$.fakeConnectionRequest = requestStub;
       stubSfCommandUx($$.SANDBOX);
       const bundleDir = createBundleDirWithDotfilesFixture();
@@ -626,8 +663,8 @@ describe('ui-bundle:upload command unit tests', () => {
         import.meta.url
       );
 
-      expect(requestStub.calledOnce).to.be.true;
-      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]);
+      expect(deployCall(requestStub)).to.not.be.undefined;
+      const sent = deployBundleBuffer(requestStub);
       const zip = await JSZip.loadAsync(sent);
       const entries = Object.keys(zip.files);
 
@@ -649,7 +686,7 @@ describe('ui-bundle:upload command unit tests', () => {
       }
       const wrapperDir = basename(bundleDir);
 
-      const requestStub = $$.SANDBOX.stub().resolves({ jobId: '0BXxx0000000006', status: 'Queued' });
+      const requestStub = stubConnectionRequest($$.SANDBOX, { jobId: '0BXxx0000000006', status: 'Queued' });
       $$.fakeConnectionRequest = requestStub;
       stubSfCommandUx($$.SANDBOX);
 
@@ -658,8 +695,8 @@ describe('ui-bundle:upload command unit tests', () => {
         import.meta.url
       );
 
-      expect(requestStub.calledOnce).to.be.true;
-      const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]);
+      expect(deployCall(requestStub)).to.not.be.undefined;
+      const sent = deployBundleBuffer(requestStub);
       const zip = await JSZip.loadAsync(sent);
       const entries = Object.keys(zip.files);
 
@@ -682,7 +719,7 @@ describe('ui-bundle:upload command unit tests', () => {
       const savedExitCode = process.exitCode;
       process.exitCode = undefined;
       try {
-        const requestStub = $$.SANDBOX.stub().resolves({
+        const requestStub = stubConnectionRequest($$.SANDBOX, {
           jobId: '0BXxx0000000002',
           status: 'Failed',
           message: 'Bundle validation failed',
@@ -723,7 +760,7 @@ describe('ui-bundle:upload command unit tests', () => {
         errorCode: string;
       };
       serverError.errorCode = 'INVALID_INPUT';
-      $$.fakeConnectionRequest = $$.SANDBOX.stub().rejects(serverError);
+      $$.fakeConnectionRequest = stubConnectionRequest($$.SANDBOX, serverError);
       stubSfCommandUx($$.SANDBOX);
 
       try {
@@ -740,7 +777,7 @@ describe('ui-bundle:upload command unit tests', () => {
     });
 
     it('network failure (no HTTP response) -> throws UiBundleUploadNetworkError, message verbatim', async () => {
-      $$.fakeConnectionRequest = $$.SANDBOX.stub().rejects(new Error('ECONNREFUSED: connection refused'));
+      $$.fakeConnectionRequest = stubConnectionRequest($$.SANDBOX, new Error('ECONNREFUSED: connection refused'));
       stubSfCommandUx($$.SANDBOX);
 
       try {
@@ -759,7 +796,7 @@ describe('ui-bundle:upload command unit tests', () => {
     it('auth error via INVALID_SESSION_ID errorCode -> throws UiBundleUploadAuthError, message verbatim', async () => {
       const authError = new Error('Session expired or invalid') as Error & { errorCode: string };
       authError.errorCode = 'INVALID_SESSION_ID';
-      $$.fakeConnectionRequest = $$.SANDBOX.stub().rejects(authError);
+      $$.fakeConnectionRequest = stubConnectionRequest($$.SANDBOX, authError);
       stubSfCommandUx($$.SANDBOX);
 
       try {
@@ -778,7 +815,7 @@ describe('ui-bundle:upload command unit tests', () => {
     it('auth error via ERROR_HTTP_401 errorCode -> throws UiBundleUploadAuthError, message verbatim', async () => {
       const authError = new Error('Unauthorized') as Error & { errorCode: string };
       authError.errorCode = 'ERROR_HTTP_401';
-      $$.fakeConnectionRequest = $$.SANDBOX.stub().rejects(authError);
+      $$.fakeConnectionRequest = stubConnectionRequest($$.SANDBOX, authError);
       stubSfCommandUx($$.SANDBOX);
 
       try {
@@ -796,7 +833,7 @@ describe('ui-bundle:upload command unit tests', () => {
 
     it('auth error via refresh-failure message -> throws UiBundleUploadAuthError, message verbatim', async () => {
       const refreshError = new Error('Unable to refresh session due to: invalid grant');
-      $$.fakeConnectionRequest = $$.SANDBOX.stub().rejects(refreshError);
+      $$.fakeConnectionRequest = stubConnectionRequest($$.SANDBOX, refreshError);
       stubSfCommandUx($$.SANDBOX);
 
       try {
