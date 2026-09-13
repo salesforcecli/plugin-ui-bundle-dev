@@ -22,15 +22,21 @@
   "devDependencies": {
     "@oclif/plugin-command-snapshot": "^5.3.8",
     "@salesforce/cli-plugins-testkit": "^5.3.41",
-    "@salesforce/dev-scripts": "^11.0.4",
+    "@salesforce/dev-scripts": "^14.0.0",
     "@salesforce/plugin-command-reference": "^3.1.77",
+    "@types/chai": "^4.3.17",
     "@types/http-proxy": "^1.17.14",
     "@types/micromatch": "^4.0.10",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^18",
+    "@types/sinon": "^10.0.20",
     "dotenv": "^17.3.1",
+    "eslint": "^10.4.0",
+    "eslint-config-salesforce-typescript": "^6.0.0",
     "eslint-plugin-sf-plugin": "^1.20.33",
     "oclif": "^4.22.68",
     "ts-node": "^10.9.2",
-    "typescript": "^5.5.4"
+    "typescript": "^6.0.0"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -85,9 +91,9 @@
     "prepack": "sf-prepack",
     "prepare": "sf-install",
     "test": "wireit",
+    "test:nut:local": "node -r dotenv/config ./node_modules/.bin/nyc mocha --slow 4500 --timeout 300000",
     "test:nuts": "mocha \"**/*.nut.ts\" --slow 4500 --timeout 300000 --parallel=false",
     "test:nuts:local": "node -r dotenv/config ./node_modules/.bin/nyc mocha \"**/*.nut.ts\" --slow 4500 --timeout 300000 --parallel=false",
-    "test:nut:local": "node -r dotenv/config ./node_modules/.bin/nyc mocha --slow 4500 --timeout 300000",
     "test:only": "wireit",
     "version": "oclif readme"
   },
@@ -131,6 +137,7 @@
         "src/**/*.ts",
         "test/**/*.ts",
         "messages/**",
+        "**/eslint.config.*",
         "**/.eslint*",
         "**/tsconfig.json"
       ],
