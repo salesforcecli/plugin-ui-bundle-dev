@@ -52,7 +52,7 @@ export class ProxyServer extends EventEmitter {
   private healthCheckInterval: NodeJS.Timeout | null = null;
   private devServerStatus: 'unknown' | 'up' | 'down' | 'error' = 'unknown';
   private activeDevServerError: DevServerError | null = null;
-  private readonly activeConnections: Set<import('net').Socket> = new Set();
+  private readonly activeConnections: Set<import('node:net').Socket> = new Set();
   private proxyHandler: ProxyHandler | null = null;
   private orgInfo: OrgInfo | undefined;
 
