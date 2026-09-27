@@ -330,7 +330,7 @@ describe('ui-bundle:upload command unit tests', () => {
         import.meta.url
       );
 
-      expect(result).to.deep.equal({ jobId: '0BXxx0000000001', status: 'Queued' } as UiBundleUploadResult);
+      expect(result).to.deep.equal({ jobId: '0BXxx0000000001', status: 'Queued' });
       expect(requestStub.calledOnce).to.be.true;
       expect(uxStubs.log.args.flat()).to.deep.include('Upload queued successfully.');
       expect(uxStubs.log.args.flat()).to.deep.include('Job ID: 0BXxx0000000001');
@@ -509,7 +509,7 @@ describe('ui-bundle:upload command unit tests', () => {
         import.meta.url
       );
 
-      expect(result).to.deep.equal({ jobId: '0BXxx0000000010', status: 'Queued' } as UiBundleUploadResult);
+      expect(result).to.deep.equal({ jobId: '0BXxx0000000010', status: 'Queued' });
       expect(requestStub.calledOnce).to.be.true;
     });
 
@@ -549,7 +549,7 @@ describe('ui-bundle:upload command unit tests', () => {
         import.meta.url
       );
 
-      expect(result).to.deep.equal({ jobId: '0BXxx0000000013', status: 'Queued' } as UiBundleUploadResult);
+      expect(result).to.deep.equal({ jobId: '0BXxx0000000013', status: 'Queued' });
       expect(requestStub.calledOnce).to.be.true;
     });
 
@@ -580,7 +580,7 @@ describe('ui-bundle:upload command unit tests', () => {
         import.meta.url
       );
 
-      expect(result).to.deep.equal({ jobId: '0BXxx0000000004', status: 'Queued' } as UiBundleUploadResult);
+      expect(result).to.deep.equal({ jobId: '0BXxx0000000004', status: 'Queued' });
       expect(requestStub.calledOnce).to.be.true;
       // The bundle part is a real SDR-produced zip (its local-file-header magic appears in the body).
       const sent = bundleBufferFromRequest(requestStub.firstCall.args[0]);
@@ -699,7 +699,7 @@ describe('ui-bundle:upload command unit tests', () => {
           jobId: '0BXxx0000000002',
           status: 'Failed',
           message: 'Bundle validation failed',
-        } as UiBundleUploadResult);
+        });
         expect(process.exitCode).to.equal(1);
         expect(uxStubs.log.called).to.be.false;
         expect(uxStubs.logToStderr.calledOnce).to.be.true;
