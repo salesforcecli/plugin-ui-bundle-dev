@@ -5,7 +5,8 @@
     "rootDir": "src",
     "skipLibCheck": true,
     "module": "Preserve",
-    "moduleResolution": "Bundler"
+    "moduleResolution": "Bundler",
+    "types": ["mocha", "node"]
   },
   "include": ["./src/**/*.ts"]
 }

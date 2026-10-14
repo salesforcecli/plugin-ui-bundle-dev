@@ -231,13 +231,11 @@ export default class UiBundleDev extends SfCommand<UiBundleDevResult> {
     this.logger = await Logger.child('UiBundleDev');
 
     // Ensure a live preview token exists — self-generate if the extension didn't provide one
-    if (!process.env.SF_LIVE_PREVIEW_TOKEN) {
-      process.env.SF_LIVE_PREVIEW_TOKEN = randomUUID();
-    }
+    process.env.SF_LIVE_PREVIEW_TOKEN ??= randomUUID();
 
     // Declare variables outside try block for catch block access
     let manifest: UiBundleManifest | null = null;
-    let devServerUrl: string | null = null;
+    let devServerUrl: string | null;
     let orgUsername = '';
 
     try {
@@ -696,9 +694,7 @@ export default class UiBundleDev extends SfCommand<UiBundleDevResult> {
   private emitLegacyWebappWarning(url: string, bundleName: string): void {
     if (this.legacyWarningEmitted) return;
     this.legacyWarningEmitted = true;
-    process.stderr.write(
-      JSON.stringify({ warn: 'LEGACY_WEBAPP_DETECTED', port: url, bundle: bundleName }) + '\n'
-    );
+    process.stderr.write(JSON.stringify({ warn: 'LEGACY_WEBAPP_DETECTED', port: url, bundle: bundleName }) + '\n');
     this.warn(
       `Unable to verify the authenticity of the dev server for "${bundleName}". ` +
         'Update @salesforce/ui-bundle to the latest version.'

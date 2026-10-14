@@ -29,7 +29,7 @@ describe('DevServerManager', () => {
     if (manager) {
       try {
         await manager.stop();
-      } catch (error) {
+      } catch {
         // Ignore cleanup errors
       }
       manager = null;
