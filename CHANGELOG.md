@@ -1,3 +1,9 @@
+## [1.2.5](https://github.com/salesforcecli/plugin-ui-bundle-dev/compare/1.2.4...1.2.5) (2026-10-14)
+
+### Bug Fixes
+
+- **deps:** bump fast-uri from 3.1.0 to 3.1.8 ([#51](https://github.com/salesforcecli/plugin-ui-bundle-dev/issues/51)) ([0088e72](https://github.com/salesforcecli/plugin-ui-bundle-dev/commit/0088e722a08baacbac2f5c9df64cecc66f317026))
+
 ## [1.2.4](https://github.com/salesforcecli/plugin-ui-bundle-dev/compare/1.2.3...1.2.4) (2026-07-18)
 
 ### Bug Fixes
